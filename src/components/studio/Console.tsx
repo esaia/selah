@@ -170,7 +170,7 @@ export const Console = () => {
           <AudioBar />
         </main>
 
-        <RightRail />
+        <RightRail onSettings={setSettingsTab} />
       </div>
 
       {settingsTab ? <SettingsModal tab={settingsTab} onClose={() => setSettingsTab(null)} /> : null}

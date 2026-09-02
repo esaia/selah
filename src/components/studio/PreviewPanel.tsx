@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { HiOutlinePencil } from 'react-icons/hi';
 
 import { bibleNames } from '@/lib/bible/catalog';
 import { cn } from '@/lib/cn';
@@ -9,6 +10,13 @@ import { DYNAMIC_THEME, LOCAL_THEME, themeSrc } from '@/lib/projector/themes';
 import { loadLocalFile } from '@/lib/media/localMedia';
 import { plain } from '@/lib/studio/text';
 import { projectorStyle } from '@/lib/studio/settings';
+import {
+  DEFAULT_PREVIEW_MODE,
+  PREVIEW_MODES,
+  readPreviewMode,
+  writePreviewMode,
+  type PreviewMode,
+} from '@/lib/studio/previewMode';
 import { timerIsLive } from '@/lib/timer/model';
 import { StageScreen } from '@/components/projector/StageScreen';
 import { TimerScreen } from '@/components/projector/TimerScreen';
@@ -23,21 +31,22 @@ const ALIGN_CLASS: Record<Align, string> = { left: 'text-left', center: 'text-ce
 const STREAM_W = 1920;
 const STREAM_H = 1080;
 
-const MODES = [
-  { value: 'projector', label: 'Projector' },
-  { value: 'stream', label: 'Lower third' },
-  { value: 'stage', label: 'Stage' },
-];
-
-const MODE_KEY = 'studioPreviewMode';
+const MODE_LABELS: Record<PreviewMode, string> = {
+  projector: 'Projector',
+  stream: 'Lower third',
+  stage: 'Stage',
+};
 
 /**
- * Which output the panel is mirroring. A per-machine preference, read through
- * an external store so the server can render the default without a second pass
- * to correct it on the client.
+ * Which output the panel is mirroring. The saved tab is already on `<html>`
+ * before this file runs — the blocking script in the root layout puts it there
+ * — and the CSS in `globals.css` dresses the panel from it, so what paints
+ * first is right. This store is the same value for React: it decides what the
+ * panes are handed and what a screen reader is told, and writing to it moves
+ * the attribute the CSS reads.
  */
 const modeListeners = new Set<() => void>();
-let modeSnapshot: string | null = null;
+let modeSnapshot: PreviewMode | null = null;
 
 const modeStore = {
   subscribe: (listener: () => void) => {
@@ -46,17 +55,11 @@ const modeStore = {
       modeListeners.delete(listener);
     };
   },
-  get: () => (modeSnapshot ??= localStorage.getItem(MODE_KEY) ?? 'projector'),
-  getServer: () => 'projector',
-  set: (next: string) => {
+  get: () => (modeSnapshot ??= readPreviewMode()),
+  getServer: () => DEFAULT_PREVIEW_MODE,
+  set: (next: PreviewMode) => {
     modeSnapshot = next;
-
-    try {
-      localStorage.setItem(MODE_KEY, next);
-    } catch {
-      // Non-critical.
-    }
-
+    writePreviewMode(next);
     modeListeners.forEach(listener => listener());
   },
 };
@@ -81,7 +84,7 @@ const reference = (items: Verse[], lang: Lang) => {
  * alone would eat the slide. This renders the same design in `em`, so one fit
  * pass scales the whole thing — text, gaps and reference together.
  */
-export const PreviewPanel = () => {
+export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void }) => {
   const { settings, showData, nextShowData, session, timer } = useStudio();
 
   // The panel runs the projector's own crossfade, at the operator's setting, so
@@ -200,30 +203,46 @@ export const PreviewPanel = () => {
         : themeSrc(settings.theme);
 
   return (
-    <div className="shrink-0 border-b border-studio-border">
+    <div className="group/preview shrink-0 border-b border-studio-border">
       {/* Dark, so the bar reads as the edge of the output rather than as more
           console furniture, and the screen under it is not fighting a white
           strip. */}
       <div className="flex h-9 items-center justify-between gap-2 bg-studio-bar px-2">
         <div className="flex items-center gap-0.5">
-          {MODES.map(item => (
+          {PREVIEW_MODES.map(value => (
             <button
-              key={item.value}
+              key={value}
               type="button"
-              aria-pressed={mode === item.value}
-              onClick={() => modeStore.set(item.value)}
+              data-preview-tab={value}
+              aria-pressed={mode === value}
+              onClick={() => modeStore.set(value)}
               className={cn(
-                'rounded-[4px] px-2 py-1 text-[11px] font-medium transition-colors duration-150',
+                'rounded-[4px] px-2 py-1 text-[11px] font-medium text-white/75 transition-colors duration-150',
+                'hover:bg-white/10 hover:text-white',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
-                mode === item.value ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white',
               )}
             >
-              {item.label}
+              {MODE_LABELS[value]}
             </button>
           ))}
         </div>
 
         <div className="flex items-center gap-2">
+          {/* The look of the lower third is set in Settings, but it is judged
+              here — so the way back to it sits on the preview it changes. */}
+          <button
+            type="button"
+            data-preview-only="stream"
+            aria-label="Edit the lower third look"
+            title="Edit the lower third look"
+            onClick={() => onSettings('stream')}
+            className="rounded-[4px] p-1 text-white/70 opacity-0 transition duration-150 group-hover/preview:opacity-100
+              hover:bg-white/10 hover:text-white focus:opacity-100 focus:outline-none focus-visible:ring-2
+              focus-visible:ring-studio-accent/40"
+          >
+            <HiOutlinePencil className="size-3.5" />
+          </button>
+
           <span className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wide text-white/80">
             <span className={cn('size-1.5 rounded-full', isLive ? 'bg-studio-live' : 'bg-white/30')} />
             {isLive ? 'LIVE' : 'IDLE'}
@@ -241,8 +260,9 @@ export const PreviewPanel = () => {
       <div className="relative aspect-video w-full overflow-hidden">
         <div
           ref={streamRef}
+          data-preview-pane="stream"
           aria-hidden={mode !== 'stream'}
-          className={cn('preview-alpha absolute inset-0 overflow-hidden', mode !== 'stream' && 'invisible')}
+          className="preview-alpha absolute inset-0 overflow-hidden"
         >
           {/* The real /lower3rd page, scaled down, rather than a second
               rendering of the same design: it joins the session's channel like
@@ -272,8 +292,9 @@ export const PreviewPanel = () => {
             Its layout is a fraction of its own frame, so at rail width it is the
             same screen, smaller. */}
         <div
+          data-preview-pane="stage"
           aria-hidden={mode !== 'stage'}
-          className={cn('absolute inset-0 overflow-hidden bg-black', mode !== 'stage' && 'invisible')}
+          className="absolute inset-0 overflow-hidden bg-black"
         >
           {timerIsLive(timer) ? (
             <TimerScreen state={timer} />
@@ -289,11 +310,9 @@ export const PreviewPanel = () => {
 
         <div
           ref={screenRef}
+          data-preview-pane="projector"
           aria-hidden={mode !== 'projector'}
-          className={cn(
-            'absolute inset-0 overflow-hidden bg-studio-slide bg-cover bg-center',
-            mode !== 'projector' && 'invisible',
-          )}
+          className="absolute inset-0 overflow-hidden bg-studio-slide bg-cover bg-center"
           style={background ? { backgroundImage: `url(${background})` } : undefined}
         >
           <div className="absolute inset-0 bg-black/55" />

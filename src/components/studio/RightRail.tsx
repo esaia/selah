@@ -17,7 +17,7 @@ import { PreviewPanel } from './PreviewPanel';
  * rather than in the account, and reaches the layout as a CSS variable the
  * document sets before it paints. See `lib/studio/railWidth`.
  */
-export const RightRail = () => {
+export const RightRail = ({ onSettings }: { onSettings: (tab: string) => void }) => {
   const [dragging, setDragging] = useState(false);
 
   // The blocking script in the root layout has normally set this already; this
@@ -88,7 +88,7 @@ export const RightRail = () => {
         )}
       />
 
-      <PreviewPanel />
+      <PreviewPanel onSettings={onSettings} />
 
       <AudioPlaylist />
     </aside>

@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { bibleNames } from '@/lib/bible/catalog';
 import { openLiveChannel } from '@/lib/live/channel';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
+import { keepSame } from '@/lib/projector/keepSame';
 import { emptyShowData, LANGS, type Align, type Lang, type ShowData, type StreamStyle } from '@/lib/types';
 
 const ALIGN_CLASS: Record<Align, string> = { left: 'text-left', center: 'text-center', right: 'text-right' };
@@ -155,7 +156,11 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
     const channel = openLiveChannel(outputKey, 'lower3rd');
 
     const off = channel.onSlide(payload => {
-      setSlide({ showData: payload.showData ?? emptyShowData(), style: { ...defaultStyle, ...payload.style } });
+      const next = { showData: payload.showData ?? emptyShowData(), style: { ...defaultStyle, ...payload.style } };
+
+      // A payload that only carries a new timer shape must not restart the
+      // crossfade: keeping the old object leaves `slide === displayed`.
+      setSlide(current => keepSame(current, next));
       setReceived(current => ({ count: current.count + 1, at: new Date().toLocaleTimeString() }));
     });
 

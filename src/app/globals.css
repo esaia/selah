@@ -798,3 +798,38 @@ body {
     opacity: 0.35;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   The preview panel's tab, decided before React can know it.
+
+   Which output the panel mirrors is a per-machine preference in localStorage,
+   which the server cannot read: rendering it from React state means the
+   Projector pane paints first and is corrected a frame later. A blocking
+   script stamps the saved tab on <html> instead (`lib/studio/previewMode`) and
+   these rules dress the panel from it, so the first frame is already right.
+--------------------------------------------------------------------------- */
+[data-preview-pane] {
+  visibility: hidden;
+}
+
+html[data-preview='projector'] [data-preview-pane='projector'],
+html[data-preview='stream'] [data-preview-pane='stream'],
+html[data-preview='stage'] [data-preview-pane='stage'] {
+  visibility: visible;
+}
+
+html[data-preview='projector'] [data-preview-tab='projector'],
+html[data-preview='stream'] [data-preview-tab='stream'],
+html[data-preview='stage'] [data-preview-tab='stage'] {
+  background-color: rgb(255 255 255 / 0.2);
+  color: #fff;
+}
+
+/* The pencil belongs to the lower third, so it goes with that tab. */
+[data-preview-only='stream'] {
+  display: none;
+}
+
+html[data-preview='stream'] [data-preview-only='stream'] {
+  display: block;
+}

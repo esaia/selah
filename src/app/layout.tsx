@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 
+import { previewModeScript } from '@/lib/studio/previewMode';
 import { railWidthScript } from '@/lib/studio/railWidth';
 
 import './globals.css';
@@ -24,6 +25,11 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
             page: a page's own markup can arrive inside a streaming boundary,
             and a script React swaps in from a template never runs. */}
         <script dangerouslySetInnerHTML={{ __html: railWidthScript }} />
+
+        {/* And the tab the preview panel was left on, for the same reason: the
+            server has no way to know it, so it is stamped on <html> here and
+            the panes are shown from CSS. */}
+        <script dangerouslySetInnerHTML={{ __html: previewModeScript }} />
 
         {children}
       </body>

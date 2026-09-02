@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { newPeerId, openLiveChannel, type LiveChannel } from '@/lib/live/channel';
 import type { SignalTransport, SlidePayload } from '@/lib/live/protocol';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
+import { keepSame } from '@/lib/projector/keepSame';
 import { DYNAMIC_THEME, LOCAL_THEME, themeSrc } from '@/lib/projector/themes';
 import { asTimerState, withSkew, type TimerState } from '@/lib/timer/model';
 import { emptyShowData, type Align, type ProjectorStyle, type ShowData } from '@/lib/types';
@@ -83,8 +84,10 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
     channelRef.current = channel;
 
     const off = channel.onSlide((payload: SlidePayload) => {
-      setShowData(payload.showData ?? emptyShowData());
-      setStyle({ ...defaultStyle, ...payload.projector });
+      // Same slide, new timer — hold the object so the crossfade below does
+      // not run for a change the screen does not draw.
+      setShowData(current => keepSame(current, payload.showData ?? emptyShowData()));
+      setStyle(current => keepSame(current, { ...defaultStyle, ...payload.projector }));
       setTimer(withSkew(asTimerState(payload.timer)));
     });
 
