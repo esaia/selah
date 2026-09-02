@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { BookOpen, Check, Copy, ExternalLink, Menu, Mic2, Monitor, Music, Settings } from 'lucide-react';
+import { BookOpen, Check, Clock, Copy, ExternalLink, Menu, Mic2, Monitor, Music, Settings } from 'lucide-react';
 
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
@@ -11,6 +11,7 @@ const TABS: { id: Tab; label: string; Icon: typeof BookOpen }[] = [
   { id: 'bible', label: 'Bible', Icon: BookOpen },
   { id: 'lyrics', label: 'Lyrics', Icon: Mic2 },
   { id: 'audio', label: 'Audio', Icon: Music },
+  { id: 'timer', label: 'Timer', Icon: Clock },
 ];
 
 /** A link an operator carries to another machine, with a one-click copy. */
@@ -109,6 +110,7 @@ export const AppBar = ({ onSettings, onOpenNav }: { onSettings: () => void; onOp
       <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
         <OutputLink label="Screen" href={`/show/${session.outputKey}`} connected={peers.show} />
         <OutputLink label="Stream" href={`/lower3rd/${session.outputKey}`} connected={peers.lower3rd} />
+        <OutputLink label="Timer" href={`/timer/${session.outputKey}`} connected={peers.timer} />
 
         <Button icon={<Settings className="size-3.5" />} onClick={onSettings} title="Settings — background, type, OBS">
           <span className="hidden md:inline">Settings</span>

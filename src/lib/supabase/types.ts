@@ -47,6 +47,7 @@ export interface Database {
         projector: Json;
         stream_style: Json;
         stream_lang: string;
+        timer: Json;
         updated_at: string;
       }>;
       session_workspace: Row<{

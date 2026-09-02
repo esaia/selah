@@ -13,6 +13,12 @@ domain vocabulary. This file is the working agreement on top of it.
 - **Psalm and book mapping is load-bearing.** `lib/bible/psalms.ts` and
   `lib/bible/englishBooks.ts` decide which verse appears. They have tests; keep
   them passing.
+- **Nothing about the timer ticks over the channel.** `session_state.timer` and
+  the `timer` field on the slide payload hold the *shape* of a run —
+  `startedAt`, `elapsedBefore`, `adjustMs` — never a countdown. `sentAt` is
+  stamped in the console's `payloadOf`, never kept in state, and only readers
+  apply `withSkew`: a console that shifted the run on the way in would publish
+  back something slightly different from what it received.
 - **Block operations move the live pointer.** `live.verseIndex` is an index into
   `block.groups`, so prepending, joining or trimming has to move it. That logic
   lives in `lib/studio/blocks.ts`, is pure, and is tested — put new cases there

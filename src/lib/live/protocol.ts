@@ -1,11 +1,12 @@
+import type { TimerState } from '@/lib/timer/model';
 import type { Lang, ProjectorStyle, ShowData, StreamStyle } from '@/lib/types';
 
 /**
- * Who is on a session's channel. The console is the writer; the two output
+ * Who is on a session's channel. The console is the writer; the three output
  * roles are readers. Presence over these replaces the relay's hand-rolled
  * `{ type: 'presence' }` announce, and drives the Devices panel.
  */
-export type Role = 'console' | 'show' | 'lower3rd';
+export type Role = 'console' | 'show' | 'lower3rd' | 'timer';
 
 export const channelName = (outputKey: string) => `live:${outputKey}`;
 
@@ -22,6 +23,12 @@ export interface SlidePayload {
   style: StreamStyle;
   projector: ProjectorStyle;
   streamLang: Lang;
+  /**
+   * The stage timer rides with the slide rather than on an event of its own.
+   * One payload means one stored row for a late joiner to read, and it is why
+   * `/show` can be handed the verse and the countdown in the same message.
+   */
+  timer: TimerState;
 }
 
 /**

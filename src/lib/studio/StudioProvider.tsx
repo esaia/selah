@@ -14,10 +14,11 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { loadChapterCount, loadPassage, loadVerseCount, type Target } from '@/lib/bible/loadPassage';
 import { openLiveChannel, type LiveChannel } from '@/lib/live/channel';
-import type { SignalTransport } from '@/lib/live/protocol';
+import type { SignalTransport, SlidePayload } from '@/lib/live/protocol';
 import { loadLocalFile } from '@/lib/media/localMedia';
 import { serveAssets } from '@/lib/media/peerAssets';
 import { LOCAL_THEME } from '@/lib/projector/themes';
+import { asTimerState, type TimerState } from '@/lib/timer/model';
 import { supabase } from '@/lib/supabase/client';
 import { save } from '@/lib/supabase/save';
 import {
@@ -50,7 +51,7 @@ import {
 import { fromRow, projectorStyle, streamLangOf, streamStyle, toRow, type Settings, type SettingsRow } from './settings';
 import { useDebouncedSave } from './useDebouncedSave';
 
-export type Tab = 'bible' | 'audio' | 'lyrics';
+export type Tab = 'bible' | 'audio' | 'lyrics' | 'timer';
 
 export interface StudioSession {
   id: string;
@@ -71,6 +72,7 @@ export interface StudioInitial {
   };
   songs: Song[];
   showData: ShowData;
+  timer: TimerState;
   plan: string;
 }
 
@@ -122,11 +124,19 @@ interface StudioValue {
   selectLyric: (song: Song, slideIndex: number) => void;
 
   showData: ShowData;
+
+  timer: TimerState;
+  /**
+   * Every timer edit goes through here, which is what lets the transport
+   * helpers in `lib/timer/model` stay pure functions of the whole state.
+   */
+  updateTimer: (updater: (state: TimerState) => TimerState) => void;
+
   tab: Tab;
   setTab: (tab: Tab) => void;
   cardSize: number;
   setCardSize: (size: number) => void;
-  peers: Record<'console' | 'show' | 'lower3rd', number>;
+  peers: Record<'console' | 'show' | 'lower3rd' | 'timer', number>;
 
   loadChapterCount: (query: { book: number; lang: Lang; version?: string }) => Promise<number>;
   loadVerseCount: (query: { book: number; chapter: number; lang: Lang; version?: string }) => Promise<number>;
@@ -159,7 +169,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   const [loading, setLoading] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [showData, setShowData] = useState<ShowData>(initial.showData);
-  const [peers, setPeers] = useState({ console: 0, show: 0, lower3rd: 0 });
+  const [timer, setTimer] = useState<TimerState>(() => asTimerState(initial.timer));
+  const [peers, setPeers] = useState({ console: 0, show: 0, lower3rd: 0, timer: 0 });
 
   const { blocks, live } = workspace;
 
@@ -186,6 +197,33 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   useEffect(() => {
     showRef.current = showData;
   }, [showData]);
+
+  // The timer travels with the slide, so a new verse or a look change carries
+  // the run along with it and an output never has to ask for it.
+  const timerRef = useRef<TimerState>(timer);
+
+  useEffect(() => {
+    timerRef.current = timer;
+  }, [timer]);
+
+  /**
+   * One payload, built in one place.
+   *
+   * `sentAt` is stamped here rather than kept in the timer state: a clock
+   * reading changes every millisecond, and holding one in state would mean a
+   * save and a render for a number nothing reads except at the moment it
+   * lands. The outputs use it to correct for the clock skew between machines.
+   */
+  const payloadOf = useCallback(
+    (slide: ShowData, run: TimerState): SlidePayload => ({
+      showData: slide,
+      style: wireStyle.stream,
+      projector: wireStyle.projector,
+      streamLang: wireStyle.streamLang,
+      timer: { ...run, sentAt: Date.now() },
+    }),
+    [wireStyle],
+  );
 
   // The look effect below re-sends the current slide whenever the style
   // changes. On mount there is no change to announce — and publishing then
@@ -228,12 +266,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       setShowData(payload);
       showRef.current = payload;
 
-      channelRef.current?.publishSlide({
-        showData: payload,
-        style: wireStyle.stream,
-        projector: wireStyle.projector,
-        streamLang: wireStyle.streamLang,
-      });
+      channelRef.current?.publishSlide(payloadOf(payload, timerRef.current));
 
       void save(
         db.from('session_state').upsert({
@@ -246,7 +279,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
         'the live slide',
       );
     },
-    [db, initial.session.id, wireStyle],
+    [db, initial.session.id, payloadOf, wireStyle],
   );
 
   // A look change has to reach the outputs too — they cannot read the settings
@@ -259,12 +292,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
     if (!channelRef.current) return;
 
-    channelRef.current.publishSlide({
-      showData: showRef.current,
-      style: wireStyle.stream,
-      projector: wireStyle.projector,
-      streamLang: wireStyle.streamLang,
-    });
+    channelRef.current.publishSlide(payloadOf(showRef.current, timerRef.current));
 
     void save(
       db.from('session_state').upsert({
@@ -276,7 +304,41 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       }),
       'the projector look',
     );
-  }, [db, initial.session.id, wireStyle]);
+  }, [db, initial.session.id, payloadOf, wireStyle]);
+
+  /**
+   * The timer's own push.
+   *
+   * The broadcast is immediate, because an operator pressing start expects the
+   * screen to move; the row is debounced, because renaming a timer is a
+   * keystroke at a time and none of them is worth a round trip. Nothing here
+   * fires per tick — an output counts the seconds itself, and only a change of
+   * *shape* gets this far.
+   */
+  const timerSettled = useRef(false);
+
+  useEffect(() => {
+    if (!timerSettled.current) {
+      timerSettled.current = true;
+      return;
+    }
+
+    channelRef.current?.publishSlide(payloadOf(showRef.current, timer));
+  }, [payloadOf, timer]);
+
+  useDebouncedSave(timer, next => {
+    void save(db.from('session_state').update({ timer: next }).eq('session_id', initial.session.id), 'the stage timer');
+  });
+
+  /** Normalised on the way out, so a hand-typed duration or a stale row can
+   *  never reach an output half-formed. */
+  const updateTimer = useCallback<StudioValue['updateTimer']>(updater => {
+    setTimer(current => {
+      const next = asTimerState(updater(current));
+
+      return JSON.stringify(next) === JSON.stringify(current) ? current : next;
+    });
+  }, []);
 
   // ------------------------------------------------------------ persistence
 
@@ -769,6 +831,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       publishLyrics,
       selectLyric,
       showData,
+      timer,
+      updateTimer,
       tab,
       setTab,
       cardSize,
@@ -812,7 +876,9 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       songs,
       stepLive,
       tab,
+      timer,
       update,
+      updateTimer,
     ],
   );
 

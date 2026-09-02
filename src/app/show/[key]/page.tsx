@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 
 import { Projector, type ProjectorInitial } from '@/components/projector/Projector';
 import { admin } from '@/lib/supabase/admin';
+import { asTimerState } from '@/lib/timer/model';
 import type { ProjectorStyle, ShowData } from '@/lib/types';
 
 export const metadata = { title: 'Projector', robots: { index: false } };
@@ -23,13 +24,14 @@ export default async function ShowPage({ params }: PageProps<'/show/[key]'>) {
 
   const { data: state } = await db
     .from('session_state')
-    .select('show_data, projector')
+    .select('show_data, projector, timer')
     .eq('session_id', session.id)
     .maybeSingle();
 
   const initial: ProjectorInitial = {
     showData: (state?.show_data as ShowData) ?? { geo: [], eng: [], rus: [] },
     projector: (state?.projector as Partial<ProjectorStyle>) ?? {},
+    timer: asTimerState(state?.timer),
   };
 
   return <Projector outputKey={key} initial={initial} />;

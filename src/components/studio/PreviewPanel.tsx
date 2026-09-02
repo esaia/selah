@@ -9,6 +9,7 @@ import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
 import { DYNAMIC_THEME, LOCAL_THEME, themeSrc } from '@/lib/projector/themes';
 import { loadLocalFile } from '@/lib/media/localMedia';
 import { plain } from '@/lib/studio/text';
+import { TimerScreen } from '@/components/projector/TimerScreen';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import type { Align, Lang, ShowData, Verse } from '@/lib/types';
 
@@ -76,7 +77,7 @@ const reference = (items: Verse[], lang: Lang) => {
  * pass scales the whole thing — text, gaps and reference together.
  */
 export const PreviewPanel = () => {
-  const { settings, showData, session, clearProjector } = useStudio();
+  const { settings, showData, session, clearProjector, timer } = useStudio();
 
   // The panel runs the projector's own crossfade, at the operator's setting, so
   // the preview lies about nothing — timing included.
@@ -288,10 +289,19 @@ export const PreviewPanel = () => {
         >
           <div className="absolute inset-0 bg-black/55" />
 
+          {/* The timer takes the projector when it is armed, so the panel has
+              to show that: an operator who arms it and sees the verse still
+              sitting here has no way to tell it worked. */}
+          {timer.onProjector ? (
+            <div className="absolute inset-0 p-[6%]">
+              <TimerScreen state={timer} showClock={false} />
+            </div>
+          ) : null}
+
           <div
             className="relative flex h-full w-full items-center justify-center px-[6%]"
             style={{
-              opacity: visible ? 1 : 0,
+              opacity: !timer.onProjector && visible ? 1 : 0,
               transition: cut ? 'none' : `opacity ${fadeMs}ms ease-in-out`,
             }}
           >

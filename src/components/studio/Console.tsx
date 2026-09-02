@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 
 import { IconButton } from '@/components/ui/IconButton';
 import { useStudio } from '@/lib/studio/StudioProvider';
+import { toggleRun } from '@/lib/timer/model';
 
 import { AppBar } from './AppBar';
 import { AudioBar } from './AudioBar';
@@ -16,6 +17,7 @@ import { RightRail } from './RightRail';
 import { SearchBar } from './SearchBar';
 import { SettingsModal } from './SettingsModal';
 import { Sidebar } from './Sidebar';
+import { TimerPanel } from './TimerPanel';
 
 /**
  * The console shell.
@@ -25,7 +27,7 @@ import { Sidebar } from './Sidebar';
  * during a service the operator's hand is not on the mouse.
  */
 export const Console = () => {
-  const { blocks, stepLive, cardSize, setCardSize, tab, loading } = useStudio();
+  const { blocks, stepLive, cardSize, setCardSize, tab, loading, updateTimer } = useStudio();
   const [settingsTab, setSettingsTab] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -47,6 +49,15 @@ export const Console = () => {
       // Stepping slides must not fight with typing a reference or a lyric.
       if (typing) return;
 
+      // A stage timer is started and stopped with a thumb on the space bar. On
+      // its own tab that wins over stepping the slide, which is what the same
+      // key does everywhere else in the console.
+      if (event.key === ' ' && tab === 'timer') {
+        event.preventDefault();
+        updateTimer(toggleRun);
+        return;
+      }
+
       if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === ' ') {
         event.preventDefault();
         stepLive(1);
@@ -61,7 +72,7 @@ export const Console = () => {
     window.addEventListener('keydown', onKey);
 
     return () => window.removeEventListener('keydown', onKey);
-  }, [stepLive]);
+  }, [stepLive, tab, updateTimer]);
 
   return (
     <div className="flex h-dvh flex-col bg-studio-bg">
@@ -152,6 +163,7 @@ export const Console = () => {
 
           {tab === 'lyrics' ? <LyricsPanel onSearch={() => setSearching(true)} /> : null}
           {tab === 'audio' ? <AudioPanel /> : null}
+          {tab === 'timer' ? <TimerPanel /> : null}
 
           {/* Mounted on every tab, so a bed can be faded or stopped without
               leaving the passage that is on screen. */}

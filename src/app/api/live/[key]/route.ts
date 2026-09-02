@@ -25,7 +25,7 @@ export const GET = async (_request: Request, { params }: RouteContext<'/api/live
 
   const { data: state } = await db
     .from('session_state')
-    .select('show_data, projector, stream_style, stream_lang')
+    .select('show_data, projector, stream_style, stream_lang, timer')
     .eq('session_id', session.id)
     .maybeSingle();
 
@@ -36,6 +36,7 @@ export const GET = async (_request: Request, { params }: RouteContext<'/api/live
       projector: state?.projector ?? {},
       style: state?.stream_style ?? {},
       streamLang: state?.stream_lang ?? 'geo',
+      timer: state?.timer ?? {},
     },
     { headers: { 'cache-control': 'no-store' } },
   );

@@ -754,3 +754,19 @@ body {
   padding: 7% 7% 6%;
   border-bottom-width: 1px;
 }
+
+/* The stage timer's flash: one bright pulse the whole room sees, used to get a
+   speaker's eyes onto the screen. Fades rather than strobes. */
+@keyframes timer-flash {
+  0% {
+    opacity: 0;
+  }
+
+  12% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}

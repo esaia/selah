@@ -37,6 +37,7 @@ Three surfaces, one session:
 | `/studio` | the operator | yes |
 | `/show/<output_key>` | the machine driving the projector | no |
 | `/lower3rd/<output_key>` | an OBS Browser Source | no |
+| `/timer/<output_key>` | a stage or confidence monitor | no |
 
 A session has an unguessable `output_key`. The outputs are addressed by it and
 join the realtime channel named after it — knowing the URL is the credential,
@@ -48,6 +49,18 @@ on the channel. The broadcast is what makes a change instant; the row is what a
 projector reads when it opens or reloads, so a machine that joins mid-service is
 never staring at black. Style travels *with* the slide, because an output page
 has no account and cannot read the operator's settings row.
+
+**The stage timer does not tick over the wire.** A clock broadcast a frame at
+a time would be a realtime message a second, and a screen on a slow connection
+would drift visibly. What travels is the shape of the run — which timer is
+armed, whether it is running, when it was last resumed and what had elapsed
+before that — and every output counts the seconds itself from its own clock.
+`lib/timer/model.ts` is pure and tested for the same reason the block
+operations are: getting it wrong shows the wrong number rather than failing.
+The run rides the slide's own payload, so an output that joins mid-service is
+handed the verse and the countdown together, and `session_state.timer` is what
+it reads when it opens. Armed onto the projector it takes the slide's place —
+the verse stays mounted underneath, so disarming brings it straight back.
 
 **Media stays on the operator's machine.** Backgrounds and music go into this
 browser's IndexedDB, never a bucket. Only a file's identity rides with the

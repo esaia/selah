@@ -6,8 +6,10 @@ import { newPeerId, openLiveChannel, type LiveChannel } from '@/lib/live/channel
 import type { SignalTransport, SlidePayload } from '@/lib/live/protocol';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
 import { DYNAMIC_THEME, LOCAL_THEME, themeSrc } from '@/lib/projector/themes';
+import { asTimerState, withSkew, type TimerState } from '@/lib/timer/model';
 import { emptyShowData, type Align, type ProjectorStyle, type ShowData } from '@/lib/types';
 
+import { TimerScreen } from './TimerScreen';
 import { VerseBlock } from './VerseBlock';
 import { useLocalBackground } from './useLocalBackground';
 
@@ -39,6 +41,7 @@ const defaultStyle: ProjectorStyle = {
 export interface ProjectorInitial {
   showData: ShowData;
   projector: Partial<ProjectorStyle>;
+  timer: TimerState;
 }
 
 /**
@@ -51,6 +54,11 @@ export interface ProjectorInitial {
 export const Projector = ({ outputKey, initial }: { outputKey: string; initial: ProjectorInitial }) => {
   const [showData, setShowData] = useState<ShowData>(initial.showData ?? emptyShowData());
   const [style, setStyle] = useState<ProjectorStyle>({ ...defaultStyle, ...initial.projector });
+
+  // The stage timer, which takes the screen when the console arms it onto the
+  // projector. Carried by the same payload as the slide, so arming it is one
+  // message and not a second channel to keep in step.
+  const [timer, setTimer] = useState<TimerState>(initial.timer);
   const channelRef = useRef<LiveChannel | null>(null);
   const [peerId] = useState(newPeerId);
 
@@ -77,6 +85,7 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
     const off = channel.onSlide((payload: SlidePayload) => {
       setShowData(payload.showData ?? emptyShowData());
       setStyle({ ...defaultStyle, ...payload.projector });
+      setTimer(withSkew(asTimerState(payload.timer)));
     });
 
     return () => {
@@ -156,11 +165,23 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
         {/* Scrim: projector bulbs wash out white text on a bright photograph. */}
         <div className="absolute inset-0 bg-black/55" />
 
+        {/* Armed from the timer tab, and then it *is* the slide: a countdown
+            before a service, or a clock between sessions, wants the screen
+            rather than a corner of it. */}
+        {timer.onProjector ? (
+          <div className="absolute inset-0 z-20 px-[6vw] py-[8vh]">
+            <TimerScreen state={timer} showClock={false} />
+          </div>
+        ) : null}
+
         <div
           ref={textRef}
           className={`relative w-full max-w-[2000px] px-[4%] py-2.5 ${ALIGN_CLASS[lyrics ? style.lyricsAlign : style.align]}`}
           style={{
-            opacity: visible ? 1 : 0,
+            // The timer takes the screen rather than sharing it, but the verse
+            // stays mounted underneath so disarming brings it back already
+            // fitted, with no reflow the room can see.
+            opacity: !timer.onProjector && visible ? 1 : 0,
             transition: cut ? 'none' : `opacity ${style.transitionMs / 2}ms ease-in-out`,
           }}
         >

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
 /** Paths an unauthenticated visitor may reach. */
-const PUBLIC = ['/', '/pricing', '/docs', '/login', '/auth', '/show', '/lower3rd', '/api/bible', '/api/live', '/api/stripe'];
+const PUBLIC = ['/', '/pricing', '/docs', '/login', '/auth', '/show', '/lower3rd', '/timer', '/api/bible', '/api/live', '/api/stripe'];
 
 const isPublic = (pathname: string) =>
   PUBLIC.some(path => pathname === path || pathname.startsWith(`${path}/`));
