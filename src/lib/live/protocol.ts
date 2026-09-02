@@ -33,6 +33,11 @@ export interface SlidePayload {
   projector: ProjectorStyle;
   streamLang: Lang;
   /**
+   * The one language the stage display reads, chosen from the armed set. The
+   * projector carries all of them, so this cannot be read off `projector`.
+   */
+  stageLang: Lang;
+  /**
    * The stage timer rides with the slide rather than on an event of its own.
    * One payload means one stored row for a late joiner to read, and it is why
    * `/show` can be handed the verse and the countdown in the same message.

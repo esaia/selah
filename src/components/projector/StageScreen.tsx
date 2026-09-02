@@ -47,9 +47,16 @@ import { TimerScreen, useTimerNow } from './TimerScreen';
  * wider than the panels it was meant to inset, which is what emptied them.
  */
 
-/** Which language the stage reads: the first one the room is actually shown. */
-const stageLang = (projector: Partial<ProjectorStyle>): Lang =>
-  (projector.order ?? LANGS).find(lang => projector.enabled?.[lang]) ?? 'geo';
+/**
+ * Which language the stage reads. The operator picks it in the console and it
+ * travels with the slide; a payload from before that pick existed — or a row a
+ * monitor read on the way up — falls back to the first language the room is
+ * actually shown.
+ */
+const langOf = (projector: Partial<ProjectorStyle>, chosen: Lang | undefined): Lang =>
+  chosen && projector.enabled?.[chosen]
+    ? chosen
+    : ((projector.order ?? LANGS).find(lang => projector.enabled?.[lang]) ?? 'geo');
 
 /**
  * A slide as lines of plain text.
@@ -407,15 +414,17 @@ export const StageScreen = ({
   showData,
   next,
   projector,
+  stageLang,
   timer,
 }: {
   showData: ShowData;
   next: ShowData;
   projector: Partial<ProjectorStyle>;
+  stageLang?: Lang;
   timer: TimerState;
 }) => {
   const now = useTimerNow();
-  const lang = stageLang(projector);
+  const lang = langOf(projector, stageLang);
 
   // One box, deliberately: the frame. Everything on the screen is a fraction of
   // it, so nothing here waits on a second measurement that can only arrive a

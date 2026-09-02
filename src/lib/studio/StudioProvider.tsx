@@ -48,7 +48,16 @@ import {
   toggleCollapsed,
   type Workspace,
 } from './blocks';
-import { fromRow, projectorStyle, streamLangOf, streamStyle, toRow, type Settings, type SettingsRow } from './settings';
+import {
+  fromRow,
+  projectorStyle,
+  stageLangOf,
+  streamLangOf,
+  streamStyle,
+  toRow,
+  type Settings,
+  type SettingsRow,
+} from './settings';
 import { useDebouncedSave } from './useDebouncedSave';
 
 export type Tab = 'bible' | 'audio' | 'lyrics' | 'stage';
@@ -189,6 +198,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       projector: projectorStyle(settings),
       stream: streamStyle(settings),
       streamLang: streamLangOf(settings),
+      stageLang: stageLangOf(settings),
     }),
     [settings],
   );
@@ -233,6 +243,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       style: wireStyle.stream,
       projector: wireStyle.projector,
       streamLang: wireStyle.streamLang,
+      stageLang: wireStyle.stageLang,
       timer: { ...run, sentAt: Date.now() },
     }),
     [wireStyle],
@@ -291,6 +302,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
           projector: wireStyle.projector,
           stream_style: wireStyle.stream,
           stream_lang: wireStyle.streamLang,
+          stage_lang: wireStyle.stageLang,
         }),
         'the live slide',
       );
@@ -318,6 +330,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
         projector: wireStyle.projector,
         stream_style: wireStyle.stream,
         stream_lang: wireStyle.streamLang,
+        stage_lang: wireStyle.stageLang,
       }),
       'the projector look',
     );

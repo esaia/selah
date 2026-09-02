@@ -22,7 +22,7 @@ import type { Song } from '@/lib/types';
 import { LyricCard } from './LyricCard';
 import { Setlist, songDragProps } from './Setlist';
 import { SlideEditor } from './SlideEditor';
-import { SEARCH_HINT } from './SongSearch';
+import { useSearchHint } from './SongSearch';
 import { SongEditor } from './SongEditor';
 
 // Generated from a ProPresenter bundle and served as a static file, so a church
@@ -54,6 +54,7 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
   } = useStudio();
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const searchHint = useSearchHint();
 
   const [busy, setBusy] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
@@ -174,7 +175,7 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
 
             <span className="flex items-center gap-1 text-[11px] text-studio-faint">
               <HiOutlineSearch className="text-xs" />
-              {SEARCH_HINT}
+              {searchHint}
             </span>
           </button>
         ) : null}

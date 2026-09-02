@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
 import { HiOutlineSearch } from 'react-icons/hi';
 
 import { normalizeName, transliterate } from '@/lib/bible/passage';
@@ -10,10 +10,22 @@ import type { Song } from '@/lib/types';
 
 import { songDragProps } from './Setlist';
 
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '');
-
-/** The shortcut as this platform writes it, for the hint in the library header. */
-export const SEARCH_HINT = isMac ? '⌘F' : 'Ctrl F';
+/**
+ * The shortcut as this platform writes it, for the hint in the library header.
+ *
+ * Read after mount rather than while rendering: the console is server rendered,
+ * and a hint decided by `navigator` is a different string on the server than in
+ * the browser — which is a hydration mismatch, and throws the whole tree away.
+ * Everyone gets the portable spelling for one paint; a Mac swaps it in.
+ */
+export const useSearchHint = () =>
+  useSyncExternalStore(
+    // Nothing to subscribe to: which keyboard is under the operator does not
+    // change while the console is open.
+    () => () => {},
+    () => (/Mac|iPhone|iPad/.test(navigator.platform || '') ? '⌘F' : 'Ctrl F'),
+    () => 'Ctrl F',
+  );
 
 /**
  * Both spellings of a string: as written, and transliterated into Latin — the

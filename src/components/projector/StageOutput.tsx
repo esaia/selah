@@ -6,7 +6,7 @@ import { Maximize2 } from 'lucide-react';
 import { openLiveChannel } from '@/lib/live/channel';
 import type { SlidePayload } from '@/lib/live/protocol';
 import { asTimerState, timerIsLive, withSkew, type TimerState } from '@/lib/timer/model';
-import { emptyShowData, type ProjectorStyle, type ShowData } from '@/lib/types';
+import { emptyShowData, type Lang, type ProjectorStyle, type ShowData } from '@/lib/types';
 
 import { StageScreen } from './StageScreen';
 import { TimerScreen } from './TimerScreen';
@@ -15,6 +15,7 @@ export interface StageInitial {
   showData: ShowData;
   next: ShowData;
   projector: Partial<ProjectorStyle>;
+  stageLang?: Lang;
   timer: TimerState;
 }
 
@@ -47,6 +48,7 @@ export const StageOutput = ({ outputKey, initial }: { outputKey: string; initial
         showData: payload.showData ?? emptyShowData(),
         next: payload.next ?? emptyShowData(),
         projector: payload.projector,
+        stageLang: payload.stageLang,
         timer: withSkew(asTimerState(payload.timer)),
       }),
     );
@@ -74,6 +76,7 @@ export const StageOutput = ({ outputKey, initial }: { outputKey: string; initial
           showData={state.showData}
           next={state.next}
           projector={state.projector}
+          stageLang={state.stageLang}
           timer={state.timer}
         />
       )}

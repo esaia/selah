@@ -8,6 +8,7 @@ import { Toggle } from '@/components/ui/Toggle';
 import { versionsByLang } from '@/lib/bible/catalog';
 import { cn } from '@/lib/cn';
 import { THEMES } from '@/lib/projector/themes';
+import { stageLangOf } from '@/lib/studio/settings';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import { LANG_LABELS, LANGS, type Lang } from '@/lib/types';
 
@@ -146,7 +147,7 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
           </div>
         </Section>
 
-        <Section title="Projector" hint="Armed languages are fetched with each passage and shown together on screen.">
+        <Section title="Projector" hint="Armed languages are fetched with each passage and shown together on screen. Stage marks the one language the stage display reads.">
           <ul className="space-y-3" onDragLeave={() => setDropAt(null)}>
             {settings.langOrder.map((lang, index) => (
               <Fragment key={lang}>
@@ -187,6 +188,33 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
                     >
                       {LANG_LABELS[lang]}
                     </span>
+
+                    {/* The stage monitor shows one language, not the armed
+                        set: the person standing up is reading it rather than
+                        glancing at it. It is picked on the row it belongs to,
+                        beside the switch that arms it — nothing can be chosen
+                        here that the room is not shown. A named chip rather
+                        than a bare radio: one dot in a column of switches says
+                        nothing about what it decides. */}
+                    <button
+                      type="button"
+                      aria-pressed={stageLangOf(settings) === lang}
+                      disabled={!settings.enabled[lang]}
+                      title={`Read ${LANG_LABELS[lang]} on the stage display`}
+                      onClick={() => update({ stageLang: lang })}
+                      className={cn(
+                        `rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase
+                          transition-colors duration-150 focus:outline-none
+                          focus-visible:ring-2 focus-visible:ring-studio-accent/40`,
+                        !settings.enabled[lang]
+                          ? 'cursor-not-allowed border-transparent text-studio-faint/50'
+                          : stageLangOf(settings) === lang
+                            ? 'border-studio-accent bg-studio-accent text-white'
+                            : 'border-studio-border text-studio-faint hover:bg-studio-surface hover:text-studio-muted',
+                      )}
+                    >
+                      Stage
+                    </button>
 
                     <Toggle
                       checked={settings.enabled[lang]}

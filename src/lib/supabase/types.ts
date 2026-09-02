@@ -48,6 +48,7 @@ export interface Database {
         projector: Json;
         stream_style: Json;
         stream_lang: string;
+        stage_lang: string;
         timer: Json;
         updated_at: string;
       }>;
@@ -81,6 +82,7 @@ export interface Database {
         lyrics_variant: string;
         obs_hidden: boolean;
         stream_lang: string;
+        stage_lang: string;
         updated_at: string;
       }>;
       songs: Row<{

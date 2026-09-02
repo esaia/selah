@@ -9,7 +9,7 @@ import { TimerScreen, useTimerNow } from '@/components/projector/TimerScreen';
 import { TimerScrubber } from './TimerScrubber';
 import { cn } from '@/lib/cn';
 import { useStudio } from '@/lib/studio/StudioProvider';
-import { projectorStyle } from '@/lib/studio/settings';
+import { projectorStyle, stageLangOf } from '@/lib/studio/settings';
 import {
   MINUTE,
   adjustRun,
@@ -197,6 +197,7 @@ export const TimerDashboard = () => {
               showData={showData}
               next={nextShowData}
               projector={projectorStyle(settings)}
+              stageLang={stageLangOf(settings)}
               timer={timer}
             />
           )}

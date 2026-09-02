@@ -9,7 +9,7 @@ import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
 import { DYNAMIC_THEME, LOCAL_THEME, themeSrc } from '@/lib/projector/themes';
 import { loadLocalFile } from '@/lib/media/localMedia';
 import { plain } from '@/lib/studio/text';
-import { projectorStyle } from '@/lib/studio/settings';
+import { projectorStyle, stageLangOf } from '@/lib/studio/settings';
 import {
   DEFAULT_PREVIEW_MODE,
   PREVIEW_MODES,
@@ -303,6 +303,7 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
               showData={showData}
               next={nextShowData}
               projector={projectorStyle(settings)}
+              stageLang={stageLangOf(settings)}
               timer={timer}
             />
           )}

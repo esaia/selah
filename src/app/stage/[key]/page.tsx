@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { StageOutput, type StageInitial } from '@/components/projector/StageOutput';
 import { admin } from '@/lib/supabase/admin';
 import { asTimerState } from '@/lib/timer/model';
-import { emptyShowData, type ProjectorStyle, type ShowData } from '@/lib/types';
+import { LANGS, emptyShowData, type Lang, type ProjectorStyle, type ShowData } from '@/lib/types';
 
 export const metadata = { title: 'Stage', robots: { index: false } };
 
@@ -24,7 +24,7 @@ export default async function StagePage({ params }: PageProps<'/stage/[key]'>) {
 
   const { data: state } = await db
     .from('session_state')
-    .select('show_data, next_show_data, projector, timer')
+    .select('show_data, next_show_data, projector, stage_lang, timer')
     .eq('session_id', session.id)
     .maybeSingle();
 
@@ -32,6 +32,7 @@ export default async function StagePage({ params }: PageProps<'/stage/[key]'>) {
     showData: (state?.show_data as ShowData) ?? emptyShowData(),
     next: (state?.next_show_data as ShowData) ?? emptyShowData(),
     projector: (state?.projector as Partial<ProjectorStyle>) ?? {},
+    stageLang: LANGS.includes(state?.stage_lang as Lang) ? (state?.stage_lang as Lang) : undefined,
     timer: asTimerState(state?.timer),
   };
 

@@ -30,6 +30,7 @@ export interface Settings {
   lyricsVariant: string;
   obsHidden: boolean;
   streamLang: Lang;
+  stageLang: Lang;
 }
 
 /** The translation each language opens on. English defaults to the KJV. */
@@ -84,6 +85,7 @@ export const fromRow = (row: SettingsRow): Settings => {
     lyricsVariant: row.lyrics_variant || 'scrim',
     obsHidden: Boolean(row.obs_hidden),
     streamLang: isLang(row.stream_lang) ? row.stream_lang : 'geo',
+    stageLang: isLang(row.stage_lang) ? row.stage_lang : 'geo',
   };
 };
 
@@ -106,6 +108,7 @@ export const toRow = (settings: Settings) => ({
   lyrics_variant: settings.lyricsVariant,
   obs_hidden: settings.obsHidden,
   stream_lang: settings.streamLang,
+  stage_lang: settings.stageLang,
 });
 
 /** Everything /show needs to draw a slide. */
@@ -122,11 +125,27 @@ export const projectorStyle = (settings: Settings): ProjectorStyle => ({
   transitionMs: settings.transitionMs,
 });
 
+/** The armed languages, in the order the operator has them. */
+const armedLangs = (settings: Settings): Lang[] =>
+  settings.langOrder.filter(lang => settings.enabled[lang]);
+
 /** The language the stream shows: the operator's pick, if it is still armed. */
 export const streamLangOf = (settings: Settings): Lang => {
-  const armed = LANGS.filter(lang => settings.enabled[lang]);
+  const armed = armedLangs(settings);
 
   return armed.includes(settings.streamLang) ? settings.streamLang : (armed[0] ?? 'geo');
+};
+
+/**
+ * The language the stage display reads. One only — the person standing up is
+ * reading it, not glancing at it — and disarming a language falls back to the
+ * first still armed rather than emptying the panels, exactly as the stream
+ * does. The pick is kept either way, so re-arming restores it.
+ */
+export const stageLangOf = (settings: Settings): Lang => {
+  const armed = armedLangs(settings);
+
+  return armed.includes(settings.stageLang) ? settings.stageLang : (armed[0] ?? 'geo');
 };
 
 /**
