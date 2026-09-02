@@ -115,21 +115,20 @@ export const TimerPanel = () => {
           </div>
         </div>
 
-        <div
-          className="grid gap-4 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]
-            xl:grid-cols-[minmax(260px,320px)_minmax(0,1fr)_minmax(240px,300px)]"
-        >
-          <div>
-            <Heading>Dashboard</Heading>
-            <TimerDashboard />
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+          <div className="min-w-0 space-y-5">
+            <div>
+              <Heading>Dashboard</Heading>
+              <TimerDashboard />
+            </div>
+
+            <div>
+              <Heading>Timers</Heading>
+              <TimerList />
+            </div>
           </div>
 
           <div className="min-w-0">
-            <Heading>Timers</Heading>
-            <TimerList />
-          </div>
-
-          <div className="min-w-0 lg:col-span-2 xl:col-span-1">
             <Heading>Messages</Heading>
             <TimerMessages />
           </div>

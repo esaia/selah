@@ -13,6 +13,7 @@ import {
   parseDuration,
   pauseRun,
   resetRun,
+  seekRun,
   startRun,
   stepTimer,
   timerReading,
@@ -98,6 +99,24 @@ describe('a countdown run', () => {
 
   it('projects when it will reach zero', () => {
     expect(finishesAt(startRun(state(), t0), t0 + 60_000)).toBe(t0 + 60_000 + 9 * MINUTE);
+  });
+});
+
+describe('seekRun', () => {
+  const t0 = 1_000_000;
+
+  it('drops a stopped timer at the point it was dragged to', () => {
+    const sought = seekRun(state(), 4 * MINUTE, t0);
+
+    expect(timerReading(sought, t0 + 60_000)?.text).toBe('6:00');
+    expect(sought.running).toBe(false);
+  });
+
+  it('keeps a running timer running from there', () => {
+    const sought = seekRun(startRun(state(), t0), 4 * MINUTE, t0 + 30_000);
+
+    expect(sought.running).toBe(true);
+    expect(timerReading(sought, t0 + 90_000)?.text).toBe('5:00');
   });
 });
 

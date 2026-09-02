@@ -229,6 +229,26 @@ export const resetRun = (state: TimerState): TimerState => ({
   adjustMs: 0,
 });
 
+/**
+ * Move the run to a point on its own timeline, as dragging the scrubber does.
+ *
+ * A running timer keeps running from where it was dropped — the clock does not
+ * stop because the operator reached for it — which is why the resume stamp is
+ * taken again rather than left where it was.
+ */
+export const seekRun = (state: TimerState, elapsed: number, now = Date.now()): TimerState => ({
+  ...state,
+  elapsedBefore: Math.max(0, elapsed),
+  startedAt: state.running ? now : null,
+});
+
+/** How long the armed timer runs for, this time round, with ± applied. */
+export const totalOf = (state: TimerState): number => {
+  const timer = activeTimer(state);
+
+  return !timer || timer.kind === 'clock' ? 0 : Math.max(0, timer.duration + state.adjustMs);
+};
+
 /** ±1m. A countdown gains time; a count-up moves its target. */
 export const adjustRun = (state: TimerState, deltaMs: number): TimerState => ({
   ...state,
