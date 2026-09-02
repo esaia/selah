@@ -516,9 +516,12 @@ export const StageScreen = ({
             outlined={notes.length > 0}
           >
             {notes.length === 0 && onRail ? (
-              // The clock has its own box above, and the name is already on the
-              // agenda, so what is wanted here is the digits.
-              <TimerScreen state={timer} showClock={false} showName={false} />
+              // The wall clock has its own box above, so it is left off here.
+              // The name and the speaker stay: the agenda names what is armed,
+              // which is not always what is *running* — the operator can arm
+              // the next item while the current one counts down — and a box of
+              // bare digits does not say which of the two it is counting.
+              <TimerScreen state={timer} showClock={false} />
             ) : (
               // The screen's own flash is worn by the frame, so a note under it
               // blinks only when it was the one flashed.

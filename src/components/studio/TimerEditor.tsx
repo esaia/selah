@@ -184,7 +184,9 @@ export const TimerEditor = ({ timer, onClose }: { timer: StageTimer; onClose: ()
       className="absolute top-full left-0 z-40 mt-2 w-[min(26rem,calc(100vw-2rem))] rounded-studio-lg border
         border-studio-border bg-white p-3 shadow-studio-modal"
     >
-      {/* The point of the panel: it is attached to the pencil that opened it. */}
+      {/* Says which row the panel belongs to. It marks the start of the title
+          cell rather than the pencil itself: the pencil follows the text as it
+          is typed, and an arrow that tracked it would take the panel along. */}
       <span
         aria-hidden="true"
         className="absolute -top-[5px] left-2.5 size-2 rotate-45 border-t border-l border-studio-border bg-white"

@@ -103,7 +103,10 @@ const widthInEms = (text: string) =>
  * with its tails cut off. It is budgeted at the height it is actually drawn,
  * like every other piece here.
  */
-const NAME = { size: 0.05, gap: 0.03, lead: 1.3 };
+// A little larger than the wall clock under it: the name answers "what is
+// this counting", which on the stage's rail — a box of digits beside the
+// agenda — is asked before the number itself is any use.
+const NAME = { size: 0.065, gap: 0.03, lead: 1.3 };
 const CLOCK = { size: 0.05, gap: 0.04 };
 
 /**

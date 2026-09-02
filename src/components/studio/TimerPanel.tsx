@@ -80,8 +80,11 @@ export const TimerPanel = () => {
         >
           <div className="min-w-0">
             <h1 className="text-sm font-semibold text-studio-text">Stage timer</h1>
-            <p className="text-xs text-studio-muted">
-              Runs beside the slides on the stage screen, or takes it over when you switch it.
+            {/* Capped: the header is a flex row, and a subtitle allowed to
+                run the width of a wide console pushes the controls it shares
+                the row with off the end of it. */}
+            <p className="max-w-[46ch] truncate text-xs text-studio-muted">
+              Runs beside the slides, or takes the stage screen over.
             </p>
           </div>
 

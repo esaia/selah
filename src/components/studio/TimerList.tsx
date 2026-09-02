@@ -119,7 +119,11 @@ const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: b
           which is where the rest of what it says lives: a field in the row
           invited the operator to type a name in one place and everything else
           about the same item in another. */}
-      <span className="flex min-w-0 flex-1 items-center gap-1">
+      {/* The panel hangs off this cell rather than off the pencil inside it.
+          The pencil sits at the end of the title, so it moves as the title is
+          typed — and a panel anchored to it slid along under the cursor with
+          every keystroke. The cell's own left edge does not move. */}
+      <span className="relative flex min-w-0 flex-1 items-center gap-1">
         <span className={cn('truncate text-sm font-medium', timer.name ? 'text-studio-text' : 'text-studio-faint')}>
           {timer.name || 'Untitled'}
         </span>
@@ -130,7 +134,7 @@ const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: b
             over the list is one an operator does not know is there. */}
         <span
           className={cn(
-            'relative shrink-0 transition-opacity duration-150 hover:opacity-100 focus-within:opacity-100',
+            'shrink-0 transition-opacity duration-150 hover:opacity-100 focus-within:opacity-100',
             editing ? 'opacity-100' : 'opacity-35',
           )}
         >
@@ -143,9 +147,9 @@ const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: b
           >
             <Pencil className="size-3.5" />
           </IconButton>
-
-          {editing ? <TimerEditor timer={timer} onClose={() => setEditing(false)} /> : null}
         </span>
+
+        {editing ? <TimerEditor timer={timer} onClose={() => setEditing(false)} /> : null}
       </span>
 
       <Select
