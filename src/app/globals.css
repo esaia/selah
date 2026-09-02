@@ -755,18 +755,17 @@ body {
   border-bottom-width: 1px;
 }
 
-/* The stage timer's flash: one bright pulse the whole room sees, used to get a
-   speaker's eyes onto the screen. Fades rather than strobes. */
+/* The stage timer's flash: the digits blink, used to get a speaker's eyes onto
+   the screen. It is the number that flashes and not the screen behind it — a
+   white wash over the whole output takes the verse and the background with it,
+   and reads as a fault rather than as a signal. */
 @keyframes timer-flash {
-  0% {
-    opacity: 0;
-  }
-
-  12% {
-    opacity: 0.9;
-  }
-
+  0%,
   100% {
-    opacity: 0;
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.12;
   }
 }

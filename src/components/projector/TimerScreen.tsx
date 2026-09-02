@@ -188,6 +188,8 @@ export const TimerScreen = ({
             fontSize: digitSize || 1,
             color: PHASE_COLOR[reading?.phase ?? 'normal'],
             transition: 'color 300ms linear',
+            // Four blinks over the flash, on the digits themselves.
+            animation: flashingAt ? `timer-flash ${FLASH_MS / 4}ms ease-in-out 4` : undefined,
           }}
         >
           {text}
@@ -212,10 +214,14 @@ export const TimerScreen = ({
 
       {messages.length > 0 ? (
         <div
-          className="shrink-0 space-y-1 text-center"
+          // A message is the point of the screen while it is up — the person
+          // reading it is at the back of a hall, glancing — so it is set as
+          // large as the digits, and takes its room from them. Several at once
+          // share the space rather than overflowing it.
+          className="max-h-[45%] shrink-0 space-y-1 overflow-hidden text-center"
           style={{
             marginTop: unit * 0.04,
-            fontSize: Math.max(12, unit * 0.08),
+            fontSize: Math.max(14, unit * (messages.length > 1 ? 0.12 : 0.2)),
           }}
         >
           {messages.map(message => (
@@ -244,14 +250,6 @@ export const TimerScreen = ({
         >
           {now === null ? '--:--:--' : formatClock(now)}
         </div>
-      ) : null}
-
-      {flashingAt ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-white"
-          style={{ animation: `timer-flash ${FLASH_MS}ms ease-out` }}
-        />
       ) : null}
     </div>
   );
