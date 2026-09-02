@@ -1,61 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState, useSyncExternalStore, type PointerEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState, type PointerEvent } from 'react';
 
 import { cn } from '@/lib/cn';
+import { clampRailWidth, RAIL_MIN_WIDTH, RAIL_WIDTH_VAR, readRailWidth, writeRailWidth } from '@/lib/studio/railWidth';
 
 import { AudioPlaylist } from './AudioPlaylist';
 import { PreviewPanel } from './PreviewPanel';
-
-/** The width it has always been, and the narrowest the preview stays useful. */
-const MIN_WIDTH = 320;
-
-/** Past this the rail is taking room the running order needs more. */
-const MAX_WIDTH = 720;
-
-const WIDTH_KEY = 'studioRailWidth';
-
-/** Never wider than the window can spare, whatever was saved on a bigger one. */
-const clampWidth = (width: number) =>
-  Math.max(MIN_WIDTH, Math.min(width, MAX_WIDTH, Math.max(MIN_WIDTH, window.innerWidth - 520)));
-
-/**
- * The saved width, as an external store rather than state seeded by an effect.
- * The server has no window to clamp against, so it renders the default and the
- * client subscribes to the real value — which is what useSyncExternalStore is
- * for, and it avoids a render pass that exists only to correct the first one.
- */
-const listeners = new Set<() => void>();
-let snapshot: number | null = null;
-
-const widthStore = {
-  subscribe: (listener: () => void) => {
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-    };
-  },
-  get: () => {
-    if (snapshot === null) {
-      const saved = Number(localStorage.getItem(WIDTH_KEY));
-      snapshot = clampWidth(Number.isFinite(saved) && saved > 0 ? saved : MIN_WIDTH);
-    }
-
-    return snapshot;
-  },
-  getServer: () => MIN_WIDTH,
-  set: (width: number) => {
-    snapshot = width;
-
-    try {
-      localStorage.setItem(WIDTH_KEY, String(width));
-    } catch {
-      // Non-critical.
-    }
-
-    listeners.forEach(listener => listener());
-  },
-};
 
 /**
  * The output rail: what the projector is showing, and what the service is
@@ -63,16 +14,21 @@ const widthStore = {
  *
  * Its width is a per-machine preference — the operator's desk screen and the
  * laptop they rehearse on want different splits — so it lives in this browser
- * rather than in the account.
+ * rather than in the account, and reaches the layout as a CSS variable the
+ * document sets before it paints. See `lib/studio/railWidth`.
  */
 export const RightRail = () => {
-  const width = useSyncExternalStore(widthStore.subscribe, widthStore.get, widthStore.getServer);
   const [dragging, setDragging] = useState(false);
+
+  // The blocking script in the root layout has normally set this already; this
+  // covers the case where it could not run (a CSP, an extension) at the cost of
+  // one frame at the default width.
+  useLayoutEffect(() => writeRailWidth(readRailWidth()), []);
 
   // A rail sized on a wide screen must give the running order its room back on
   // a narrower one.
   useEffect(() => {
-    const onResize = () => widthStore.set(clampWidth(widthStore.get()));
+    const onResize = () => writeRailWidth(clampRailWidth(readRailWidth()));
 
     window.addEventListener('resize', onResize);
 
@@ -86,10 +42,11 @@ export const RightRail = () => {
     setDragging(true);
 
     const startX = event.clientX;
-    const startWidth = widthStore.get();
+    const startWidth = readRailWidth();
 
     // The handle is on the left edge, so dragging left widens the rail.
-    const onMove = (move: globalThis.PointerEvent) => widthStore.set(clampWidth(startWidth + (startX - move.clientX)));
+    const onMove = (move: globalThis.PointerEvent) =>
+      writeRailWidth(clampRailWidth(startWidth + (startX - move.clientX)));
 
     const onUp = () => {
       setDragging(false);
@@ -115,7 +72,7 @@ export const RightRail = () => {
 
   return (
     <aside
-      style={{ width }}
+      style={{ width: `var(${RAIL_WIDTH_VAR}, ${RAIL_MIN_WIDTH}px)` }}
       className="relative hidden shrink-0 flex-col border-l border-studio-border bg-white lg:flex"
     >
       <div
@@ -123,7 +80,7 @@ export const RightRail = () => {
         aria-orientation="vertical"
         aria-label="Resize the output rail"
         onPointerDown={startResize}
-        onDoubleClick={() => widthStore.set(MIN_WIDTH)}
+        onDoubleClick={() => writeRailWidth(RAIL_MIN_WIDTH)}
         title="Drag to resize · double-click to reset"
         className={cn(
           'absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize transition-colors duration-150',

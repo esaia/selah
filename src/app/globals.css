@@ -228,6 +228,29 @@ body {
   }
 }
 
+/* A track title longer than the transport is wide. It walks to its end and
+   back rather than being cut off, with a pause at each end so the beginning is
+   readable — the operator is usually checking which take is playing. */
+@keyframes studio-marquee {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+
+  88%,
+  100% {
+    transform: translateX(var(--marquee-shift, 0));
+  }
+}
+
+@utility studio-marquee {
+  animation: studio-marquee var(--marquee-duration, 8s) ease-in-out infinite alternate;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
 /* Verse HTML from the API carries its own search highlight markup. */
 .markedText {
   background-color: rgb(254, 238, 114);
@@ -255,27 +278,89 @@ body {
   }
 }
 
+/* The console's sliders. The part behind the handle is filled, because a level
+   read at a glance across a dark hall is the position of a bar, not of a dot —
+   the fill comes from `--range-fill`, which each control sets from its own
+   value. The handle is small until it is wanted, and grows under the pointer. */
 @utility studio-range {
+  --range-fill: 0%;
+
+  background-image: linear-gradient(
+    to right,
+    var(--color-studio-accent) var(--range-fill),
+    transparent var(--range-fill)
+  );
+
+  &:disabled {
+    opacity: 0.45;
+    background-image: none;
+  }
+
   &::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     border-radius: 9999px;
     background: #ffffff;
-    border: 1px solid #d0d5dd;
-    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.2);
+    border: 0;
+    box-shadow:
+      0 0 0 1px rgba(16, 24, 40, 0.12),
+      0 1px 4px rgba(16, 24, 40, 0.25);
     cursor: pointer;
+    transition:
+      transform 120ms ease,
+      box-shadow 120ms ease;
   }
 
   &::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     border-radius: 9999px;
     background: #ffffff;
-    border: 1px solid #d0d5dd;
-    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.2);
+    border: 0;
+    box-shadow:
+      0 0 0 1px rgba(16, 24, 40, 0.12),
+      0 1px 4px rgba(16, 24, 40, 0.25);
     cursor: pointer;
+    transition:
+      transform 120ms ease,
+      box-shadow 120ms ease;
+  }
+
+  &:hover:not(:disabled)::-webkit-slider-thumb {
+    transform: scale(1.15);
+  }
+
+  &:hover:not(:disabled)::-moz-range-thumb {
+    transform: scale(1.15);
+  }
+
+  /* The halo says "this one is live under your hand" while dragging, and is
+     the same shape the keyboard focus ring takes. */
+  &:active:not(:disabled)::-webkit-slider-thumb,
+  &:focus-visible::-webkit-slider-thumb {
+    box-shadow:
+      0 0 0 1px rgba(16, 24, 40, 0.12),
+      0 0 0 5px color-mix(in oklab, var(--color-studio-accent) 22%, transparent);
+  }
+
+  &:active:not(:disabled)::-moz-range-thumb,
+  &:focus-visible::-moz-range-thumb {
+    box-shadow:
+      0 0 0 1px rgba(16, 24, 40, 0.12),
+      0 0 0 5px color-mix(in oklab, var(--color-studio-accent) 22%, transparent);
+  }
+
+  &:focus {
+    outline: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::-webkit-slider-thumb,
+    &::-moz-range-thumb {
+      transition: none;
+    }
   }
 }
 

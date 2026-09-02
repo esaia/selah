@@ -181,8 +181,15 @@ export const BrowseModal = ({
 
   const [error, setError] = useState('');
 
+  // A chapter is a round trip to the API, and on a hall's connection that is
+  // long enough for the operator to wonder whether the click landed.
+  const [adding, setAdding] = useState<'chapter' | 'range' | null>(null);
+
   const add = async (from: number | null, to: number | null) => {
-    if (!book || !chapter) return;
+    if (!book || !chapter || adding) return;
+
+    setError('');
+    setAdding(from === null ? 'chapter' : 'range');
 
     try {
       const block = await addPassage({ book: book.book, chapter, from, to });
@@ -192,6 +199,8 @@ export const BrowseModal = ({
       if (block) goLive(block.id, 0);
     } catch (failure) {
       setError((failure as Error).message);
+    } finally {
+      setAdding(null);
     }
   };
 
@@ -294,14 +303,20 @@ export const BrowseModal = ({
           {error ? <p className="mr-auto text-xs text-studio-danger">{error}</p> : null}
           {step === 'verses' ? (
             <>
-              <Button size="md" onClick={() => void add(null, null)}>
+              <Button
+                size="md"
+                loading={adding === 'chapter'}
+                disabled={adding !== null}
+                onClick={() => void add(null, null)}
+              >
                 Whole chapter
               </Button>
 
               <Button
                 variant="accent"
                 size="md"
-                disabled={!range}
+                loading={adding === 'range'}
+                disabled={!range || adding !== null}
                 onClick={() => (range ? void add(range.from, range.to) : undefined)}
               >
                 {range && book && chapter

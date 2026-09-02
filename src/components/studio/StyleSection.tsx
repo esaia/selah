@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { MdFormatAlignCenter, MdFormatAlignLeft, MdFormatAlignRight } from 'react-icons/md';
 
 import { Select } from '@/components/ui/Select';
@@ -187,6 +187,11 @@ export const StyleSection = () => {
             value={settings.transitionMs}
             aria-label="Slide transition duration in milliseconds"
             onChange={event => update({ transitionMs: Number(event.target.value) })}
+            style={
+              {
+                '--range-fill': `${((settings.transitionMs - MIN_TRANSITION_MS) / (MAX_TRANSITION_MS - MIN_TRANSITION_MS)) * 100}%`,
+              } as CSSProperties
+            }
             className="studio-range h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-studio-border"
           />
 

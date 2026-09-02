@@ -1,8 +1,10 @@
 'use client';
 
+import type { CSSProperties } from 'react';
 import { Pause, Play, Repeat, Volume2, VolumeX, X } from 'lucide-react';
 
 import { IconButton } from '@/components/ui/IconButton';
+import { Marquee } from '@/components/ui/Marquee';
 import { cn } from '@/lib/cn';
 import { useAudio } from '@/lib/studio/AudioProvider';
 
@@ -31,7 +33,7 @@ export const AudioBar = () => {
       </IconButton>
 
       <div className="hidden w-40 shrink-0 sm:block">
-        <p className="truncate text-xs font-medium text-studio-text">{current.title}</p>
+        <Marquee text={current.title} className="text-xs font-medium text-studio-text" />
         <p className="truncate text-[11px] text-studio-faint">{current.artist}</p>
       </div>
 
@@ -46,6 +48,7 @@ export const AudioBar = () => {
         aria-label="Seek"
         disabled={!duration}
         onChange={event => seek(Number(event.target.value))}
+        style={{ '--range-fill': `${duration ? (Math.min(position, duration) / duration) * 100 : 0}%` } as CSSProperties}
         className="studio-range h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-studio-border
           disabled:cursor-default"
       />
@@ -83,13 +86,27 @@ export const AudioBar = () => {
         <input
           type="range"
           min={0}
-          max={1}
-          step={0.01}
-          value={volume}
+          max={100}
+          step={1}
+          value={Math.round(volume * 100)}
           aria-label="Volume"
-          onChange={event => setVolume(Number(event.target.value))}
+          aria-valuetext={`${Math.round(volume * 100)} percent`}
+          title={`Volume ${Math.round(volume * 100)}`}
+          onChange={event => setVolume(Number(event.target.value) / 100)}
+          style={{ '--range-fill': `${muted ? 0 : Math.round(volume * 100)}%` } as CSSProperties}
           className="studio-range h-1.5 w-24 cursor-pointer appearance-none rounded-full bg-studio-border"
         />
+
+        {/* The number, not just the handle: a level is something an operator
+            sets back to what it was last week, and reads out to the desk. */}
+        <span
+          className={cn(
+            'w-6 shrink-0 text-right text-[11px] tabular-nums',
+            muted ? 'text-studio-faint line-through' : 'text-studio-muted',
+          )}
+        >
+          {Math.round(volume * 100)}
+        </span>
       </span>
 
       <IconButton label="Stop and clear" onClick={stop}>

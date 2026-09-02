@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { X } from 'lucide-react';
 
 import { bibleNames } from '@/lib/bible/catalog';
 import { cn } from '@/lib/cn';
@@ -75,13 +76,14 @@ const reference = (items: Verse[], lang: Lang) => {
  * pass scales the whole thing — text, gaps and reference together.
  */
 export const PreviewPanel = () => {
-  const { settings, showData, session } = useStudio();
+  const { settings, showData, session, clearProjector } = useStudio();
 
   // The panel runs the projector's own crossfade, at the operator's setting, so
   // the preview lies about nothing — timing included.
   const fadeMs = settings.transitionMs / 2;
 
   const screenRef = useRef<HTMLDivElement>(null);
+  const streamRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
 
   const mode = useSyncExternalStore(modeStore.subscribe, modeStore.get, modeStore.getServer);
@@ -122,7 +124,7 @@ export const PreviewPanel = () => {
   const [scale, setScale] = useState(0);
 
   useLayoutEffect(() => {
-    const box = screenRef.current;
+    const box = streamRef.current;
 
     if (!box) return;
 
@@ -130,7 +132,7 @@ export const PreviewPanel = () => {
     observer.observe(box);
 
     return () => observer.disconnect();
-  }, [mode]);
+  }, []);
 
   // What the panel is showing, which lags the live slide by one fade. Swapping
   // only while the text is invisible means the refit measures the incoming
@@ -150,10 +152,13 @@ export const PreviewPanel = () => {
   }, [fadeMs, showData, visible]);
 
   const lyrics = onScreen.lyrics?.text ?? '';
-  const rows = settings.langOrder
-    .filter(lang => settings.enabled[lang])
-    .map(lang => ({ lang, items: onScreen[lang] ?? [] }));
+  const armed = settings.langOrder.filter(lang => settings.enabled[lang]);
+  const rows = armed.map(lang => ({ lang, items: onScreen[lang] ?? [] }));
   const hasContent = Boolean(lyrics) || rows.some(row => row.items.length > 0);
+
+  // The badge and the clear button answer for the outputs, not for the panel,
+  // so they read the live slide rather than the one the fade is still showing.
+  const isLive = Boolean(showData.lyrics?.text) || armed.some(lang => (showData[lang] ?? []).length > 0);
 
   // Same fit as the projector, in proportion to the panel — the bounds are the
   // projector's own, expressed as fractions of the screen height, so a slide
@@ -212,19 +217,50 @@ export const PreviewPanel = () => {
           ))}
         </div>
 
-        <span className="flex items-center gap-1.5 pr-1 text-[10px] font-semibold tracking-wide text-white/80">
-          <span className={cn('size-1.5 rounded-full', hasContent ? 'bg-studio-live' : 'bg-white/30')} />
-          {hasContent ? 'LIVE' : 'IDLE'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wide text-white/80">
+            <span className={cn('size-1.5 rounded-full', isLive ? 'bg-studio-live' : 'bg-white/30')} />
+            {isLive ? 'LIVE' : 'IDLE'}
+          </span>
+
+          {/* Clearing belongs against the thing being cleared, the way a
+              presentation app hangs it off its output preview. It is dead when
+              nothing is on screen, so a stab at it mid-service cannot be
+              mistaken for one that did something. */}
+          <button
+            type="button"
+            onClick={clearProjector}
+            disabled={!isLive}
+            title="Clear the screen"
+            className={cn(
+              'inline-flex h-6 items-center gap-1 rounded-[4px] px-2 text-[11px] font-medium transition-colors',
+              'duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
+              isLive ? 'bg-white/15 text-white hover:bg-studio-live' : 'cursor-not-allowed text-white/30',
+            )}
+          >
+            <X className="size-3" />
+            Clear
+          </button>
+        </div>
       </div>
 
-      {mode === 'stream' ? (
-        // The real /lower3rd page, scaled down, rather than a second rendering
-        // of the same design: it joins the session's channel like any other
-        // output, and its vh/vw padding resolves against its own 1920x1080
-        // viewport, so what shows here is what OBS draws. The chequerboard
-        // stands in for the camera and reads as transparency.
-        <div ref={screenRef} className="preview-alpha relative aspect-video w-full overflow-hidden">
+      {/* Both outputs stay mounted and the tabs only swap which is visible.
+          Remounting the iframe on every switch meant reloading the whole
+          overlay app and waiting for it to rejoin the channel — a preview that
+          was blank for a moment each time. Hidden with `visibility`, not
+          `display`, so the box keeps its size and the scale below stays right
+          for the frame it comes back on. */}
+      <div className="relative aspect-video w-full overflow-hidden">
+        <div
+          ref={streamRef}
+          aria-hidden={mode !== 'stream'}
+          className={cn('preview-alpha absolute inset-0 overflow-hidden', mode !== 'stream' && 'invisible')}
+        >
+          {/* The real /lower3rd page, scaled down, rather than a second
+              rendering of the same design: it joins the session's channel like
+              any other output, and its vh/vw padding resolves against its own
+              1920x1080 viewport, so what shows here is what OBS draws. The
+              chequerboard stands in for the camera and reads as transparency. */}
           <iframe
             title="Lower third preview"
             src={`/lower3rd/${session.outputKey}`}
@@ -240,10 +276,14 @@ export const PreviewPanel = () => {
             }}
           />
         </div>
-      ) : (
+
         <div
           ref={screenRef}
-          className="relative aspect-video w-full overflow-hidden bg-studio-slide bg-cover bg-center"
+          aria-hidden={mode === 'stream'}
+          className={cn(
+            'absolute inset-0 overflow-hidden bg-studio-slide bg-cover bg-center',
+            mode === 'stream' && 'invisible',
+          )}
           style={background ? { backgroundImage: `url(${background})` } : undefined}
         >
           <div className="absolute inset-0 bg-black/55" />
@@ -284,7 +324,7 @@ export const PreviewPanel = () => {
             )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { X } from 'lucide-react';
 
 import { IconButton } from '@/components/ui/IconButton';
@@ -142,6 +142,7 @@ export const Console = () => {
                     step={10}
                     value={cardSize}
                     onChange={event => setCardSize(Number(event.target.value))}
+                    style={{ '--range-fill': `${((cardSize - 140) / 180) * 100}%` } as CSSProperties}
                     className="studio-range h-1.5 cursor-pointer appearance-none rounded-full bg-studio-border w-40"
                   />
                 </label>

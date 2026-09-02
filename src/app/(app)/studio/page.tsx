@@ -44,12 +44,11 @@ export default async function StudioPage() {
     throw new Error('This account is missing its workspace. Sign out and back in to rebuild it.');
   }
 
-  const [{ data: workspace }, { data: state }, audioTracks, audioCategories, audioPlaylist] = await Promise.all([
+  const [{ data: workspace }, { data: state }, audioTracks, audioCategories] = await Promise.all([
     supabase.from('session_workspace').select('*').eq('session_id', session.data.id).maybeSingle(),
     supabase.from('session_state').select('show_data').eq('session_id', session.data.id).maybeSingle(),
     supabase.from('audio_tracks').select('*').eq('user_id', user.id).order('created_at'),
     supabase.from('audio_categories').select('id, name').eq('user_id', user.id).order('name'),
-    supabase.from('audio_playlist').select('track_id, position').eq('user_id', user.id).order('position'),
   ]);
 
   const audio: AudioInitial = {
@@ -64,7 +63,6 @@ export default async function StudioPage() {
       durationMs: row.duration_ms,
     })),
     categories: audioCategories.data ?? [],
-    playlist: (audioPlaylist.data ?? []).map(row => row.track_id),
   };
 
   const initial: StudioInitial = {
@@ -93,6 +91,7 @@ export default async function StudioPage() {
 
   return (
     <QueryProvider>
+
       <StudioProvider initial={initial}>
         <AudioProvider initial={audio}>
           <Console />

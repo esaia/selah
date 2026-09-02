@@ -59,7 +59,7 @@ const OutputLink = ({ label, href, connected }: { label: string; href: string; c
 };
 
 export const AppBar = ({ onSettings, onOpenNav }: { onSettings: () => void; onOpenNav: () => void }) => {
-  const { session, peers, clearProjector, tab, setTab } = useStudio();
+  const { session, peers, tab, setTab } = useStudio();
 
   return (
     <header
@@ -112,10 +112,6 @@ export const AppBar = ({ onSettings, onOpenNav }: { onSettings: () => void; onOp
 
         <Button icon={<Settings className="size-3.5" />} onClick={onSettings} title="Settings — background, type, OBS">
           <span className="hidden md:inline">Settings</span>
-        </Button>
-
-        <Button variant="primary" onClick={clearProjector}>
-          Clear
         </Button>
       </div>
     </header>

@@ -15,7 +15,6 @@ import { isAudioFile, loadLocalFile, loadLocalFiles, saveLocalFile, titleFromNam
 import { supabase } from '@/lib/supabase/client';
 import { save } from '@/lib/supabase/save';
 
-import { useDebouncedSave } from './useDebouncedSave';
 
 export interface Track {
   id: string;
@@ -41,7 +40,6 @@ const PROBE_TIMEOUT_MS = 8000;
 interface AudioValue {
   tracks: Track[];
   categories: Category[];
-  playlist: string[];
   current: Track | null;
   playing: boolean;
   position: number;
@@ -60,10 +58,6 @@ interface AudioValue {
   addCategory: (name: string) => Promise<void>;
   removeCategory: (id: string) => Promise<void>;
 
-  addToPlaylist: (id: string) => void;
-  removeFromPlaylist: (id: string) => void;
-  movePlaylistItem: (id: string, direction: number) => void;
-  clearPlaylist: () => void;
 
   play: (track: Track) => void;
   playTrack: (track: Track) => void;
@@ -90,7 +84,6 @@ export interface AudioInitial {
   userId: string;
   tracks: Track[];
   categories: Category[];
-  playlist: string[];
 }
 
 /**
@@ -111,7 +104,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
 
   const [tracks, setTracks] = useState<Track[]>(initial.tracks);
   const [categories, setCategories] = useState<Category[]>(initial.categories);
-  const [playlist, setPlaylist] = useState<string[]>(initial.playlist);
   const [current, setCurrent] = useState<Track | null>(null);
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
@@ -148,18 +140,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       urls.clear();
     };
   }, []);
-
-  // The playlist is an order over tracks, so it is rewritten whole rather than
-  // patched — there are a few dozen rows at most.
-  useDebouncedSave(playlist, async order => {
-    await db.from('audio_playlist').delete().eq('user_id', initial.userId);
-
-    if (order.length > 0) {
-      await db
-        .from('audio_playlist')
-        .insert(order.map((trackId, position) => ({ user_id: initial.userId, track_id: trackId, position })));
-    }
-  });
 
   const stopFade = () => {
     if (fadeTimer.current) {
@@ -240,11 +220,13 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
         audio.volume = fadeMs === 0 ? volume : 0;
         setCurrent(track);
 
+        setPlaying(true);
+
         try {
           await audio.play();
-          setPlaying(true);
           fadeTo(volume);
         } catch {
+          setPlaying(false);
           setError('The browser blocked playback. Click once on the page and try again.');
         }
       })();
@@ -257,10 +239,15 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
 
     if (!audio) return;
 
+    // The transport goes at the click; only the sound is allowed its ramp.
+    // Holding the bar open for the length of the fade left the operator looking
+    // at controls for a track they had already dismissed.
+    setCurrent(null);
+    setPlaying(false);
+
     fadeTo(0, () => {
       audio.pause();
       audio.currentTime = 0;
-      setPlaying(false);
     });
   }, [fadeTo]);
 
@@ -269,11 +256,13 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
 
     if (!audio || !current) return;
 
+    // The button answers the click, not the fade: the state flips now and the
+    // ramp runs behind it. Waiting for the fade meant a transport that looked
+    // broken for up to five seconds.
     if (playing) {
-      fadeTo(0, () => {
-        audio.pause();
-        setPlaying(false);
-      });
+      setPlaying(false);
+
+      fadeTo(0, () => audio.pause());
       return;
     }
 
@@ -285,15 +274,15 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       return;
     }
 
+    setPlaying(true);
+
     audio
       .play()
-      .then(() => {
-        setPlaying(true);
-        fadeTo(volume);
-      })
+      .then(() => fadeTo(volume))
       .catch(() => {
         // A rejection here is nearly always the autoplay policy or a source
         // that has gone away; starting the track over covers both.
+        setPlaying(false);
         play(current);
       });
   }, [current, fadeTo, play, playing, volume]);
@@ -394,7 +383,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       await db.from('audio_tracks').delete().eq('id', id);
 
       setTracks(current => current.filter(track => track.id !== id));
-      setPlaylist(current => current.filter(trackId => trackId !== id));
       setCurrent(current => (current?.id === id ? null : current));
     },
     [db],
@@ -404,7 +392,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
     () => ({
       tracks,
       categories,
-      playlist,
       current,
       playing,
       position,
@@ -435,21 +422,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
         await db.from('audio_categories').delete().eq('id', id);
         setCategories(current => current.filter(category => category.id !== id));
       },
-      addToPlaylist: id => setPlaylist(current => (current.includes(id) ? current : [...current, id])),
-      removeFromPlaylist: id => setPlaylist(current => current.filter(trackId => trackId !== id)),
-      movePlaylistItem: (id, direction) =>
-        setPlaylist(current => {
-          const index = current.indexOf(id);
-          const target = index + direction;
-
-          if (index === -1 || target < 0 || target >= current.length) return current;
-
-          const next = [...current];
-          [next[index], next[target]] = [next[target], next[index]];
-
-          return next;
-        }),
-      clearPlaylist: () => setPlaylist([]),
       play,
       playTrack: track => (current?.id === track.id ? togglePlay() : play(track)),
       togglePlay,
@@ -483,7 +455,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       muted,
       play,
       playing,
-      playlist,
       position,
       removeTrack,
       stop,

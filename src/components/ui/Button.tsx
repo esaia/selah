@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
 
@@ -19,11 +20,24 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof VARIANTS;
   size?: keyof typeof SIZES;
   icon?: ReactNode;
+  /** Work is in flight: the button spins in place and stops taking clicks. */
+  loading?: boolean;
 }
 
-export const Button = ({ variant = 'secondary', size = 'sm', icon, className, children, ...rest }: ButtonProps) => (
+export const Button = ({
+  variant = 'secondary',
+  size = 'sm',
+  icon,
+  loading = false,
+  disabled,
+  className,
+  children,
+  ...rest
+}: ButtonProps) => (
   <button
     type="button"
+    disabled={disabled || loading}
+    aria-busy={loading || undefined}
     className={cn(
       'inline-flex items-center justify-center rounded-studio font-medium tracking-tight transition-colors duration-150',
       'select-none whitespace-nowrap [&_svg]:shrink-0',
@@ -34,7 +48,7 @@ export const Button = ({ variant = 'secondary', size = 'sm', icon, className, ch
     )}
     {...rest}
   >
-    {icon}
+    {loading ? <Loader2 className={cn('animate-spin', size === 'md' ? 'size-4' : 'size-3.5')} /> : icon}
     {children}
   </button>
 );

@@ -1,7 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { HiOutlineClipboardCopy, HiOutlineDesktopComputer, HiOutlineVideoCamera } from 'react-icons/hi';
+import {
+  HiOutlineClipboardCheck,
+  HiOutlineClipboardCopy,
+  HiOutlineDesktopComputer,
+  HiOutlineVideoCamera,
+} from 'react-icons/hi';
 import { MdPhoneIphone } from 'react-icons/md';
 
 import { cn } from '@/lib/cn';
@@ -24,19 +29,31 @@ const CopyRow = ({ label, url }: { label: string; url: string }) => {
           text-studio-text focus:outline-none"
       />
 
+      {/* The tick is the whole acknowledgement, and it waits for the clipboard
+          rather than for the click: a copy the browser refused keeps the
+          clipboard icon instead of claiming the link is in hand. */}
       <button
         type="button"
-        aria-label={`Copy the ${label} link`}
-        title={`Copy the ${label} link`}
+        aria-label={copied ? 'Copied' : `Copy the ${label} link`}
+        title={copied ? 'Copied' : `Copy the ${label} link`}
         onClick={() => {
-          void navigator.clipboard.writeText(url);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
+          navigator.clipboard.writeText(url).then(
+            () => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            },
+            () => {},
+          );
         }}
-        className="flex h-8 w-9 shrink-0 items-center justify-center rounded-studio border border-studio-border
-          bg-white text-studio-muted transition-colors duration-150 hover:bg-studio-surface hover:text-studio-text"
+        className={cn(
+          'flex h-8 w-9 shrink-0 items-center justify-center rounded-studio border bg-white transition-colors',
+          'duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
+          copied
+            ? 'border-studio-go text-studio-go'
+            : 'border-studio-border text-studio-muted hover:bg-studio-surface hover:text-studio-text',
+        )}
       >
-        <HiOutlineClipboardCopy className={cn('text-base', copied && 'text-studio-go')} />
+        {copied ? <HiOutlineClipboardCheck className="text-base" /> : <HiOutlineClipboardCopy className="text-base" />}
       </button>
     </div>
   );
@@ -104,7 +121,6 @@ export const DevicesSection = () => {
           <div className="space-y-2">
             <CopyRow label="Screen" url={`${origin}/show/${session.outputKey}`} />
             <CopyRow label="OBS" url={`${origin}/lower3rd/${session.outputKey}`} />
-            <CopyRow label="Phone" url={`${origin}/studio`} />
           </div>
 
           <p className="mt-3 text-[11px] leading-relaxed text-studio-faint">

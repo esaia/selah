@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 
+import { railWidthScript } from '@/lib/studio/railWidth';
+
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -16,6 +18,13 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full" suppressHydrationWarning>
+        {/* Parsed before anything below it, so the console's output rail is its
+            saved width in the very first frame instead of snapping wider once
+            React has hydrated. It has to live here rather than on the console
+            page: a page's own markup can arrive inside a streaming boundary,
+            and a script React swaps in from a template never runs. */}
+        <script dangerouslySetInnerHTML={{ __html: railWidthScript }} />
+
         {children}
       </body>
     </html>
