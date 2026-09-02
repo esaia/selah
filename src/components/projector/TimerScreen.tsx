@@ -1,8 +1,8 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -17,6 +17,7 @@ import {
   formatClock,
   timerReading,
   visibleMessages,
+  type TimerMessage,
   type TimerState,
 } from "@/lib/timer/model";
 
@@ -90,13 +91,20 @@ const widthInEms = (text: string) =>
  * Watch one box. Only the box is observed — the sizes are worked out during
  * render — so a digit changing every second does not tear down and rebuild a
  * ResizeObserver every second.
+ *
+ * A callback ref rather than an effect: a full-screen message swaps the frame
+ * for a different element and takes the digits away entirely, and an effect
+ * that ran once at mount would be left watching a node that is no longer on
+ * the page — the digits would come back measuring nothing, and size to
+ * nothing with it.
  */
 const useBox = () => {
-  const ref = useRef<HTMLDivElement>(null);
+  const watching = useRef<ResizeObserver | null>(null);
   const [box, setBox] = useState({ width: 0, height: 0 });
 
-  useLayoutEffect(() => {
-    const node = ref.current;
+  const ref = useCallback((node: HTMLDivElement | null) => {
+    watching.current?.disconnect();
+    watching.current = null;
 
     if (!node) return;
 
@@ -114,11 +122,79 @@ const useBox = () => {
 
     const observer = new ResizeObserver(measure);
     observer.observe(node);
-
-    return () => observer.disconnect();
+    watching.current = observer;
   }, []);
 
   return [ref, box] as const;
+};
+
+/**
+ * A flash is an event, not a state: the console bumps a stamp, and every screen
+ * that sees a *new* value plays it once. Read during render rather than in an
+ * effect, so the pulse lands on the same paint as the payload.
+ *
+ * The run has one stamp and each message has its own, so an operator can blink
+ * a single note without strobing the digits.
+ */
+const useFlash = (at: number, now: number | null) => {
+  const [seen, setSeen] = useState(at);
+  const [flashingAt, setFlashingAt] = useState(0);
+
+  if (at !== seen) {
+    setSeen(at);
+
+    // Only worth playing if it was fired within living memory: a screen opening
+    // mid-service reads the stored run, and must not strobe at a flash from ten
+    // minutes ago.
+    setFlashingAt(now !== null && now - at <= FLASH_MS * 4 ? at : 0);
+  }
+
+  useEffect(() => {
+    if (!flashingAt) return;
+
+    const id = setTimeout(() => setFlashingAt(0), FLASH_MS);
+
+    return () => clearTimeout(id);
+  }, [flashingAt]);
+
+  return flashingAt > 0;
+};
+
+/** The blinks themselves, four over the flash. */
+const flashAnimation = (lit: boolean) =>
+  lit ? `timer-flash ${FLASH_MS / 4}ms ease-in-out 4` : undefined;
+
+/** One note on the screen. It blinks on its own stamp, and along with the
+ *  screen when the whole output is flashed. */
+const MessageLine = ({
+  message,
+  now,
+  screenFlashing,
+  fontSize,
+  weight,
+}: {
+  message: TimerMessage;
+  now: number | null;
+  screenFlashing: boolean;
+  fontSize: number;
+  weight: number;
+}) => {
+  const own = useFlash(message.flashAt, now);
+
+  return (
+    <p
+      className="leading-tight"
+      style={{
+        fontSize,
+        color: MESSAGE_COLORS[message.color],
+        fontWeight: weight,
+        textTransform: message.caps ? "uppercase" : "none",
+        animation: flashAnimation(own || screenFlashing),
+      }}
+    >
+      {message.text}
+    </p>
+  );
 };
 
 export const TimerScreen = ({
@@ -159,30 +235,7 @@ export const TimerScreen = ({
       ? Math.floor(Math.min(digits.width / widthInEms(text), digits.height))
       : 0;
 
-  // A flash is an event, not a state: the console bumps `flashAt`, and every
-  // screen that sees a *new* value plays it once. Taken during render rather
-  // than in an effect, so the pulse lands on the same paint as the payload.
-  const [seenFlash, setSeenFlash] = useState(state.flashAt);
-  const [flashingAt, setFlashingAt] = useState(0);
-
-  if (state.flashAt !== seenFlash) {
-    setSeenFlash(state.flashAt);
-
-    // Only worth playing if it was fired within living memory: a screen opening
-    // mid-service reads the stored run, and must not strobe at a flash from ten
-    // minutes ago.
-    setFlashingAt(
-      now !== null && now - state.flashAt <= FLASH_MS * 4 ? state.flashAt : 0,
-    );
-  }
-
-  useEffect(() => {
-    if (!flashingAt) return;
-
-    const id = setTimeout(() => setFlashingAt(0), FLASH_MS);
-
-    return () => clearTimeout(id);
-  }, [flashingAt]);
+  const flashing = useFlash(state.flashAt, now);
 
   const messages = visibleMessages(state);
   const takeover = messages.filter((message) => message.fullScreen);
@@ -202,22 +255,15 @@ export const TimerScreen = ({
         )}
       >
         {takeover.map((message) => (
-          <p
+          <MessageLine
             key={message.id}
-            className="leading-tight"
-            style={{
-              fontSize: Math.max(16, unit * (takeover.length > 1 ? 0.14 : 0.2)),
-              color: MESSAGE_COLORS[message.color],
-              fontWeight: message.bold ? 700 : 600,
-              textTransform: message.caps ? "uppercase" : "none",
-              // The same four blinks the digits wear, so Flash still reads.
-              animation: flashingAt
-                ? `timer-flash ${FLASH_MS / 4}ms ease-in-out 4`
-                : undefined,
-            }}
-          >
-            {message.text}
-          </p>
+            message={message}
+            now={now}
+            // The same four blinks the digits wear, so Flash still reads.
+            screenFlashing={flashing}
+            fontSize={Math.max(16, unit * (takeover.length > 1 ? 0.14 : 0.2))}
+            weight={message.bold ? 700 : 600}
+          />
         ))}
       </div>
     );
@@ -245,6 +291,10 @@ export const TimerScreen = ({
       <div
         ref={digitsRef}
         className="flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+        // A note on the screen is what the room is being asked to read, so the
+        // digits give way to it: they keep a third of the height and the words
+        // take the rest, rather than both settling for half.
+        style={messages.length > 0 ? { maxHeight: unit * 0.34 } : undefined}
       >
         <span
           className="leading-none font-semibold whitespace-nowrap tabular-nums"
@@ -253,55 +303,33 @@ export const TimerScreen = ({
             color: PHASE_COLOR[reading?.phase ?? "normal"],
             transition: "color 300ms linear",
             // Four blinks over the flash, on the digits themselves.
-            animation: flashingAt
-              ? `timer-flash ${FLASH_MS / 4}ms ease-in-out 4`
-              : undefined,
+            animation: flashAnimation(flashing),
           }}
         >
           {text}
         </span>
       </div>
 
-      {reading && reading.progress !== null ? (
-        <div
-          className="shrink-0 overflow-hidden rounded-full bg-white/15"
-          style={{ height: Math.max(4, unit * 0.025), marginTop: unit * 0.04 }}
-        >
-          <div
-            className="h-full rounded-full"
-            style={{
-              width: `${reading.progress * 100}%`,
-              backgroundColor: PHASE_BAR[reading.phase],
-              transition: "width 250ms linear, background-color 300ms linear",
-            }}
-          />
-        </div>
-      ) : null}
-
       {messages.length > 0 ? (
         <div
           // A message is the point of the screen while it is up — the person
-          // reading it is at the back of a hall, glancing — so it is set as
-          // large as the digits, and takes its room from them. Several at once
-          // share the space rather than overflowing it.
-          className="max-h-[45%] shrink-0 space-y-1 overflow-hidden text-center"
-          style={{
-            marginTop: unit * 0.04,
-            fontSize: Math.max(14, unit * (messages.length > 1 ? 0.12 : 0.2)),
-          }}
+          // reading it is at the back of a hall, glancing — so it is set
+          // larger than the digits, and takes its room from them. Several at
+          // once share the space rather than overflowing it.
+          className="max-h-[55%] shrink-0 space-y-1 overflow-hidden text-center"
+          style={{ marginTop: unit * 0.04 }}
         >
           {messages.map((message) => (
-            <p
+            <MessageLine
               key={message.id}
-              className="leading-tight"
-              style={{
-                color: MESSAGE_COLORS[message.color],
-                fontWeight: message.bold ? 700 : 400,
-                textTransform: message.caps ? "uppercase" : "none",
-              }}
-            >
-              {message.text}
-            </p>
+              message={message}
+              now={now}
+              // The screen's own flash is the digits' business; a note under
+              // them blinks only when it was the one flashed.
+              screenFlashing={false}
+              fontSize={Math.max(14, unit * (messages.length > 1 ? 0.16 : 0.3))}
+              weight={message.bold ? 700 : 400}
+            />
           ))}
         </div>
       ) : null}
@@ -315,6 +343,25 @@ export const TimerScreen = ({
           }}
         >
           {now === null ? "--:--:--" : formatClock(now)}
+        </div>
+      ) : null}
+
+      {reading && reading.progress !== null ? (
+        <div
+          // Along the foot of the screen, under everything: the run's own
+          // margin, read at a glance and never in the way of the words. It
+          // goes green, amber, red with the digits.
+          className="shrink-0 overflow-hidden rounded-full bg-white/15"
+          style={{ height: Math.max(5, unit * 0.03), marginTop: unit * 0.05 }}
+        >
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${reading.progress * 100}%`,
+              backgroundColor: PHASE_BAR[reading.phase],
+              transition: "width 250ms linear, background-color 300ms linear",
+            }}
+          />
         </div>
       ) : null}
     </div>

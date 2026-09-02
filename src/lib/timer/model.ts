@@ -54,6 +54,8 @@ export interface TimerMessage {
   visible: boolean;
   /** Takes the whole output over, digits and all. */
   fullScreen: boolean;
+  /** Bumped to `Date.now()` to blink this message once, wherever it is up. */
+  flashAt: number;
 }
 
 export interface TimerState {
@@ -99,6 +101,7 @@ export const newMessage = (
   caps: false,
   visible: false,
   fullScreen: false,
+  flashAt: 0,
   ...overrides,
 });
 
@@ -175,6 +178,7 @@ export const asTimerState = (raw: unknown): TimerState => {
       caps: Boolean(item.caps),
       visible: Boolean(item.visible),
       fullScreen: Boolean(item.fullScreen),
+      flashAt: Math.max(0, num(item.flashAt, 0)),
     }));
 
   return {

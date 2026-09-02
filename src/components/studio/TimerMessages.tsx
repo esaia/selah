@@ -1,6 +1,6 @@
 "use client";
 
-import { Expand, Eye, EyeOff, GripVertical, Plus, Trash2 } from "lucide-react";
+import { Expand, GripVertical, Plus, Trash2, Zap } from "lucide-react";
 import {
   useState,
   type CSSProperties,
@@ -104,8 +104,12 @@ const Card = ({
         onDrop(sideOf(event) === "after" ? index + 1 : index);
       }}
       className={cn(
-        "relative rounded-studio-lg border border-studio-border bg-white transition-colors duration-150",
-        "focus-within:border-studio-accent/50",
+        "relative rounded-studio-lg border transition-colors duration-150",
+        // A message on the screen is tinted rather than repainted: same border
+        // width, same padding, so nothing under it moves when it goes up.
+        message.visible
+          ? "border-studio-accent bg-studio-accent/[0.06]"
+          : "border-studio-border bg-white focus-within:border-studio-accent/50",
         carried && "opacity-40",
       )}
     >
@@ -180,6 +184,13 @@ const Card = ({
           <Trash2 className="size-3.5" />
         </IconButton>
 
+        <IconButton
+          label="Flash this message once, to catch an eye"
+          onClick={() => patch({ flashAt: Date.now() })}
+        >
+          <Zap className="size-3.5" />
+        </IconButton>
+
         <span aria-hidden="true" className="mx-1 h-4 w-px bg-studio-divider" />
 
         {(Object.keys(MESSAGE_COLORS) as MessageColor[]).map((color) => (
@@ -221,16 +232,21 @@ const Card = ({
               "inline-flex h-7 items-center gap-1.5 rounded-l-studio border px-2.5 text-xs font-medium",
               "transition-colors duration-150 focus:outline-none",
               message.visible
-                ? "border-studio-accent bg-studio-accent text-white"
+                ? "border-studio-bar bg-studio-bar text-white"
                 : "border-studio-border bg-white text-studio-text hover:bg-studio-surface",
             )}
           >
-            {message.visible ? (
-              <Eye className="size-3.5" />
-            ) : (
-              <EyeOff className="size-3.5" />
-            )}
-            {message.visible ? "On screen" : "Show"}
+            {/* The label never moves; only the tally lights. */}
+            <span
+              aria-hidden="true"
+              className={cn(
+                "size-2 rounded-full transition-colors duration-150",
+                message.visible
+                  ? "bg-studio-accent shadow-[0_0_6px_1px_var(--color-studio-accent)]"
+                  : "bg-studio-faint",
+              )}
+            />
+            Show
           </button>
 
           <button
@@ -244,7 +260,9 @@ const Card = ({
               "transition-colors duration-150 focus:outline-none",
               message.fullScreen
                 ? "border-studio-accent bg-studio-accent text-white"
-                : "border-studio-border bg-white text-studio-muted hover:bg-studio-surface hover:text-studio-text",
+                : message.visible
+                  ? "border-studio-bar bg-studio-bar text-white/70 hover:text-white"
+                  : "border-studio-border bg-white text-studio-muted hover:bg-studio-surface hover:text-studio-text",
             )}
           >
             <Expand className="size-3.5" />
