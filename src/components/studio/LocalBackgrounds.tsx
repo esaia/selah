@@ -75,14 +75,14 @@ export const LocalBackgrounds = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-sm">Your own pictures</h2>
 
-        <label className="border-ink-800 text-ink-300 hover:border-ink-700 flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-1 text-xs transition hover:text-white">
+        <label className="border-studio-border text-studio-text hover:border-studio-faint flex cursor-pointer items-center gap-2 rounded-studio border px-2.5 py-1 text-xs transition hover:text-studio-text">
           <Upload className="size-3" />
           Add
           <input type="file" accept="image/*" multiple onChange={add} className="hidden" />
         </label>
       </div>
 
-      <p className="text-ink-700 mt-1 text-xs">
+      <p className="text-studio-faint mt-1 text-xs">
         Kept on this computer, not uploaded. A projector on another machine fetches it from here.
       </p>
 
@@ -95,8 +95,8 @@ export const LocalBackgrounds = () => {
                 onClick={() => setLocalBackground(record)}
                 title={record.name}
                 className={cn(
-                  'ring-offset-ink-900 h-12 w-full rounded bg-cover bg-center ring-offset-2 transition',
-                  selected === record.id ? 'ring-brand-500 ring-2' : 'hover:ring-ink-700 hover:ring-1',
+                  'ring-offset-white h-12 w-full rounded bg-cover bg-center ring-offset-2 transition',
+                  selected === record.id ? 'ring-studio-accent ring-2' : 'hover:ring-studio-border hover:ring-1',
                 )}
                 style={{ backgroundImage: urls[record.id] ? `url(${urls[record.id]})` : undefined }}
               />
@@ -105,7 +105,7 @@ export const LocalBackgrounds = () => {
                 type="button"
                 onClick={() => void remove(record)}
                 aria-label={`Remove ${record.name}`}
-                className="bg-ink-950/80 text-ink-300 hover:text-live absolute -top-1 -right-1 hidden rounded p-0.5 group-hover:block"
+                className="bg-white/80 text-studio-text hover:text-studio-danger absolute -top-1 -right-1 hidden rounded p-0.5 group-hover:block"
               >
                 <Trash2 className="size-3" />
               </button>

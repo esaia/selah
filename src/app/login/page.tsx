@@ -16,26 +16,29 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
   return (
     <main className="grid min-h-dvh place-items-center px-6">
       <div className="w-full max-w-sm">
-        <Link href="/" className="text-brand-400 text-sm tracking-[0.2em] uppercase">
+        <Link href="/" className="text-studio-accent text-sm tracking-[0.2em] uppercase">
           Selah
         </Link>
 
         <h1 className="mt-6 text-3xl">Sign in</h1>
-        <p className="text-ink-500 mt-2 text-sm">
+        <p className="text-studio-muted mt-2 text-sm">
           Your passages, songs and projector look follow your account onto whichever machine is running the service.
         </p>
 
         {error ? (
-          <p className="border-live/40 bg-live/10 text-ink-100 mt-6 rounded-lg border px-3 py-2 text-sm">
-            That sign-in did not complete. Try once more.
-          </p>
+          <div className="border-studio-live/40 bg-studio-live/10 mt-6 rounded-studio border px-3 py-2">
+            <p className="text-studio-text text-sm">That sign-in did not complete.</p>
+            {typeof error === 'string' && error !== '1' ? (
+              <p className="text-studio-text mt-1 font-mono text-xs break-words">{error}</p>
+            ) : null}
+          </div>
         ) : null}
 
         <div className="mt-8">
           <GoogleButton next={typeof next === 'string' ? next : '/studio'} />
         </div>
 
-        <p className="text-ink-700 mt-6 text-xs">Google is the only way in for now. Email sign-in is coming.</p>
+        <p className="text-studio-faint mt-6 text-xs">Google is the only way in for now. Email sign-in is coming.</p>
       </div>
     </main>
   );

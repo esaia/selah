@@ -13,6 +13,7 @@ import {
 
 import { isAudioFile, loadLocalFile, loadLocalFiles, saveLocalFile, titleFromName } from '@/lib/media/localMedia';
 import { supabase } from '@/lib/supabase/client';
+import { save } from '@/lib/supabase/save';
 
 import { useDebouncedSave } from './useDebouncedSave';
 
@@ -47,12 +48,13 @@ interface AudioValue {
   duration: number;
   volume: number;
   loop: boolean;
+  muted: boolean;
   fadeMs: number;
   missing: Set<string>;
   error: string;
 
   addUrlTrack: (input: { title: string; src: string }) => Promise<void>;
-  addLocalFiles: (files: File[]) => Promise<void>;
+  addLocalFiles: (files: Iterable<File>) => Promise<Track[]>;
   removeTrack: (id: string) => Promise<void>;
   setTrackCategory: (id: string, categoryId: string | null) => Promise<void>;
   addCategory: (name: string) => Promise<void>;
@@ -64,11 +66,13 @@ interface AudioValue {
   clearPlaylist: () => void;
 
   play: (track: Track) => void;
+  playTrack: (track: Track) => void;
   togglePlay: () => void;
   stop: () => void;
   seek: (seconds: number) => void;
   setVolume: (value: number) => void;
   setLoop: (value: boolean) => void;
+  toggleMute: () => void;
   setFadeMs: (value: number) => void;
 }
 
@@ -114,6 +118,7 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
   const [duration, setDuration] = useState(0);
   const [volume, setVolumeState] = useState(0.8);
   const [loop, setLoop] = useState(false);
+  const [muted, setMuted] = useState(false);
   const [fadeMs, setFadeMsState] = useState(DEFAULT_FADE_MS);
   const [missing, setMissing] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
@@ -272,11 +277,26 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       return;
     }
 
-    void audio.play().then(() => {
-      setPlaying(true);
-      fadeTo(volume);
-    });
-  }, [current, fadeTo, playing, volume]);
+    // Resuming an element that has lost its source — the blob URL went with a
+    // reload, or an earlier load errored — silently rejects and leaves the
+    // button stuck showing Play. Reload the track instead of pretending.
+    if (!audio.src || audio.error) {
+      play(current);
+      return;
+    }
+
+    audio
+      .play()
+      .then(() => {
+        setPlaying(true);
+        fadeTo(volume);
+      })
+      .catch(() => {
+        // A rejection here is nearly always the autoplay policy or a source
+        // that has gone away; starting the track over covers both.
+        play(current);
+      });
+  }, [current, fadeTo, play, playing, volume]);
 
   // Probe durations in the background so the library can show lengths without
   // the operator having to play every track to find the two-minute one.
@@ -310,7 +330,7 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
         if (!ms || cancelled) return;
 
         setTracks(current => current.map(track => (track.id === pending.id ? { ...track, durationMs: ms } : track)));
-        void db.from('audio_tracks').update({ duration_ms: ms }).eq('id', pending.id);
+        void save(db.from('audio_tracks').update({ duration_ms: ms }).eq('id', pending.id), 'a track length');
       };
     })();
 
@@ -339,7 +359,9 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
 
   const addLocalFiles = useCallback<AudioValue['addLocalFiles']>(
     async files => {
-      for (const file of files.filter(isAudioFile)) {
+      const added: Track[] = [];
+
+      for (const file of [...files].filter(isAudioFile)) {
         const record = await saveLocalFile(file);
         const { data } = await db
           .from('audio_tracks')
@@ -355,12 +377,14 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
           .single();
 
         if (data) {
-          setTracks(current => [
-            ...current,
-            { id: data.id, title: data.title, artist: data.artist, localId: data.local_id },
-          ]);
+          const track: Track = { id: data.id, title: data.title, artist: data.artist, localId: data.local_id };
+
+          added.push(track);
+          setTracks(current => [...current, track]);
         }
       }
+
+      return added;
     },
     [db, initial.userId],
   );
@@ -387,6 +411,7 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       duration,
       volume,
       loop,
+      muted,
       fadeMs,
       missing,
       error,
@@ -426,6 +451,7 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
         }),
       clearPlaylist: () => setPlaylist([]),
       play,
+      playTrack: track => (current?.id === track.id ? togglePlay() : play(track)),
       togglePlay,
       stop,
       seek: seconds => {
@@ -437,6 +463,9 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
         if (element.current && !fadeTimer.current) element.current.volume = next;
       },
       setLoop,
+      // Mute rides on the element rather than the volume slider, so unmuting
+      // returns to exactly the level the operator had set.
+      toggleMute: () => setMuted(current => !current),
       setFadeMs: next => setFadeMsState(Math.min(5000, Math.max(0, next))),
     }),
     [
@@ -451,6 +480,7 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       initial.userId,
       loop,
       missing,
+      muted,
       play,
       playing,
       playlist,
@@ -470,6 +500,7 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       <audio
         ref={element}
         loop={loop}
+        muted={muted}
         onTimeUpdate={event => setPosition(event.currentTarget.currentTime)}
         onDurationChange={event => setDuration(event.currentTarget.duration || 0)}
         onEnded={() => setPlaying(false)}

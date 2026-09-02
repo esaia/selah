@@ -1,11 +1,17 @@
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
-import { Check, Copy, Monitor, Radio, Settings, SquareDashed } from 'lucide-react';
+import { BookOpen, Check, Copy, ExternalLink, Menu, Mic2, Monitor, Music, Settings } from 'lucide-react';
 
+import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
-import { useStudio } from '@/lib/studio/StudioProvider';
+import { useStudio, type Tab } from '@/lib/studio/StudioProvider';
+
+const TABS: { id: Tab; label: string; Icon: typeof BookOpen }[] = [
+  { id: 'bible', label: 'Bible', Icon: BookOpen },
+  { id: 'lyrics', label: 'Lyrics', Icon: Mic2 },
+  { id: 'audio', label: 'Audio', Icon: Music },
+];
 
 /** A link an operator carries to another machine, with a one-click copy. */
 const OutputLink = ({ label, href, connected }: { label: string; href: string; connected: number }) => {
@@ -18,74 +24,127 @@ const OutputLink = ({ label, href, connected }: { label: string; href: string; c
   };
 
   return (
-    <div className="border-ink-800 bg-ink-900 flex items-center gap-2 rounded-md border px-2 py-1">
+    <span
+      className="inline-flex h-8 items-center gap-1.5 rounded-studio border border-studio-border bg-white px-2.5
+        text-xs font-medium text-studio-text"
+    >
       <span
         title={connected ? `${connected} connected` : 'Nothing connected'}
-        className={cn('size-1.5 rounded-full', connected ? 'bg-brand-500' : 'bg-ink-700')}
+        className={cn('size-1.5 shrink-0 rounded-full', connected ? 'bg-studio-go' : 'bg-studio-border')}
       />
-      <span className="text-ink-300 text-xs">{label}</span>
+      <span className="hidden lg:inline">{label}</span>
 
-      <button type="button" onClick={copy} title={`Copy the ${label} link`} className="text-ink-500 hover:text-white">
-        {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+      <button
+        type="button"
+        onClick={copy}
+        title={`Copy the ${label} link`}
+        aria-label={`Copy the ${label} link`}
+        className="text-studio-faint transition-colors duration-150 hover:text-studio-text"
+      >
+        {copied ? <Check className="size-3.5 text-studio-go" /> : <Copy className="size-3.5" />}
       </button>
 
-      <a href={href} target="_blank" rel="noreferrer" title={`Open ${label}`} className="text-ink-500 hover:text-white">
-        <SquareDashed className="size-3" />
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        title={`Open ${label}`}
+        aria-label={`Open ${label}`}
+        className="text-studio-faint transition-colors duration-150 hover:text-studio-text"
+      >
+        <ExternalLink className="size-3.5" />
       </a>
-    </div>
+    </span>
   );
 };
 
-export const AppBar = ({ onSettings }: { onSettings: () => void }) => {
-  const { session, peers, clearProjector, live } = useStudio();
+export const AppBar = ({ onSettings, onOpenNav }: { onSettings: () => void; onOpenNav: () => void }) => {
+  const { session, peers, clearProjector, tab, setTab } = useStudio();
 
   return (
-    <header className="border-ink-850 flex items-center gap-3 border-b px-4 py-2.5">
-      <Link href="/" className="text-brand-400 text-xs tracking-[0.25em] uppercase">
-        Selah
-      </Link>
+    <header
+      className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-studio-border
+        bg-white px-3 py-2 sm:px-4 lg:h-12 lg:flex-nowrap lg:gap-4 lg:py-0"
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={onOpenNav}
+          aria-label="Open setup"
+          title="Setup — languages, projector, stream"
+          className="-ml-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-studio text-studio-muted
+            transition-colors duration-150 hover:bg-studio-surface hover:text-studio-text focus:outline-none
+            focus-visible:ring-2 focus-visible:ring-studio-accent/40 lg:hidden"
+        >
+          <Menu className="size-4" />
+        </button>
 
-      <div className="ml-4 flex items-center gap-2">
-        <OutputLink label="Screen" href={`/show/${session.outputKey}`} connected={peers.show} />
-        <OutputLink label="Stream" href={`/lower3rd/${session.outputKey}`} connected={peers.lower3rd} />
+        <span className="truncate text-sm font-semibold text-studio-text">Selah</span>
+        <span className="hidden text-xs text-studio-faint sm:inline">Studio</span>
       </div>
 
-      <div className="ml-auto flex items-center gap-2">
-        <button
-          type="button"
-          onClick={clearProjector}
-          disabled={!live}
-          className={cn(
-            'rounded-md border px-3 py-1.5 text-xs transition',
-            live
-              ? 'border-live/50 text-live hover:bg-live/10'
-              : 'border-ink-850 text-ink-700 cursor-not-allowed',
-          )}
-        >
-          Clear screen
-        </button>
+      <nav
+        aria-label="Workspace"
+        className="order-last flex items-center gap-0.5 rounded-studio border border-studio-border
+          bg-studio-surface p-0.5 sm:order-none"
+      >
+        {TABS.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            aria-current={tab === id ? 'page' : undefined}
+            onClick={() => setTab(id)}
+            className={cn(
+              'inline-flex h-7 items-center gap-1.5 rounded-[4px] px-3 text-xs font-medium transition-colors',
+              'duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
+              tab === id ? 'bg-white text-studio-text shadow-studio' : 'text-studio-muted hover:text-studio-text',
+            )}
+          >
+            <Icon className="size-3.5" />
+            {label}
+          </button>
+        ))}
+      </nav>
 
-        <button
-          type="button"
-          onClick={onSettings}
-          aria-label="Settings"
-          className="text-ink-500 hover:bg-ink-850 rounded-md p-2 transition hover:text-white"
-        >
-          <Settings className="size-4" />
-        </button>
+      <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+        <OutputLink label="Screen" href={`/show/${session.outputKey}`} connected={peers.show} />
+        <OutputLink label="Stream" href={`/lower3rd/${session.outputKey}`} connected={peers.lower3rd} />
+
+        <Button icon={<Settings className="size-3.5" />} onClick={onSettings} title="Settings — background, type, OBS">
+          <span className="hidden md:inline">Settings</span>
+        </Button>
+
+        <Button variant="primary" onClick={clearProjector}>
+          Clear
+        </Button>
       </div>
     </header>
   );
 };
 
+/** What the room is seeing, for the foot of the preview rail. */
 export const LiveBadge = () => {
   const { live, peers } = useStudio();
 
   return (
-    <span className="text-ink-500 flex items-center gap-2 text-xs">
-      {live ? <Radio className="text-live size-3 animate-pulse" /> : <Monitor className="size-3" />}
-      {live ? 'On screen' : 'Screen is clear'}
-      {peers.show ? ` · ${peers.show} output${peers.show > 1 ? 's' : ''}` : ''}
+    <span className="flex items-center gap-2 text-xs text-studio-muted">
+      {live ? (
+        <>
+          <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-studio-live" />
+          On screen
+        </>
+      ) : (
+        <>
+          <Monitor className="size-3.5 text-studio-faint" />
+          Screen is clear
+        </>
+      )}
+
+      {peers.show ? (
+        <span className="text-studio-faint">
+          · {peers.show} output{peers.show > 1 ? 's' : ''}
+        </span>
+      ) : null}
     </span>
   );
 };

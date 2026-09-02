@@ -66,24 +66,24 @@ export const AudioPanel = () => {
           onClick={() => play(track)}
           disabled={unavailable}
           aria-label={`Play ${track.title}`}
-          className="text-ink-500 hover:text-white disabled:opacity-30"
+          className="text-studio-muted hover:text-studio-text disabled:opacity-30"
         >
           <Play className="size-3.5" />
         </button>
 
-        <span className={cn('flex-1 truncate', current?.id === track.id ? 'text-brand-400' : 'text-ink-300')}>
+        <span className={cn('flex-1 truncate', current?.id === track.id ? 'text-studio-accent' : 'text-studio-text')}>
           {track.title}
-          {unavailable ? <span className="text-ink-700 ml-2 text-xs">on another computer</span> : null}
+          {unavailable ? <span className="text-studio-faint ml-2 text-xs">on another computer</span> : null}
         </span>
 
-        <span className="text-ink-700 text-xs">{clock(track.durationMs)}</span>
+        <span className="text-studio-faint text-xs">{clock(track.durationMs)}</span>
 
         <div className="hidden gap-1 group-hover:flex">
           <button
             type="button"
             onClick={() => (inPlaylist ? removeFromPlaylist(track.id) : addToPlaylist(track.id))}
             aria-label={inPlaylist ? 'Remove from the playlist' : 'Add to the playlist'}
-            className="text-ink-500 hover:text-white"
+            className="text-studio-muted hover:text-studio-text"
           >
             {inPlaylist ? <X className="size-3.5" /> : <ListPlus className="size-3.5" />}
           </button>
@@ -93,7 +93,7 @@ export const AudioPanel = () => {
               type="button"
               onClick={() => void removeTrack(track.id)}
               aria-label={`Delete ${track.title}`}
-              className="text-ink-500 hover:text-live"
+              className="text-studio-muted hover:text-studio-danger"
             >
               <Trash2 className="size-3.5" />
             </button>
@@ -105,8 +105,8 @@ export const AudioPanel = () => {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-ink-850 flex items-center gap-3 border-b p-3">
-        <label className="border-ink-800 text-ink-300 hover:border-ink-700 flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs transition hover:text-white">
+      <div className="border-studio-divider flex items-center gap-3 border-b p-3">
+        <label className="border-studio-border text-studio-text hover:border-studio-faint flex cursor-pointer items-center gap-2 rounded-studio border px-2.5 py-1.5 text-xs transition hover:text-studio-text">
           <Upload className="size-3" />
           Add files
           <input type="file" accept="audio/*" multiple onChange={onFiles} className="hidden" />
@@ -117,13 +117,13 @@ export const AudioPanel = () => {
             value={title}
             onChange={event => setTitle(event.target.value)}
             placeholder="Title"
-            className="border-ink-800 bg-ink-900 placeholder:text-ink-700 w-32 rounded-md border px-2.5 py-1.5 text-xs outline-none"
+            className="border-studio-border bg-white placeholder:text-studio-faint w-32 rounded-studio border px-2.5 py-1.5 text-xs outline-none"
           />
           <input
             value={url}
             onChange={event => setUrl(event.target.value)}
             placeholder="https://… (a track by URL)"
-            className="border-ink-800 bg-ink-900 placeholder:text-ink-700 flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
+            className="border-studio-border bg-white placeholder:text-studio-faint flex-1 rounded-studio border px-2.5 py-1.5 text-xs outline-none"
           />
           <button
             type="button"
@@ -135,28 +135,28 @@ export const AudioPanel = () => {
               setTitle('');
             }}
             aria-label="Add the track"
-            className="text-ink-500 hover:text-white"
+            className="text-studio-muted hover:text-studio-text"
           >
             <Plus className="size-4" />
           </button>
         </div>
       </div>
 
-      {error ? <p className="text-live px-3 py-2 text-xs">{error}</p> : null}
+      {error ? <p className="text-studio-danger px-3 py-2 text-xs">{error}</p> : null}
 
       <div className="grid min-h-0 flex-1 grid-cols-2">
-        <ul className="studio-scroll border-ink-850 overflow-y-auto border-r py-1">
-          <li className="text-ink-700 px-3 py-1 text-xs">Library</li>
+        <ul className="studio-scroll border-studio-divider overflow-y-auto border-r py-1">
+          <li className="text-studio-faint px-3 py-1 text-xs">Library</li>
           {tracks.map(track => row(track, false))}
           {tracks.length === 0 ? (
-            <li className="text-ink-700 px-3 py-6 text-center text-xs">
+            <li className="text-studio-faint px-3 py-6 text-center text-xs">
               Nothing yet. Files you add stay on this computer.
             </li>
           ) : null}
         </ul>
 
         <ul className="studio-scroll overflow-y-auto py-1">
-          <li className="text-ink-700 px-3 py-1 text-xs">Playlist</li>
+          <li className="text-studio-faint px-3 py-1 text-xs">Playlist</li>
           {playlist
             .map(id => tracks.find(track => track.id === id))
             .filter((track): track is Track => Boolean(track))
@@ -164,13 +164,13 @@ export const AudioPanel = () => {
         </ul>
       </div>
 
-      <div className="border-ink-850 flex items-center gap-4 border-t px-3 py-2.5">
+      <div className="border-studio-divider flex items-center gap-4 border-t px-3 py-2.5">
         <button
           type="button"
           onClick={togglePlay}
           disabled={!current}
           aria-label={playing ? 'Pause' : 'Play'}
-          className="text-ink-300 hover:text-white disabled:opacity-30"
+          className="text-studio-text hover:text-studio-text disabled:opacity-30"
         >
           {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
         </button>
@@ -180,12 +180,12 @@ export const AudioPanel = () => {
           onClick={stop}
           disabled={!current}
           aria-label="Stop"
-          className="text-ink-300 hover:text-white disabled:opacity-30"
+          className="text-studio-text hover:text-studio-text disabled:opacity-30"
         >
           <Square className="size-4" />
         </button>
 
-        <span className="text-ink-500 w-40 truncate text-xs">{current?.title ?? 'Nothing playing'}</span>
+        <span className="text-studio-muted w-40 truncate text-xs">{current?.title ?? 'Nothing playing'}</span>
 
         <input
           type="range"
@@ -194,11 +194,11 @@ export const AudioPanel = () => {
           step={0.5}
           value={position}
           onChange={event => seek(Number(event.target.value))}
-          className="accent-brand-500 flex-1"
+          className="studio-range h-1.5 cursor-pointer appearance-none rounded-full bg-studio-border min-w-0 flex-1"
           aria-label="Position"
         />
 
-        <label className="text-ink-500 flex items-center gap-2 text-xs">
+        <label className="text-studio-muted flex items-center gap-2 text-xs">
           Vol
           <input
             type="range"
@@ -207,11 +207,11 @@ export const AudioPanel = () => {
             step={0.01}
             value={volume}
             onChange={event => setVolume(Number(event.target.value))}
-            className="accent-brand-500 w-20"
+            className="studio-range h-1.5 cursor-pointer appearance-none rounded-full bg-studio-border w-20"
           />
         </label>
 
-        <label className="text-ink-500 flex items-center gap-2 text-xs" title="Fade in and out, in milliseconds">
+        <label className="text-studio-muted flex items-center gap-2 text-xs" title="Fade in and out, in milliseconds">
           Fade
           <input
             type="range"
@@ -220,16 +220,16 @@ export const AudioPanel = () => {
             step={100}
             value={fadeMs}
             onChange={event => setFadeMs(Number(event.target.value))}
-            className="accent-brand-500 w-20"
+            className="studio-range h-1.5 cursor-pointer appearance-none rounded-full bg-studio-border w-20"
           />
         </label>
 
-        <label className="text-ink-500 flex items-center gap-1.5 text-xs">
+        <label className="text-studio-muted flex items-center gap-1.5 text-xs">
           <input
             type="checkbox"
             checked={loop}
             onChange={event => setLoop(event.target.checked)}
-            className="accent-brand-500"
+            className="accent-studio-accent"
           />
           Loop
         </label>

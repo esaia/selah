@@ -21,7 +21,14 @@ export const GET = async (request: NextRequest) => {
   PARAMS.forEach(name => query.set(name, request.nextUrl.searchParams.get(name) ?? ''));
 
   const cacheKey = query.toString();
-  const db = admin();
+
+  let db: ReturnType<typeof admin>;
+
+  try {
+    db = admin();
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+  }
 
   const { data: cached } = await db.from('bible_cache').select('payload').eq('cache_key', cacheKey).maybeSingle();
 

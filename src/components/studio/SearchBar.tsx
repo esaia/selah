@@ -1,20 +1,37 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import {
+  HiOutlineChevronDoubleDown,
+  HiOutlineChevronDoubleUp,
+  HiOutlineMenuAlt2,
+  HiOutlineSearch,
+  HiPlus,
+} from 'react-icons/hi';
 
-import { parseReference } from '@/lib/bible/passage';
+import { Button } from '@/components/ui/Button';
+import { findBook, parseReference, type BookEntry } from '@/lib/bible/passage';
 import { useStudio } from '@/lib/studio/StudioProvider';
+
+import { BrowseModal } from './BrowseModal';
 
 /**
  * The console's one text box. Typing a reference and pressing enter imports the
  * passage and puts its first verse on the projector — the whole path from
  * thought to screen in one gesture.
  */
-export const SearchBar = ({ onBrowse }: { onBrowse: () => void }) => {
-  const { settings, addPassage, goLive, loading } = useStudio();
+export const SearchBar = () => {
+  const { settings, addPassage, goLive, loading, blocks, setAllCollapsed } = useStudio();
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
+  const [browsing, setBrowsing] = useState(false);
+  const [jumpTo, setJumpTo] = useState<BookEntry | null>(null);
+
+  const openBrowse = (book: BookEntry | null) => {
+    setJumpTo(book);
+    setBrowsing(true);
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -22,53 +39,106 @@ export const SearchBar = ({ onBrowse }: { onBrowse: () => void }) => {
     const reference = parseReference(input, settings.adminLang);
 
     if (!reference) {
-      setError('Try something like “John 3:16” or “Psalm 23”.');
+      // A bare book name is a reasonable thing to type: open Browse on that
+      // book's chapters rather than rejecting it.
+      const book = findBook(input, settings.adminLang);
+
+      if (book) {
+        setError('');
+        setInput('');
+        openBrowse(book);
+        return;
+      }
+
+      setError('Could not read that reference. Try a book, chapter and verse — or use Browse.');
       return;
     }
 
     setError('');
 
-    const block = await addPassage({
-      book: reference.book,
-      chapter: reference.chapter,
-      from: reference.verse,
-      to: reference.verseTo ?? reference.verse,
-    });
+    try {
+      const block = await addPassage({
+        book: reference.book,
+        chapter: reference.chapter,
+        from: reference.verse,
+        to: reference.verseTo ?? reference.verse,
+      });
 
-    if (!block) {
-      setError('That chapter has no such verse.');
-      return;
+      if (!block) {
+        setError('That chapter has no such verse.');
+        return;
+      }
+
+      setInput('');
+      goLive(block.id, 0);
+    } catch (failure) {
+      setError((failure as Error).message);
     }
-
-    setInput('');
-    goLive(block.id, 0);
   };
 
+  const allCollapsed = blocks.length > 0 && blocks.every(block => block.collapsed);
+
   return (
-    <form onSubmit={submit} className="relative">
-      <Search className="text-ink-500 pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+    <>
+      <form onSubmit={submit}>
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
+          <HiOutlineSearch className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-base text-studio-faint" />
 
-      <input
-        value={input}
-        onChange={event => setInput(event.target.value)}
-        placeholder="John 3:16-18"
-        aria-label="Passage reference"
-        className="border-ink-800 bg-ink-900 placeholder:text-ink-700 focus:border-brand-500 w-full rounded-lg border py-2.5 pr-24 pl-9 text-sm outline-none"
-      />
+          <input
+            value={input}
+            onChange={event => setInput(event.target.value)}
+            placeholder="Search a passage, e.g. John 3:16-18"
+            aria-label="Passage reference"
+            className="h-9 w-full rounded-studio border border-studio-border bg-white pr-3 pl-9 text-sm
+              text-studio-text placeholder:text-studio-faint focus:border-studio-accent focus:outline-none
+              focus-visible:ring-2 focus-visible:ring-studio-accent/40"
+          />
+        </div>
 
-      <div className="absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-2">
-        {loading ? <Loader2 className="text-ink-500 size-4 animate-spin" /> : null}
-
-        <button
-          type="button"
-          onClick={onBrowse}
-          className="border-ink-800 text-ink-300 hover:border-ink-700 hover:text-white rounded-md border px-2 py-1 text-xs transition"
+        <Button
+          type="submit"
+          variant="accent"
+          size="md"
+          disabled={loading || !input.trim()}
+          icon={loading ? <Loader2 className="size-3.5 animate-spin" /> : <HiPlus className="text-sm" />}
         >
+          Add
+        </Button>
+
+        <Button size="md" onClick={() => openBrowse(null)} icon={<HiOutlineMenuAlt2 className="text-sm" />}>
           Browse
-        </button>
+        </Button>
+
+        {blocks.length > 0 ? (
+          <Button
+            size="md"
+            onClick={() => setAllCollapsed(!allCollapsed)}
+            icon={
+              allCollapsed ? (
+                <HiOutlineChevronDoubleDown className="text-sm" />
+              ) : (
+                <HiOutlineChevronDoubleUp className="text-sm" />
+              )
+            }
+          >
+            {allCollapsed ? 'Expand all' : 'Collapse all'}
+          </Button>
+        ) : null}
       </div>
 
-      {error ? <p className="text-live mt-2 text-xs">{error}</p> : null}
-    </form>
+        {error ? <p className="mt-2 text-xs text-studio-danger">{error}</p> : null}
+      </form>
+
+      {browsing ? (
+        <BrowseModal
+          initialBook={jumpTo}
+          onClose={() => {
+            setBrowsing(false);
+            setJumpTo(null);
+          }}
+        />
+      ) : null}
+    </>
   );
 };

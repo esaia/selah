@@ -19,6 +19,7 @@ import { loadLocalFile } from '@/lib/media/localMedia';
 import { serveAssets } from '@/lib/media/peerAssets';
 import { LOCAL_THEME } from '@/lib/projector/themes';
 import { supabase } from '@/lib/supabase/client';
+import { save } from '@/lib/supabase/save';
 import {
   emptyShowData,
   groupVerses,
@@ -68,6 +69,7 @@ export interface StudioInitial {
     cardSize: number;
   };
   songs: Song[];
+  showData: ShowData;
   plan: string;
 }
 
@@ -77,7 +79,7 @@ interface StudioValue {
 
   settings: Settings;
   update: (patch: Partial<Settings>) => void;
-  moveLang: (lang: Lang, direction: number) => void;
+  setLangOrder: (order: Lang[]) => void;
   setLocalBackground: (file: LocalFileMeta | null) => void;
 
   blocks: Block[];
@@ -92,6 +94,8 @@ interface StudioValue {
   removeBlock: (id: string) => void;
   moveBlock: (id: string, direction: number) => void;
   moveBlockTo: (id: string, insertIndex: number) => void;
+  draggingId: string | null;
+  setDraggingId: (id: string | null) => void;
   toggleBlockCollapsed: (id: string) => void;
   setAllCollapsed: (collapsed: boolean) => void;
   clearBlocks: () => void;
@@ -109,6 +113,7 @@ interface StudioValue {
   importSongs: (songs: Song[]) => Promise<void>;
   saveSong: (song: Song) => Promise<void>;
   removeSong: (id: string) => Promise<void>;
+  clearSongs: () => Promise<void>;
   placeInSetlist: (songId: string, index: number) => void;
   removeFromSetlist: (songId: string) => void;
   clearSetlist: () => void;
@@ -151,7 +156,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   const [tab, setTab] = useState<Tab>(initial.workspace.tab);
   const [cardSize, setCardSize] = useState(initial.workspace.cardSize);
   const [loading, setLoading] = useState(false);
-  const [showData, setShowData] = useState<ShowData>(emptyShowData);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [showData, setShowData] = useState<ShowData>(initial.showData);
   const [peers, setPeers] = useState({ console: 0, show: 0, lower3rd: 0 });
 
   const { blocks, live } = workspace;
@@ -179,6 +185,12 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   useEffect(() => {
     showRef.current = showData;
   }, [showData]);
+
+  // The look effect below re-sends the current slide whenever the style
+  // changes. On mount there is no change to announce — and publishing then
+  // would overwrite the session's stored slide with whatever this console had
+  // loaded, which is how reopening the console blanked a live projector.
+  const styleSettled = useRef(false);
 
   useEffect(() => {
     const channel = openLiveChannel(initial.session.outputKey, 'console');
@@ -222,13 +234,16 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
         streamLang: wireStyle.streamLang,
       });
 
-      void db.from('session_state').upsert({
-        session_id: initial.session.id,
-        show_data: payload,
-        projector: wireStyle.projector,
-        stream_style: wireStyle.stream,
-        stream_lang: wireStyle.streamLang,
-      });
+      void save(
+        db.from('session_state').upsert({
+          session_id: initial.session.id,
+          show_data: payload,
+          projector: wireStyle.projector,
+          stream_style: wireStyle.stream,
+          stream_lang: wireStyle.streamLang,
+        }),
+        'the live slide',
+      );
     },
     [db, initial.session.id, wireStyle],
   );
@@ -236,6 +251,11 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   // A look change has to reach the outputs too — they cannot read the settings
   // row themselves, so the current slide is re-sent with the new style.
   useEffect(() => {
+    if (!styleSettled.current) {
+      styleSettled.current = true;
+      return;
+    }
+
     if (!channelRef.current) return;
 
     channelRef.current.publishSlide({
@@ -245,49 +265,46 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       streamLang: wireStyle.streamLang,
     });
 
-    void db.from('session_state').upsert({
-      session_id: initial.session.id,
-      show_data: showRef.current,
-      projector: wireStyle.projector,
-      stream_style: wireStyle.stream,
-      stream_lang: wireStyle.streamLang,
-    });
+    void save(
+      db.from('session_state').upsert({
+        session_id: initial.session.id,
+        show_data: showRef.current,
+        projector: wireStyle.projector,
+        stream_style: wireStyle.stream,
+        stream_lang: wireStyle.streamLang,
+      }),
+      'the projector look',
+    );
   }, [db, initial.session.id, wireStyle]);
 
   // ------------------------------------------------------------ persistence
 
   useDebouncedSave(settings, next => {
-    void db.from('settings').update(toRow(next)).eq('user_id', initial.settings.user_id);
+    void save(db.from('settings').update(toRow(next)).eq('user_id', initial.settings.user_id), 'your settings');
   });
 
   useDebouncedSave({ workspace, setlist, activeSongId, tab, cardSize }, state => {
-    void db.from('session_workspace').upsert({
-      session_id: initial.session.id,
-      blocks: state.workspace.blocks,
-      live: state.workspace.live,
-      setlist: state.setlist,
-      active_song_id: state.activeSongId,
-      tab: state.tab,
-      card_size: state.cardSize,
-    });
+    void save(
+      db.from('session_workspace').upsert({
+        session_id: initial.session.id,
+        blocks: state.workspace.blocks,
+        live: state.workspace.live,
+        setlist: state.setlist,
+        active_song_id: state.activeSongId,
+        tab: state.tab,
+        card_size: state.cardSize,
+      }),
+      'your workspace',
+    );
   });
 
   const update = useCallback((patch: Partial<Settings>) => {
     setSettings(current => ({ ...current, ...patch }));
   }, []);
 
-  const moveLang = useCallback((lang: Lang, direction: number) => {
-    setSettings(current => {
-      const order = [...current.langOrder];
-      const index = order.indexOf(lang);
-      const target = index + direction;
-
-      if (index === -1 || target < 0 || target >= order.length) return current;
-
-      [order[index], order[target]] = [order[target], order[index]];
-
-      return { ...current, langOrder: order };
-    });
+  /** The stacking order on the projector, as the operator dragged it. */
+  const setLangOrder = useCallback((order: Lang[]) => {
+    setSettings(current => (order.length === current.langOrder.length ? { ...current, langOrder: order } : current));
   }, []);
 
   const setLocalBackground = useCallback((file: LocalFileMeta | null) => {
@@ -579,8 +596,10 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     async imported => {
       if (imported.length === 0) return;
 
-      // A re-import replaces the song of the same title rather than doubling it.
-      const { data } = await db
+      // A re-import replaces the song of the same title rather than doubling
+      // it. The conflict target is `title_key`, the stored lowercase title,
+      // because PostgREST cannot name an expression index.
+      const { data, error } = await db
         .from('songs')
         .upsert(
           imported.map(song => ({
@@ -589,10 +608,11 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
             slides: song.slides,
             source: song.source ?? 'propresenter',
           })),
-          { onConflict: 'user_id,title' },
+          { onConflict: 'user_id,title_key' },
         )
         .select();
 
+      if (error) throw new Error(error.message);
       if (!data) return;
 
       setSongs(current => {
@@ -615,12 +635,17 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
   const saveSong = useCallback<StudioValue['saveSong']>(
     async song => {
-      const { data } = await db
+      // A song written in the console has a placeholder id until it is saved;
+      // leaving it off lets Postgres mint the real one.
+      const saved = /^[0-9a-f-]{36}$/i.test(song.id) ? { id: song.id } : {};
+
+      const { data, error } = await db
         .from('songs')
-        .upsert({ id: song.id, user_id: initial.settings.user_id, title: song.title, slides: song.slides })
+        .upsert({ ...saved, user_id: initial.settings.user_id, title: song.title, slides: song.slides })
         .select()
         .single();
 
+      if (error) throw new Error(error.message);
       if (!data) return;
 
       setSongs(current => {
@@ -674,7 +699,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       plan: initial.plan,
       settings,
       update,
-      moveLang,
+      setLangOrder,
       setLocalBackground,
       blocks,
       live,
@@ -687,6 +712,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       removeBlock: id => setWorkspace(current => removeBlockIn(current, id)),
       moveBlock: (id, direction) => setWorkspace(current => moveBlockIn(current, id, direction)),
       moveBlockTo: (id, insertIndex) => setWorkspace(current => moveBlockToIn(current, id, insertIndex)),
+      draggingId,
+      setDraggingId,
       toggleBlockCollapsed: id => setWorkspace(current => toggleCollapsed(current, id)),
       setAllCollapsed: collapsed => setWorkspace(current => setCollapsed(current, collapsed)),
       clearBlocks: () => setWorkspace({ blocks: [], live: null }),
@@ -702,6 +729,14 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       importSongs,
       saveSong,
       removeSong,
+      clearSongs: async () => {
+        await db.from('songs').delete().eq('user_id', initial.settings.user_id);
+
+        setSongs([]);
+        setSetlist([]);
+        setActiveSongId(null);
+        setWorkspace(current => ({ ...current, live: current.live?.kind === 'lyrics' ? null : current.live }));
+      },
       placeInSetlist,
       removeFromSetlist: songId => setSetlist(current => current.filter(id => id !== songId)),
       clearSetlist: () => setSetlist([]),
@@ -723,6 +758,9 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       cardSize,
       clearProjector,
       client,
+      db,
+      draggingId,
+      initial.settings.user_id,
       extendBlock,
       goLive,
       importSongs,
@@ -730,12 +768,12 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       initial.session,
       live,
       loading,
-      moveLang,
       peers,
       placeInSetlist,
       publishLyrics,
       refreshBlocks,
       removeGroup,
+      setLangOrder,
       removeSong,
       saveSong,
       selectLyric,

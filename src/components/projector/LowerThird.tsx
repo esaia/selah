@@ -233,13 +233,12 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
         className={`lower3rd-bar lower3rd-bar--${(lyrics ? style.lyricsVariant : style.variant) || 'scrim'} ${
           top ? 'lower3rd-bar--top' : ''
         } ${ALIGN_CLASS[align]}`}
+        // Opacity only. The bar used to slide in as well, but a lower third
+        // that moves pulls the eye away from the speaker every time a verse
+        // changes — a fade lets the words swap without the frame shifting.
         style={{
           opacity: visible ? 1 : 0,
-          transform: visible ? 'translateY(0)' : `translateY(${top ? '-' : ''}24px)`,
-          transition:
-            transitionMs === 0
-              ? 'none'
-              : `opacity ${transitionMs / 2}ms ease-in-out, transform ${transitionMs / 2}ms ease-out`,
+          transition: transitionMs === 0 ? 'none' : `opacity ${transitionMs / 2}ms ease-in-out`,
         }}
       >
         <div ref={textRef} className="lower3rd-inner">

@@ -18,6 +18,7 @@ export const SongEditor = ({ song, onClose }: { song: Song; onClose: () => void 
   const [title, setTitle] = useState(song.title);
   const [slides, setSlides] = useState(song.slides);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const setText = (index: number, text: string) => {
     setSlides(current => current.map((slide, position) => (position === index ? { ...slide, text } : slide)));
@@ -25,31 +26,37 @@ export const SongEditor = ({ song, onClose }: { song: Song; onClose: () => void 
 
   const save = async () => {
     setSaving(true);
+    setError('');
 
-    await saveSong({
-      ...song,
-      title: title.trim() || song.title,
-      slides: slides.filter(slide => slide.text.trim().length > 0),
-    });
+    try {
+      await saveSong({
+        ...song,
+        title: title.trim() || song.title,
+        slides: slides.filter(slide => slide.text.trim().length > 0),
+      });
 
-    setSaving(false);
-    onClose();
+      onClose();
+    } catch (failure) {
+      setError((failure as Error).message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" onClick={onClose}>
       <div
-        className="border-ink-800 bg-ink-900 flex h-[34rem] w-full max-w-2xl flex-col rounded-xl border"
+        className="border-studio-border bg-white flex h-[34rem] w-full max-w-2xl flex-col rounded-studio-lg border"
         onClick={event => event.stopPropagation()}
       >
-        <header className="border-ink-850 flex items-center gap-3 border-b px-4 py-3">
+        <header className="border-studio-divider flex items-center gap-3 border-b px-4 py-3">
           <input
             value={title}
             onChange={event => setTitle(event.target.value)}
             className="flex-1 bg-transparent text-sm outline-none"
             aria-label="Song title"
           />
-          <button type="button" onClick={onClose} aria-label="Close" className="text-ink-500 hover:text-white">
+          <button type="button" onClick={onClose} aria-label="Close" className="text-studio-muted hover:text-studio-text">
             <X className="size-4" />
           </button>
         </header>
@@ -57,20 +64,20 @@ export const SongEditor = ({ song, onClose }: { song: Song; onClose: () => void 
         <div className="studio-scroll flex-1 space-y-2 overflow-y-auto p-4">
           {slides.map((slide, index) => (
             <div key={slide.id} className="flex gap-2">
-              <span className="text-ink-700 w-5 pt-2 text-xs">{index + 1}</span>
+              <span className="text-studio-faint w-5 pt-2 text-xs">{index + 1}</span>
 
               <textarea
                 value={slide.text}
                 onChange={event => setText(index, event.target.value)}
                 rows={3}
-                className="border-ink-800 bg-ink-950 focus:border-brand-500 flex-1 rounded-md border px-3 py-2 text-sm outline-none"
+                className="border-studio-border bg-white focus:border-studio-accent flex-1 rounded-studio border px-3 py-2 text-sm outline-none"
               />
 
               <button
                 type="button"
                 onClick={() => setSlides(current => current.filter((_, position) => position !== index))}
                 aria-label={`Delete slide ${index + 1}`}
-                className="text-ink-500 hover:text-live self-start pt-2"
+                className="text-studio-muted hover:text-studio-danger self-start pt-2"
               >
                 <Trash2 className="size-4" />
               </button>
@@ -82,22 +89,23 @@ export const SongEditor = ({ song, onClose }: { song: Song; onClose: () => void 
             onClick={() =>
               setSlides(current => [...current, { id: `${song.id}-${current.length}-${Date.now()}`, text: '' }])
             }
-            className="border-ink-800 text-ink-500 hover:border-ink-700 flex w-full items-center justify-center gap-2 rounded-md border border-dashed py-2 text-xs transition hover:text-white"
+            className="border-studio-border text-studio-muted hover:border-studio-faint flex w-full items-center justify-center gap-2 rounded-studio border border-dashed py-2 text-xs transition hover:text-studio-text"
           >
             <Plus className="size-3" />
             Add a slide
           </button>
         </div>
 
-        <footer className="border-ink-850 flex justify-end gap-2 border-t px-4 py-3">
-          <button type="button" onClick={onClose} className="text-ink-500 px-3 py-1.5 text-xs hover:text-white">
+        <footer className="border-studio-divider flex items-center justify-end gap-2 border-t px-4 py-3">
+          {error ? <p className="mr-auto text-xs text-studio-danger">{error}</p> : null}
+          <button type="button" onClick={onClose} className="text-studio-muted px-3 py-1.5 text-xs hover:text-studio-text">
             Cancel
           </button>
           <button
             type="button"
             onClick={() => void save()}
             disabled={saving}
-            className="bg-brand-500 text-ink-950 hover:bg-brand-400 rounded-md px-3 py-1.5 text-xs font-medium transition disabled:opacity-60"
+            className="bg-studio-accent text-white hover:bg-studio-accent rounded-studio px-3 py-1.5 text-xs font-medium transition disabled:opacity-60"
           >
             {saving ? 'Saving…' : 'Save'}
           </button>

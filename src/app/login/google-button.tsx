@@ -21,7 +21,9 @@ export const GoogleButton = ({ next }: { next: string }) => {
       type="button"
       onClick={signIn}
       disabled={busy}
-      className="bg-ink-100 text-ink-950 hover:bg-white disabled:opacity-60 flex w-full items-center justify-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition"
+      className="flex w-full items-center justify-center gap-3 rounded-studio border border-studio-border bg-white px-4
+        py-3 text-sm font-medium text-studio-text transition-colors duration-150 hover:bg-studio-surface
+        disabled:opacity-60"
     >
       <svg viewBox="0 0 24 24" className="size-4" aria-hidden>
         <path

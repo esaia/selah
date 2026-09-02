@@ -1,52 +1,134 @@
 'use client';
 
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { HiOutlineLink, HiOutlineScissors, HiOutlineX } from 'react-icons/hi';
+
 import { cn } from '@/lib/cn';
-import { groupVerses, type Block, type Lang } from '@/lib/types';
+import { fitText } from '@/lib/projector/fitText';
+import { plain, verseRef } from '@/lib/studio/text';
+import type { Align, Lang, Verse } from '@/lib/types';
+
+const ALIGN_CLASS: Record<Align, string> = { left: 'text-left', center: 'text-center', right: 'text-right' };
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+const Control = ({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) => (
+  <button
+    type="button"
+    aria-label={label}
+    title={label}
+    onClick={onClick}
+    className="text-studio-faint opacity-0 transition-opacity duration-150 hover:text-studio-text
+      focus:opacity-100 focus:outline-none group-hover/card:opacity-100"
+  >
+    {children}
+  </button>
+);
 
 /**
- * One slide, as the operator sees it before it is on screen.
+ * One slide: a single verse, or several joined verses shown together.
  *
- * The card shows the browsing language only — the projector may be stacking
- * three, but the person choosing needs to read one and recognise it fast.
+ * The card is a scale model of the projector — same black ground, same fitted
+ * text — so what an operator picks from is what the room will actually see,
+ * rather than a paragraph of body copy that happens to contain the words.
  */
 export const VerseCard = ({
-  block,
-  groupIndex,
+  items,
   lang,
-  size,
-  live,
-  onSelect,
+  isLive,
+  font,
+  align = 'left',
+  size = 190,
+  onGoLive,
+  onRemove,
+  onJoin,
+  onSplit,
 }: {
-  block: Block;
-  groupIndex: number;
+  items: Verse[];
   lang: Lang;
-  size: number;
-  live: boolean;
-  onSelect: () => void;
+  isLive: boolean;
+  font: string;
+  align?: Align;
+  size?: number;
+  onGoLive: () => void;
+  onRemove?: () => void;
+  onJoin?: () => void;
+  onSplit?: () => void;
 }) => {
-  const verses = groupVerses(block, lang, block.groups[groupIndex] ?? []);
-  const numbers = verses.map(verse => verse.muxli);
-  const label = numbers.length > 1 ? `${numbers[0]}–${numbers[numbers.length - 1]}` : numbers[0];
+  const bodyRef = useRef<HTMLSpanElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+
+  const verses = items ?? [];
+  const first = verses[0];
+  const last = verses[verses.length - 1];
+
+  // A translation that lacks this verse leaves the card with nothing to show.
+  // Rendering the hole as a black slide labelled "Vundefined" is worse than
+  // leaving the slot empty until the refetch lands.
+  const label = first ? (verses.length > 1 ? `V${first.muxli}-${last.muxli}` : `V${first.muxli}`) : '';
+  const reference = first ? (verses.length > 1 ? `${verseRef(first, lang)}-${last.muxli}` : verseRef(first, lang)) : '';
+
+  const text = verses.map(item => plain(item.bv)).join(' ');
+  const refSize = clamp(Math.round(size / 24), 7, 14);
+
+  useLayoutEffect(() => {
+    if (bodyRef.current) {
+      fitText(textRef.current, bodyRef.current.clientHeight, {
+        min: 6,
+        max: clamp(Math.round(size / 17), 9, 22),
+      });
+    }
+  }, [align, font, size, text]);
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      style={{ width: size }}
-      className={cn(
-        'group relative flex h-auto min-h-28 flex-col rounded-lg border p-3 text-left transition',
-        live
-          ? 'border-live bg-live/15 shadow-[0_0_0_1px_var(--color-live)]'
-          : 'border-ink-800 bg-ink-900 hover:border-ink-700 hover:bg-ink-850',
-      )}
-    >
-      <span className={cn('text-xs font-medium', live ? 'text-live' : 'text-ink-500')}>
-        {block.chapter}:{label}
-      </span>
+    <div className="group/card">
+      <div className="mb-1 flex h-[18px] items-center justify-between gap-1 px-0.5">
+        <span className={cn('text-xs font-semibold', isLive ? 'text-studio-live' : 'text-studio-muted')}>{label}</span>
 
-      <span className="text-ink-100 mt-2 line-clamp-5 text-xs leading-relaxed">
-        {verses.map(verse => verse.bv.replace(/<[^>]+>/g, '')).join(' ')}
-      </span>
-    </button>
+        <span className="flex items-center gap-1.5">
+          {verses.length > 1 && onSplit ? (
+            <Control label="Split back into separate verses" onClick={onSplit}>
+              <HiOutlineScissors className="text-sm" />
+            </Control>
+          ) : null}
+
+          {onJoin ? (
+            <Control label="Join with the next verse" onClick={onJoin}>
+              <HiOutlineLink className="text-sm" />
+            </Control>
+          ) : null}
+
+          {onRemove ? (
+            <Control label="Remove this verse and the rest" onClick={onRemove}>
+              <HiOutlineX className="text-sm" />
+            </Control>
+          ) : null}
+        </span>
+      </div>
+
+      <button
+        type="button"
+        onClick={onGoLive}
+        title={isLive ? 'Click again to clear the screen' : text}
+        className={cn(
+          'flex aspect-video w-full flex-col justify-between rounded-[4px] bg-studio-slide p-2 text-left',
+          'transition-shadow duration-150 focus:outline-none',
+          font,
+          isLive
+            ? 'ring-4 ring-studio-live'
+            : 'ring-1 ring-transparent hover:ring-2 hover:ring-studio-accent focus-visible:ring-2 focus-visible:ring-studio-accent',
+        )}
+      >
+        <span ref={bodyRef} className="flex flex-1 items-center justify-center overflow-hidden">
+          <span ref={textRef} className={cn('w-full leading-snug font-semibold text-white', ALIGN_CLASS[align])}>
+            {text}
+          </span>
+        </span>
+
+        <span className={cn('block truncate text-studio-faint', ALIGN_CLASS[align])} style={{ fontSize: refSize }}>
+          {reference}
+        </span>
+      </button>
+    </div>
   );
 };

@@ -6,7 +6,7 @@ import { AudioProvider, type AudioInitial } from '@/lib/studio/AudioProvider';
 import { StudioProvider, type StudioInitial, type Tab } from '@/lib/studio/StudioProvider';
 import type { SettingsRow } from '@/lib/studio/settings';
 import { configured, createClient } from '@/lib/supabase/server';
-import type { Block, Live, Song } from '@/lib/types';
+import { emptyShowData, type Block, type Live, type ShowData, type Song } from '@/lib/types';
 
 export const metadata = { title: 'Console' };
 
@@ -44,8 +44,9 @@ export default async function StudioPage() {
     throw new Error('This account is missing its workspace. Sign out and back in to rebuild it.');
   }
 
-  const [{ data: workspace }, audioTracks, audioCategories, audioPlaylist] = await Promise.all([
+  const [{ data: workspace }, { data: state }, audioTracks, audioCategories, audioPlaylist] = await Promise.all([
     supabase.from('session_workspace').select('*').eq('session_id', session.data.id).maybeSingle(),
+    supabase.from('session_state').select('show_data').eq('session_id', session.data.id).maybeSingle(),
     supabase.from('audio_tracks').select('*').eq('user_id', user.id).order('created_at'),
     supabase.from('audio_categories').select('id, name').eq('user_id', user.id).order('name'),
     supabase.from('audio_playlist').select('track_id, position').eq('user_id', user.id).order('position'),
@@ -77,6 +78,10 @@ export default async function StudioPage() {
       tab: TABS.includes(workspace?.tab as Tab) ? (workspace?.tab as Tab) : 'bible',
       cardSize: workspace?.card_size ?? 190,
     },
+    // What the outputs are showing right now. Without this the console reopens
+    // believing nothing is live, and its first style push would tell the
+    // projector the same — blanking a screen mid-service.
+    showData: (state?.show_data as ShowData) ?? emptyShowData(),
     songs: (songs.data ?? []).map(row => ({
       id: row.id,
       title: row.title,

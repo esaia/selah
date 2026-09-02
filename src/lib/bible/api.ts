@@ -27,7 +27,16 @@ export const chapterParams = ({ book, chapter, lang, version }: ChapterQuery) =>
 export const fetchChapter = async (query: ChapterQuery): Promise<ApiChapter> => {
   const response = await fetch(`/api/bible?${new URLSearchParams(chapterParams(query))}`);
 
-  if (!response.ok) throw new Error('Could not reach the scripture service');
+  if (!response.ok) {
+    // The route says why — a missing service key, an unreachable upstream —
+    // and that reason is far more use to whoever is looking than "failed".
+    const reason = await response
+      .json()
+      .then((body: { error?: string }) => body.error)
+      .catch(() => null);
+
+    throw new Error(reason || 'Could not reach the scripture service');
+  }
 
   return response.json();
 };
