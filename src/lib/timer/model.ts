@@ -40,9 +40,41 @@ export const MESSAGE_COLORS: Record<MessageColor, string> = {
   red: "#f87171",
 };
 
+/**
+ * A label's tint. The operator's own colour-coding of the running order — a
+ * label never reaches a screen, so these are console colours and there is no
+ * reason for an output to know them.
+ */
+export type LabelColor = "amber" | "pink" | "blue" | "green" | "violet" | "slate";
+
+export const LABEL_COLORS: Record<LabelColor, string> = {
+  amber: "#f59e0b",
+  pink: "#ec4899",
+  blue: "#3b82f6",
+  green: "#22c55e",
+  violet: "#8b5cf6",
+  slate: "#64748b",
+};
+
+export interface TimerLabel {
+  id: string;
+  text: string;
+  color: LabelColor;
+}
+
 export interface StageTimer {
   id: string;
   name: string;
+  /** Who is up. It goes to the stage beside the name. */
+  speaker: string;
+  /**
+   * The operator's own note about the item — a cue, a reminder, what to do if
+   * it overruns. It stays in the console: what the person on stage is meant to
+   * read is a stage message, which is sent deliberately and one at a time.
+   */
+  notes: string;
+  /** Console-side colour-coding, so a long running order can be read at speed. */
+  labels: TimerLabel[];
   kind: TimerKind;
   duration: number;
   /** With this much left the digits turn amber. */
@@ -65,6 +97,15 @@ export interface TimerMessage {
 export interface TimerState {
   timers: StageTimer[];
   activeId: string;
+  /**
+   * The last timer a run was actually *started* on.
+   *
+   * Not the same as `activeId`: arming the next item moves the pointer while
+   * the thing that has just been given is still the last one anybody heard.
+   * The agenda marks it, so a glance at the stage says what has been done as
+   * well as what is up.
+   */
+  playedId: string;
   running: boolean;
   /** When the run was last resumed, on the clock of whoever resumed it. */
   startedAt: number | null;
@@ -99,9 +140,19 @@ const uid = () =>
 export const newTimer = (overrides: Partial<StageTimer> = {}): StageTimer => ({
   id: uid(),
   name: "Timer",
+  speaker: "",
+  notes: "",
+  labels: [],
   kind: "countdown",
   duration: 10 * MINUTE,
   wrapUp: MINUTE,
+  ...overrides,
+});
+
+export const newLabel = (overrides: Partial<TimerLabel> = {}): TimerLabel => ({
+  id: uid(),
+  text: "",
+  color: "amber",
   ...overrides,
 });
 
@@ -125,6 +176,7 @@ export const emptyTimerState = (): TimerState => {
   return {
     timers: [first],
     activeId: first.id,
+    playedId: "",
     running: false,
     startedAt: null,
     elapsedBefore: 0,
@@ -167,6 +219,21 @@ export const asTimerState = (raw: unknown): TimerState => {
     .map((timer): StageTimer => ({
       id: String(timer.id),
       name: typeof timer.name === "string" ? timer.name : "Timer",
+      speaker: typeof timer.speaker === "string" ? timer.speaker : "",
+      notes: typeof timer.notes === "string" ? timer.notes : "",
+      labels: (Array.isArray(timer.labels) ? timer.labels : [])
+        .filter(
+          (label): label is Record<string, unknown> =>
+            Boolean(label) && typeof label === "object" && "id" in label,
+        )
+        .map((label): TimerLabel => ({
+          id: String(label.id),
+          text: typeof label.text === "string" ? label.text : "",
+          color:
+            (label.color as LabelColor) in LABEL_COLORS
+              ? (label.color as LabelColor)
+              : "amber",
+        })),
       kind: isKind(timer.kind) ? timer.kind : "countdown",
       duration: Math.max(0, num(timer.duration, 10 * MINUTE)),
       wrapUp: Math.max(0, num(timer.wrapUp, MINUTE)),
@@ -199,6 +266,11 @@ export const asTimerState = (raw: unknown): TimerState => {
   return {
     timers: list,
     activeId,
+    // A timer that has since been deleted has not been played by any list this
+    // state can be drawn against, so it reads back as nothing.
+    playedId: list.some((timer) => timer.id === input.playedId)
+      ? String(input.playedId)
+      : "",
     running: Boolean(input.running),
     startedAt:
       input.startedAt === null || input.startedAt === undefined
@@ -264,7 +336,17 @@ export const elapsedOf = (state: TimerState, now = Date.now()): number =>
 // the stage to see it, and a second arming step would only be one more thing
 // to forget. Taking it down is deliberate — that is what Clear is for.
 export const startRun = (state: TimerState, now = Date.now()): TimerState =>
-  state.running ? state : { ...state, running: true, startedAt: now, onStage: true };
+  state.running
+    ? state
+    : {
+        ...state,
+        running: true,
+        startedAt: now,
+        onStage: true,
+        // Pressing play is what makes an item the one that was given; arming
+        // it, or resetting it afterwards, is not.
+        playedId: state.activeId,
+      };
 
 export const pauseRun = (state: TimerState, now = Date.now()): TimerState =>
   state.running
@@ -434,6 +516,7 @@ export type Phase = "normal" | "warn" | "final" | "over";
 
 export interface TimerReading {
   name: string;
+  speaker: string;
   kind: TimerKind;
   text: string;
   /**
@@ -472,7 +555,7 @@ export const timerReading = (
 
   if (!timer) return null;
 
-  const base = { name: timer.name, kind: timer.kind };
+  const base = { name: timer.name, speaker: timer.speaker, kind: timer.kind };
 
   if (timer.kind === "clock") {
     return {

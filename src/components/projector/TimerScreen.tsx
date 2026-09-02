@@ -96,7 +96,14 @@ const widthInEms = (text: string) =>
  * budget taken from the frame — which does not change when a message goes up —
  * lands the new size on the same paint as the message.
  */
-const NAME = { size: 0.05, gap: 0.03 };
+/**
+ * `lead` is room under the letters rather than air the layout forgot about. A
+ * line box the exact height of the font clips anything that hangs below the
+ * baseline, which in Georgian is most of the alphabet — the name was coming up
+ * with its tails cut off. It is budgeted at the height it is actually drawn,
+ * like every other piece here.
+ */
+const NAME = { size: 0.05, gap: 0.03, lead: 1.3 };
 const CLOCK = { size: 0.05, gap: 0.04 };
 
 /**
@@ -132,7 +139,7 @@ const MIN_TYPE = 10;
  * out the last ten seconds. The flash wins — it was asked for, and two
  * animations on one element means the later one alone.
  */
-const digitAnimation = (flashing: boolean, final: boolean) =>
+const digitAnimation = (flashing: number, final: boolean) =>
   flashAnimation(flashing) ??
   (final ? `timer-final 1000ms ease-in-out ${FINAL_MS / 1000}` : undefined);
 
@@ -146,7 +153,7 @@ const MessageLine = ({
 }: {
   message: TimerMessage;
   now: number | null;
-  screenFlashing: boolean;
+  screenFlashing: number;
   weight: number;
 }) => {
   const own = useFlash(message.flashAt, now);
@@ -216,7 +223,7 @@ export const TimerScreen = ({
   // What the furniture is taking, as a fraction of the frame. The bar is not
   // in it — it lies in the margin below the column, not in the column.
   const spent = unit
-    ? (hasName ? nameSize / unit + NAME.gap : 0) +
+    ? (hasName ? (nameSize * NAME.lead) / unit + NAME.gap : 0) +
       (showClock ? clockSize / unit + CLOCK.gap : 0) +
       (messages.length > 0 ? MESSAGE.gap + MESSAGE.share : 0)
     : 0;
@@ -305,16 +312,24 @@ export const TimerScreen = ({
       <div ref={frameRef} className="flex size-full flex-col justify-center">
         {showName && reading?.name ? (
           <div
-            // `leading-none` so the line box is the font size and nothing more:
-            // it is budgeted as its own size above, and normal leading would
-            // spend a fifth again of it that nothing accounted for.
-            className="shrink-0 truncate text-center leading-none font-medium tracking-[0.2em] text-white/70 uppercase"
+            // The line box is the font size and a little under it, and the
+            // budget above is taken from that same figure — normal leading
+            // would spend a fifth again of the column that nothing accounted
+            // for, and none at all cuts the descenders off.
+            className="shrink-0 truncate text-center font-medium tracking-[0.2em] text-white/70 uppercase"
             style={{
               fontSize: nameSize,
+              lineHeight: NAME.lead,
               marginBottom: unit * NAME.gap,
             }}
           >
             {reading.name}
+            {reading.speaker ? (
+              // Dimmer than the title, and on the same line: the name of the
+              // item is what the screen is *for*, and who is giving it is the
+              // answer to a second question the person on stage already knows.
+              <span className="text-white/45"> · {reading.speaker}</span>
+            ) : null}
           </div>
         ) : null}
 
@@ -357,7 +372,7 @@ export const TimerScreen = ({
                   now={now}
                   // The screen's own flash is the digits' business; a note
                   // under them blinks only when it was the one flashed.
-                  screenFlashing={false}
+                  screenFlashing={0}
                   weight={message.bold ? 700 : 400}
                 />
               ))}

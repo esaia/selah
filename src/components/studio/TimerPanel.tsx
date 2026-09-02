@@ -68,7 +68,14 @@ export const TimerPanel = () => {
   return (
     <div className="studio-scroll min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-[1440px] px-4 py-4">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        {/* Pinned: Blackout, Flash and Clear are what an operator reaches for
+            without looking, and scrolling down the running order used to take
+            them off the screen. It bleeds through the column's own padding so
+            nothing shows past its edges as the list runs under it. */}
+        <div
+          className="sticky top-0 z-10 -mx-4 -mt-4 mb-4 flex flex-wrap items-center justify-between gap-x-3
+            gap-y-2 border-b border-studio-divider bg-studio-bg px-4 pt-4 pb-3"
+        >
           <div className="min-w-0">
             <h1 className="text-sm font-semibold text-studio-text">Stage timer</h1>
             <p className="text-xs text-studio-muted">Runs on its own screen, and on the projector when you arm it.</p>

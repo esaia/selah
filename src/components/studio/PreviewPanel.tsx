@@ -8,6 +8,9 @@ import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
 import { DYNAMIC_THEME, LOCAL_THEME, themeSrc } from '@/lib/projector/themes';
 import { loadLocalFile } from '@/lib/media/localMedia';
 import { plain } from '@/lib/studio/text';
+import { projectorStyle } from '@/lib/studio/settings';
+import { timerIsLive } from '@/lib/timer/model';
+import { StageScreen } from '@/components/projector/StageScreen';
 import { TimerScreen } from '@/components/projector/TimerScreen';
 import { useStudio } from '@/lib/studio/StudioProvider';
 
@@ -23,6 +26,7 @@ const STREAM_H = 1080;
 const MODES = [
   { value: 'projector', label: 'Projector' },
   { value: 'stream', label: 'Lower third' },
+  { value: 'stage', label: 'Stage' },
 ];
 
 const MODE_KEY = 'studioPreviewMode';
@@ -78,7 +82,7 @@ const reference = (items: Verse[], lang: Lang) => {
  * pass scales the whole thing — text, gaps and reference together.
  */
 export const PreviewPanel = () => {
-  const { settings, showData, session, timer } = useStudio();
+  const { settings, showData, nextShowData, session, timer } = useStudio();
 
   // The panel runs the projector's own crossfade, at the operator's setting, so
   // the preview lies about nothing — timing included.
@@ -261,12 +265,34 @@ export const PreviewPanel = () => {
           />
         </div>
 
+        {/* The stage display, drawn from the console's own state rather than
+            through an iframe: it is a plain function of the live slide, the one
+            after it and the run, and a second /stage in a frame would join the
+            channel and count itself as a monitor that is standing in the room.
+            Its layout is a fraction of its own frame, so at rail width it is the
+            same screen, smaller. */}
+        <div
+          aria-hidden={mode !== 'stage'}
+          className={cn('absolute inset-0 overflow-hidden bg-black', mode !== 'stage' && 'invisible')}
+        >
+          {timerIsLive(timer) ? (
+            <TimerScreen state={timer} />
+          ) : (
+            <StageScreen
+              showData={showData}
+              next={nextShowData}
+              projector={projectorStyle(settings)}
+              timer={timer}
+            />
+          )}
+        </div>
+
         <div
           ref={screenRef}
-          aria-hidden={mode === 'stream'}
+          aria-hidden={mode !== 'projector'}
           className={cn(
             'absolute inset-0 overflow-hidden bg-studio-slide bg-cover bg-center',
-            mode === 'stream' && 'invisible',
+            mode !== 'projector' && 'invisible',
           )}
           style={background ? { backgroundImage: `url(${background})` } : undefined}
         >

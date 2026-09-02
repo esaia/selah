@@ -1,14 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { Pause, Play, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, Pause, Pencil, Play, Plus, RotateCcw, StickyNote, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { Select } from '@/components/ui/Select';
 import { cn } from '@/lib/cn';
 import { useStudio } from '@/lib/studio/StudioProvider';
+
+import { TimerEditor } from './TimerEditor';
 import {
+  LABEL_COLORS,
   TIMER_KINDS,
   armTimer,
   formatDuration,
@@ -101,6 +104,8 @@ const DurationInput = ({
 const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: boolean }) => {
   const { timer: state, updateTimer } = useStudio();
 
+  const [editing, setEditing] = useState(false);
+
   const patch = (fields: Partial<StageTimer>) =>
     updateTimer(current => ({
       ...current,
@@ -112,16 +117,29 @@ const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: b
   // that has gone quiet offers play again.
   const running = state.activeId === timer.id && state.running;
 
+  // The last item a run was actually started on. Not the armed one — arming the
+  // next thing does not undo having given this one — and never both at once.
+  const played = !live && timer.id === state.playedId;
+
   return (
     <li
       onClick={() => updateTimer(current => armTimer(current, timer.id))}
       className={cn(
-        'flex cursor-pointer flex-wrap items-center gap-2 rounded-studio-lg border px-3 py-2.5',
+        'flex cursor-pointer flex-wrap items-center gap-2 rounded-studio border px-3 py-2.5',
         'transition-colors duration-150',
-        live ? 'border-studio-accent bg-studio-accent/10' : 'border-studio-border bg-white hover:bg-studio-surface',
+        live
+          ? 'border-studio-accent bg-studio-accent/10'
+          : played
+            ? 'border-studio-border bg-studio-surface'
+            : 'border-studio-border bg-white hover:bg-studio-surface',
       )}
     >
-      <span className="w-4 shrink-0 text-xs font-medium text-studio-faint">{index + 1}</span>
+      {/* The place in the order, until this is the row that was last given —
+          then the tick takes the slot, which is the mark the stage's agenda
+          wears for the same timer. */}
+      <span className="w-4 shrink-0 text-xs font-medium text-studio-faint" title={played ? 'Last played' : undefined}>
+        {played ? <Check className="size-3.5 text-studio-go" /> : index + 1}
+      </span>
 
       {timer.kind === 'clock' ? (
         <span className="flex h-8 w-[76px] items-center justify-center text-xs text-studio-muted">clock</span>
@@ -168,6 +186,20 @@ const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: b
       ) : null}
 
       <div className="ml-auto flex shrink-0 items-center gap-0.5">
+        <span className="relative">
+          <IconButton
+            label="Speaker, notes and labels"
+            onClick={event => {
+              event.stopPropagation();
+              setEditing(current => !current);
+            }}
+          >
+            <Pencil className="size-3.5" />
+          </IconButton>
+
+          {editing ? <TimerEditor timer={timer} onClose={() => setEditing(false)} /> : null}
+        </span>
+
         <IconButton
           label="Reset this timer"
           onClick={event => {
@@ -216,6 +248,33 @@ const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: b
           <Trash2 className="size-3.5" />
         </IconButton>
       </div>
+
+      {/* The detail line, and only when there is detail: an empty second row
+          under every timer would double the height of the running order to say
+          nothing. The speaker is the one thing here the stage also sees, so it
+          leads; the labels and the note are the operator's own. */}
+      {timer.speaker || timer.labels.length > 0 || timer.notes ? (
+        <div className="flex basis-full flex-wrap items-center gap-1.5 pl-6 text-[11px]">
+          {timer.speaker ? <span className="font-medium text-studio-muted">{timer.speaker}</span> : null}
+
+          {timer.labels.map(label => (
+            <span
+              key={label.id}
+              className="rounded-[3px] px-1.5 py-px font-medium text-white"
+              style={{ backgroundColor: LABEL_COLORS[label.color] }}
+            >
+              {label.text}
+            </span>
+          ))}
+
+          {timer.notes ? (
+            <span className="flex min-w-0 items-center gap-1 text-studio-faint" title={timer.notes}>
+              <StickyNote className="size-3 shrink-0" />
+              <span className="truncate">{timer.notes.split('\n')[0]}</span>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </li>
   );
 };

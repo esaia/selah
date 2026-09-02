@@ -1,12 +1,19 @@
 'use client';
 
 import type { CSSProperties } from 'react';
-import { Pause, Play, Repeat, Volume2, VolumeX, X } from 'lucide-react';
+import { Pause, Play, Repeat, Repeat1, Volume2, VolumeX, X } from 'lucide-react';
 
 import { IconButton } from '@/components/ui/IconButton';
 import { Marquee } from '@/components/ui/Marquee';
 import { cn } from '@/lib/cn';
-import { useAudio } from '@/lib/studio/AudioProvider';
+import { useAudio, type Repeat as RepeatMode } from '@/lib/studio/AudioProvider';
+
+/** What the button is about to do, said the way an operator would ask for it. */
+const REPEAT_LABEL: Record<RepeatMode, string> = {
+  off: 'Play once — click to play the library through',
+  all: 'Playing the library through — click to repeat this track',
+  one: 'Repeating this track — click to play it once',
+};
 
 const clock = (seconds: number) => {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
@@ -21,8 +28,21 @@ const clock = (seconds: number) => {
  * faded or stopped without leaving the passage the operator is presenting.
  */
 export const AudioBar = () => {
-  const { current, playing, position, duration, volume, loop, muted, togglePlay, stop, seek, setVolume, setLoop, toggleMute } =
-    useAudio();
+  const {
+    current,
+    playing,
+    position,
+    duration,
+    volume,
+    repeat,
+    muted,
+    togglePlay,
+    stop,
+    seek,
+    setVolume,
+    cycleRepeat,
+    toggleMute,
+  } = useAudio();
 
   if (!current) return null;
 
@@ -55,18 +75,25 @@ export const AudioBar = () => {
 
       <span className="w-9 shrink-0 text-[11px] text-studio-muted tabular-nums">{clock(duration)}</span>
 
+      {/* One button through three states rather than two controls: what is to
+          happen at the end of a track is a single question, and the icon
+          answers it — a loop with a 1 on it is the one place a player has ever
+          put "this track again". */}
       <button
         type="button"
-        aria-pressed={loop}
-        title={loop ? 'Looping' : 'Play once'}
-        onClick={() => setLoop(!loop)}
+        aria-pressed={repeat !== 'off'}
+        aria-label={REPEAT_LABEL[repeat]}
+        title={REPEAT_LABEL[repeat]}
+        onClick={cycleRepeat}
         className={cn(
           'inline-flex size-7 shrink-0 items-center justify-center rounded-studio transition-colors duration-150',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
-          loop ? 'bg-studio-accent text-white' : 'text-studio-muted hover:bg-studio-surface hover:text-studio-text',
+          repeat === 'off'
+            ? 'text-studio-muted hover:bg-studio-surface hover:text-studio-text'
+            : 'bg-studio-accent text-white',
         )}
       >
-        <Repeat className="size-4" />
+        {repeat === 'one' ? <Repeat1 className="size-4" /> : <Repeat className="size-4" />}
       </button>
 
       <span className="hidden shrink-0 items-center gap-1.5 md:flex">

@@ -355,7 +355,7 @@ export const AudioPanel = () => {
 
                 <button
                   type="button"
-                  onClick={() => play(track)}
+                  onClick={() => play(track, open === ALL ? null : open)}
                   disabled={unavailable}
                   title={`Play ${track.title}`}
                   aria-label={`Play ${track.title}`}

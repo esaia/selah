@@ -188,7 +188,7 @@ export const TimerDashboard = () => {
           output joining the channel to tell the console what the console
           already knows. The projector's version of the timer, which leaves the
           wall clock off, is previewed beside the slide instead. */}
-      <div className="w-full shrink-0 overflow-hidden rounded-studio-lg bg-studio-slide sm:w-[300px]">
+      <div className="w-full shrink-0 overflow-hidden rounded-studio bg-studio-slide sm:w-[300px]">
         <div className="aspect-video w-full">
           {timerIsLive(timer) ? (
             <TimerScreen state={timer} />

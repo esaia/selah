@@ -770,6 +770,21 @@ body {
   }
 }
 
+/* The same blink under a second name. A CSS animation only restarts when its
+   name changes, so a Flash pressed while the last one is still going has to be
+   handed a different rule or the browser ignores it — see `useFlash`. Keep the
+   two in step. */
+@keyframes timer-flash-b {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.12;
+  }
+}
+
 /* The last ten seconds. A second a beat, so the pulse *is* the count — a room
    reads the rhythm before it reads the number. Softer than the flash: this one
    runs for ten seconds and a hard blink that long is punishing to sit under. */

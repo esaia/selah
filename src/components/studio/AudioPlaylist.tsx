@@ -251,7 +251,7 @@ export const AudioPlaylist = () => {
               >
                 <button
                   type="button"
-                  onClick={() => playTrack(track)}
+                  onClick={() => playTrack(track, open === ALL ? null : open)}
                   disabled={unavailable}
                   title={isCurrent && playing ? 'Fade out' : `Play ${track.title}`}
                   className="flex min-w-0 flex-1 items-center gap-2 rounded-studio px-1 py-0.5 text-left

@@ -190,6 +190,20 @@ describe("arming", () => {
     expect(timerReading(next, 9_999_999)?.text).toBe("5:00");
   });
 
+  it("remembers the last timer a run was started on", () => {
+    const running = startRun(two(), 1_000);
+
+    expect(running.playedId).toBe(running.activeId);
+
+    // Arming the next item moves the pointer; what was given stays what was
+    // given, and a reset afterwards does not take it back either.
+    const armed = armTimer(pauseRun(running, 2_000), "second");
+
+    expect(armed.activeId).toBe("second");
+    expect(armed.playedId).toBe(running.activeId);
+    expect(resetRun(armed).playedId).toBe(running.activeId);
+  });
+
   it("stops at the ends of the running order", () => {
     const running = startRun(two(), 1_000);
 

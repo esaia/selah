@@ -9,7 +9,9 @@ import { plain, verseRef } from '@/lib/studio/text';
 import {
   MESSAGE_COLORS,
   formatClock,
+  formatDuration,
   visibleMessages,
+  type StageTimer,
   type TimerMessage,
   type TimerState,
 } from '@/lib/timer/model';
@@ -227,7 +229,7 @@ const Note = ({
 }: {
   message: TimerMessage;
   now: number | null;
-  screenFlashing: boolean;
+  screenFlashing: number;
 }) => {
   const own = useFlash(message.flashAt, now);
 
@@ -254,7 +256,7 @@ const Notes = ({
 }: {
   messages: TimerMessage[];
   now: number | null;
-  screenFlashing: boolean;
+  screenFlashing: number;
 }) => {
   const [boxRef, box] = useBox();
   const textRef = useRef<HTMLDivElement>(null);
@@ -281,6 +283,119 @@ const Notes = ({
           messages.map(message => (
             <Note key={message.id} message={message} now={now} screenFlashing={screenFlashing} />
           ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+
+/**
+ * How much of the running order the panel will hold at a readable size. More
+ * than this and every line comes down until none of them can be read from the
+ * back, which serves nobody: a person on stage wants where they are and what is
+ * next, not the whole service at once.
+ */
+const AGENDA_ROWS = 6;
+
+/**
+ * The window of the running order worth showing: what is up, one behind it for
+ * bearing, and everything still to come until the panel is full.
+ */
+const agendaWindow = (timers: StageTimer[], activeId: string) => {
+  if (timers.length <= AGENDA_ROWS) return { rows: timers, from: 0 };
+
+  const active = Math.max(0, timers.findIndex(timer => timer.id === activeId));
+  const from = Math.min(Math.max(0, active - 1), timers.length - AGENDA_ROWS);
+
+  return { rows: timers.slice(from, from + AGENDA_ROWS), from };
+};
+
+/**
+ * The running order, as the person standing up needs it: what is on now, and
+ * what follows.
+ *
+ * It is the console's timer list and nothing else — the same rows the operator
+ * types the service into — so the count on screen and the agenda beside it can
+ * never disagree about what is happening.
+ *
+ * The armed item is white, the one after it amber like the next slide, and the
+ * rest are dim: the three weights this screen uses everywhere else, so reading
+ * it costs a glance. The last item a run was actually started on keeps a tick
+ * and a little more light than the dim ones — on a stage screen "what have we
+ * done" is asked as often as "what is next", and arming the next item is not
+ * the same as having given the last. The durations are the ones that were planned rather than
+ * what is left — a second number counting down beside the count itself would
+ * only be one more thing to disbelieve.
+ */
+const Agenda = ({ timer }: { timer: TimerState }) => {
+  const [boxRef, box] = useBox();
+  const textRef = useRef<HTMLDivElement>(null);
+
+  const { rows, from } = agendaWindow(timer.timers, timer.activeId);
+  const active = timer.timers.findIndex(item => item.id === timer.activeId);
+  const said = rows.map(row => `${row.name}|${row.speaker}|${row.duration}|${row.kind}`).join('\u241f');
+
+  useLayoutEffect(() => {
+    const refit = () =>
+      // A lower ceiling than a slide's: six lines that fit are the point here,
+      // not one line as large as the box will take.
+      fitText(textRef.current, box.height * TEXT_SHARE, { min: 4, max: Math.max(6, box.height * 0.28) });
+
+    refit();
+
+    return refitOnFontLoad(refit);
+  }, [box.height, said, active]);
+
+  return (
+    <div ref={boxRef} className="flex size-full items-center overflow-hidden">
+      {/* A little more leading than the slides get, for the same reason the
+          timer's name has it: a row is exactly one line tall and clips what
+          hangs below it, which in Georgian is most of the alphabet. */}
+      <div ref={textRef} className="w-full leading-[1.35]">
+        {rows.length === 0 ? (
+          <p className="text-center text-white/20">—</p>
+        ) : (
+          rows.map((row, index) => {
+            const at = from + index;
+            const isNow = at === active;
+            const isNext = at === active + 1;
+            const isDone = !isNow && row.id === timer.playedId;
+
+            return (
+              <div
+                key={row.id}
+                className="flex items-baseline gap-[0.5em] overflow-hidden whitespace-nowrap"
+                style={{
+                  color: isNow
+                    ? '#ffffff'
+                    : isNext
+                      ? '#fbbf24'
+                      : isDone
+                        ? 'rgba(255,255,255,0.66)'
+                        : 'rgba(255,255,255,0.4)',
+                  fontWeight: isNow ? 700 : 500,
+                  marginTop: index === 0 ? 0 : '0.28em',
+                }}
+              >
+                {/* A marker rather than a filled row: a lit bar at the edge of
+                    someone's vision reads as something having just happened,
+                    which is what the flash is for. */}
+                <span className="w-[0.7em] shrink-0" style={{ opacity: isNow || isDone ? 1 : 0 }}>
+                  {isNow ? '▸' : '✓'}
+                </span>
+
+                <span className="min-w-0 flex-1 overflow-hidden text-ellipsis">
+                  {row.name}
+                  {row.speaker ? <span className="opacity-60"> · {row.speaker}</span> : null}
+                </span>
+
+                <span className="shrink-0 tabular-nums opacity-70">
+                  {row.kind === 'clock' ? '' : formatDuration(row.duration)}
+                </span>
+              </div>
+            );
+          })
         )}
       </div>
     </div>
@@ -320,6 +435,24 @@ export const StageScreen = ({
 
   if (timer.blackout) return <div className="size-full bg-black" />;
 
+  // A note the operator has sent full screen is the whole stage for as long as
+  // it is up. The point of that button is that the person standing there should
+  // not have to find the words in the corner of a screen of slides — the same
+  // reason the timer's face gives way to one.
+  const takeover = notes.filter(note => note.fullScreen);
+
+  if (takeover.length > 0)
+    return (
+      <div
+        className="size-full bg-black px-[6%] py-[5%] font-sans"
+        style={{ animation: flashAnimation(flashing) }}
+      >
+        {/* The frame wears the flash here as it does below, so a note under it
+            blinks only when it was the one flashed. */}
+        <Notes messages={takeover} now={now} screenFlashing={0} />
+      </div>
+    );
+
   return (
     <div
       ref={frameRef}
@@ -341,20 +474,34 @@ export const StageScreen = ({
       </div>
 
       <div className="flex min-w-0 flex-[32] flex-col" style={{ gap: unit * GAP }}>
-        <Panel label="Clock" color="#ffffff" unit={unit}>
-          <Readout text={now === null ? '--:--' : formatClock(now, false)} color="#ffffff" />
-        </Panel>
+        <div className="flex min-h-0 flex-[26] flex-col">
+          <Panel label="Clock" color="#ffffff" unit={unit}>
+            <Readout text={now === null ? '--:--' : formatClock(now, false)} color="#ffffff" />
+          </Panel>
+        </div>
 
-        <Panel
-          label="Stage message"
-          color={notes.length > 0 ? MESSAGE_COLORS[notes[0].color] : '#ffffff'}
-          unit={unit}
-          outlined={notes.length > 0}
-        >
-          {/* The screen's own flash is worn by the frame, so a note under it
-              blinks only when it was the one flashed. */}
-          <Notes messages={notes} now={now} screenFlashing={false} />
-        </Panel>
+        {/* The running order sits between the two: it is read the way the clock
+            is, in glances, while a note from the operator is the one thing on
+            this screen that has to be found at once — so it keeps the corner it
+            has always had. */}
+        <div className="flex min-h-0 flex-[38] flex-col">
+          <Panel label="Agenda" color="#ffffff" unit={unit}>
+            <Agenda timer={timer} />
+          </Panel>
+        </div>
+
+        <div className="flex min-h-0 flex-[36] flex-col">
+          <Panel
+            label="Stage message"
+            color={notes.length > 0 ? MESSAGE_COLORS[notes[0].color] : '#ffffff'}
+            unit={unit}
+            outlined={notes.length > 0}
+          >
+            {/* The screen's own flash is worn by the frame, so a note under it
+                blinks only when it was the one flashed. */}
+            <Notes messages={notes} now={now} screenFlashing={0} />
+          </Panel>
+        </div>
       </div>
     </div>
   );

@@ -165,7 +165,7 @@ const Card = ({
         />
       </div>
 
-      <div className="flex items-center gap-0.5 border-t border-studio-divider px-2 py-1.5">
+      <div className="flex items-center gap-1 border-t border-studio-divider px-2 py-1.5">
         <IconButton
           label="Remove this message"
           tone="danger"
