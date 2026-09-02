@@ -171,9 +171,15 @@ export const TimerDashboard = () => {
        boxed in a panel of their own they read as furniture rather than as the
        instrument. */
     <section className="flex flex-wrap items-stretch gap-4">
+      {/* What the projector draws when the timer is armed onto it, on a plain
+          ground rather than the operator's background: the same component, the
+          same proportions, the same furniture, and no wall clock — the
+          projector leaves that off, so this does too. Not the `/timer` page in
+          an iframe; that would be a second output joining the channel to tell
+          the console what the console already knows. */}
       <div className="w-full shrink-0 overflow-hidden rounded-studio-lg bg-studio-slide sm:w-[300px]">
-        <div className="aspect-video w-full p-3">
-          <TimerScreen state={timer} />
+        <div className="aspect-video w-full">
+          <TimerScreen state={timer} showClock={false} />
         </div>
       </div>
 

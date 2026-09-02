@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { X } from 'lucide-react';
 
 import { bibleNames } from '@/lib/bible/catalog';
 import { cn } from '@/lib/cn';
@@ -11,6 +10,8 @@ import { loadLocalFile } from '@/lib/media/localMedia';
 import { plain } from '@/lib/studio/text';
 import { TimerScreen } from '@/components/projector/TimerScreen';
 import { useStudio } from '@/lib/studio/StudioProvider';
+
+import { ClearBar } from './ClearBar';
 import type { Align, Lang, ShowData, Verse } from '@/lib/types';
 
 const ALIGN_CLASS: Record<Align, string> = { left: 'text-left', center: 'text-center', right: 'text-right' };
@@ -77,7 +78,7 @@ const reference = (items: Verse[], lang: Lang) => {
  * pass scales the whole thing — text, gaps and reference together.
  */
 export const PreviewPanel = () => {
-  const { settings, showData, session, clearProjector, timer } = useStudio();
+  const { settings, showData, session, timer } = useStudio();
 
   // The panel runs the projector's own crossfade, at the operator's setting, so
   // the preview lies about nothing — timing included.
@@ -157,7 +158,7 @@ export const PreviewPanel = () => {
   const rows = armed.map(lang => ({ lang, items: onScreen[lang] ?? [] }));
   const hasContent = Boolean(lyrics) || rows.some(row => row.items.length > 0);
 
-  // The badge and the clear button answer for the outputs, not for the panel,
+  // The badge and the clear strip answer for the outputs, not for the panel,
   // so they read the live slide rather than the one the fade is still showing.
   const isLive = Boolean(showData.lyrics?.text) || armed.some(lang => (showData[lang] ?? []).length > 0);
 
@@ -224,24 +225,6 @@ export const PreviewPanel = () => {
             {isLive ? 'LIVE' : 'IDLE'}
           </span>
 
-          {/* Clearing belongs against the thing being cleared, the way a
-              presentation app hangs it off its output preview. It is dead when
-              nothing is on screen, so a stab at it mid-service cannot be
-              mistaken for one that did something. */}
-          <button
-            type="button"
-            onClick={clearProjector}
-            disabled={!isLive}
-            title="Clear the screen"
-            className={cn(
-              'inline-flex h-6 items-center gap-1 rounded-[4px] px-2 text-[11px] font-medium transition-colors',
-              'duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
-              isLive ? 'bg-white/15 text-white hover:bg-studio-live' : 'cursor-not-allowed text-white/30',
-            )}
-          >
-            <X className="size-3" />
-            Clear
-          </button>
         </div>
       </div>
 
@@ -293,7 +276,7 @@ export const PreviewPanel = () => {
               to show that: an operator who arms it and sees the verse still
               sitting here has no way to tell it worked. */}
           {timer.onProjector ? (
-            <div className="absolute inset-0 p-[6%]">
+            <div className="absolute inset-0">
               <TimerScreen state={timer} showClock={false} />
             </div>
           ) : null}
@@ -335,6 +318,8 @@ export const PreviewPanel = () => {
           </div>
         </div>
       </div>
+
+      <ClearBar slideLive={isLive} />
     </div>
   );
 };

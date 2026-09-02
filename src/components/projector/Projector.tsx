@@ -169,7 +169,7 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
             before a service, or a clock between sessions, wants the screen
             rather than a corner of it. */}
         {timer.onProjector ? (
-          <div className="absolute inset-0 z-20 px-[6vw] py-[8vh]">
+          <div className="absolute inset-0 z-20">
             <TimerScreen state={timer} showClock={false} />
           </div>
         ) : null}

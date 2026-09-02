@@ -769,3 +769,17 @@ body {
     opacity: 0.12;
   }
 }
+
+/* The last ten seconds. A second a beat, so the pulse *is* the count — a room
+   reads the rhythm before it reads the number. Softer than the flash: this one
+   runs for ten seconds and a hard blink that long is punishing to sit under. */
+@keyframes timer-final {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  55% {
+    opacity: 0.35;
+  }
+}

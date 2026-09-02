@@ -4,12 +4,16 @@ import {
   MINUTE,
   adjustRun,
   armTimer,
+  FINAL_MS,
   asTimerState,
+  clearOutputs,
   elapsedOf,
   emptyTimerState,
   finishesAt,
   formatDuration,
+  newMessage,
   newTimer,
+  onOutputs,
   parseDuration,
   pauseRun,
   resetRun,
@@ -205,14 +209,21 @@ describe("the other two kinds", () => {
     expect(timerReading(up, 11 * MINUTE)?.overtime).toBe(true);
   });
 
-  it("shows a wall clock with no progress bar", () => {
+  it("reads a wall clock to the minute, and its run is the hour", () => {
     const base = state();
     const clock = {
       ...base,
       timers: [{ ...base.timers[0], kind: "clock" as const }],
     };
 
-    expect(timerReading(clock, Date.now())?.progress).toBeNull();
+    // Local time, built the same way the reading does, so the assertion holds
+    // wherever the tests run.
+    const at = new Date(2026, 0, 1, 16, 15, 30).getTime();
+    const reading = timerReading(clock, at);
+
+    expect(reading?.text).toBe("16:15");
+    expect(reading?.progress).toBeCloseTo(15.5 / 60, 5);
+    expect(reading?.phase).toBe("normal");
   });
 });
 
@@ -253,5 +264,79 @@ describe("asTimerState", () => {
     expect(emptyTimerState().messages).toHaveLength(1);
     expect(asTimerState({ messages: [] }).messages).toHaveLength(1);
     expect(visibleMessages(emptyTimerState())).toHaveLength(0);
+  });
+});
+
+describe("clearOutputs", () => {
+  const showing = (): TimerState => ({
+    ...state(),
+    onProjector: true,
+    messages: [
+      newMessage({ id: "up", text: "Wrap up", visible: true }),
+      newMessage({ id: "down", text: "Five minutes" }),
+    ],
+  });
+
+  it("takes the timer off the projector and every message down", () => {
+    const cleared = clearOutputs(showing());
+
+    expect(cleared.onProjector).toBe(false);
+    expect(visibleMessages(cleared)).toEqual([]);
+    expect(onOutputs(cleared)).toBe(false);
+  });
+
+  it("leaves the run counting", () => {
+    const running = startRun(showing(), 1_000);
+    const cleared = clearOutputs(running);
+
+    expect(cleared.running).toBe(true);
+    expect(cleared.startedAt).toBe(running.startedAt);
+    expect(elapsedOf(cleared, 4_000)).toBe(3_000);
+  });
+
+  it("is the same object when nothing is on the outputs", () => {
+    const idle = state();
+
+    expect(clearOutputs(idle)).toBe(idle);
+    expect(onOutputs(idle)).toBe(false);
+  });
+
+  it("counts a message with no text as nothing to clear", () => {
+    const blank: TimerState = {
+      ...state(),
+      messages: [newMessage({ text: "   ", visible: true })],
+    };
+
+    expect(onOutputs(blank)).toBe(false);
+  });
+});
+
+describe("the last ten seconds", () => {
+  /** A ten-minute countdown, started at t=0 and read `left` from the end. */
+  const at = (left: number) =>
+    timerReading(startRun(state(), 0), 10 * MINUTE - left);
+
+  it("goes red inside the final ten", () => {
+    expect(at(FINAL_MS + 1_000)?.phase).toBe("warn");
+    expect(at(FINAL_MS)?.phase).toBe("final");
+    expect(at(1_000)?.phase).toBe("final");
+  });
+
+  it("hands over to overtime at zero", () => {
+    expect(at(0)?.phase).toBe("final");
+    expect(at(-1_000)?.phase).toBe("over");
+  });
+
+  it("leaves a count-up with no target alone", () => {
+    const base = state();
+    const open = startRun(
+      {
+        ...base,
+        timers: [{ ...base.timers[0], kind: "countup", duration: 0 }],
+      },
+      0,
+    );
+
+    expect(timerReading(open, 60_000)?.phase).toBe("normal");
   });
 });

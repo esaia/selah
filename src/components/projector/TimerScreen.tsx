@@ -3,13 +3,16 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
 
 import { cn } from "@/lib/cn";
+import { fitText, refitOnFontLoad } from "@/lib/projector/fitText";
 import {
+  FINAL_MS,
   FLASH_MS,
   MESSAGE_COLORS,
   PHASE_BAR,
@@ -88,15 +91,46 @@ const widthInEms = (text: string) =>
   );
 
 /**
+ * The furniture, as fractions of the frame's height: how big each piece is and
+ * the gap above it. The digits take whatever is left over.
+ *
+ * These are a table rather than numbers in the markup because they are read
+ * twice — once to draw each piece, and once to work out what the digits may
+ * have. The digits used to be sized from their own measured box, and an
+ * observer only reports the smaller box *after* the message that shrank it has
+ * been painted: one frame of full-height digits sitting on top of the words. A
+ * budget taken from the frame — which does not change when a message goes up —
+ * lands the new size on the same paint as the message.
+ */
+const NAME = { size: 0.05, gap: 0.03 };
+const CLOCK = { size: 0.05, gap: 0.04 };
+
+/**
+ * What the notes get: a fixed share of the column and the gap above it, plus
+ * the largest a note is ever set (`cap`) and the largest a full-screen one is.
+ *
+ * A share rather than a size, because the text is then fitted *into* it. A
+ * size would have to guess how many lines the words wrap to, and guessing
+ * wrong is what clipped a long note in half — the box it was given was set
+ * from a line count nobody had measured.
+ */
+const MESSAGE = { share: 0.45, gap: 0.04, cap: 0.3, takeover: 0.34 };
+
+/** The strip along the foot, as a fraction of the column's height. */
+const BAR_HEIGHT = 0.035;
+
+/** What the digits keep however much else is asking for room. */
+const DIGITS_MIN = 0.12;
+
+/**
  * Watch one box. Only the box is observed — the sizes are worked out during
  * render — so a digit changing every second does not tear down and rebuild a
  * ResizeObserver every second.
  *
  * A callback ref rather than an effect: a full-screen message swaps the frame
- * for a different element and takes the digits away entirely, and an effect
- * that ran once at mount would be left watching a node that is no longer on
- * the page — the digits would come back measuring nothing, and size to
- * nothing with it.
+ * for a different element, and an effect that ran once at mount would be left
+ * watching a node that is no longer on the page — the screen would come back
+ * measuring nothing, and size to nothing with it.
  */
 const useBox = () => {
   const watching = useRef<ResizeObserver | null>(null);
@@ -164,28 +198,36 @@ const useFlash = (at: number, now: number | null) => {
 const flashAnimation = (lit: boolean) =>
   lit ? `timer-flash ${FLASH_MS / 4}ms ease-in-out 4` : undefined;
 
+/**
+ * What the digits are doing: blinking at a flash the operator sent, or beating
+ * out the last ten seconds. The flash wins — it was asked for, and two
+ * animations on one element means the later one alone.
+ */
+const digitAnimation = (flashing: boolean, final: boolean) =>
+  flashAnimation(flashing) ??
+  (final ? `timer-final 1000ms ease-in-out ${FINAL_MS / 1000}` : undefined);
+
 /** One note on the screen. It blinks on its own stamp, and along with the
  *  screen when the whole output is flashed. */
 const MessageLine = ({
   message,
   now,
   screenFlashing,
-  fontSize,
   weight,
 }: {
   message: TimerMessage;
   now: number | null;
   screenFlashing: boolean;
-  fontSize: number;
   weight: number;
 }) => {
   const own = useFlash(message.flashAt, now);
 
   return (
+    // No size of its own: the block around it is fitted, and every note in it
+    // is set at whatever size the whole lot fits at.
     <p
       className="leading-tight"
       style={{
-        fontSize,
         color: MESSAGE_COLORS[message.color],
         fontWeight: weight,
         textTransform: message.caps ? "uppercase" : "none",
@@ -219,26 +261,72 @@ export const TimerScreen = ({
   // the real time, so it says so rather than flashing the epoch.
   const text =
     now === null && reading?.kind === "clock"
-      ? "--:--:--"
+      ? "--:--"
       : (reading?.text ?? "0:00");
 
-  // Two boxes, deliberately. Everything around the digits is sized from the
-  // *whole* screen and only the digits from what is left over; sizing the
-  // furniture from the digits instead would have each one feeding the other,
-  // and the observer would never settle.
+  // One box, deliberately: the frame. Everything on the screen is a fraction of
+  // it, the digits included, so nothing here waits on a second measurement that
+  // can only arrive a paint late.
   const [frameRef, frame] = useBox();
-  const [digitsRef, digits] = useBox();
 
   const unit = frame.height;
-  const digitSize =
-    digits.width && digits.height
-      ? Math.floor(Math.min(digits.width / widthInEms(text), digits.height))
-      : 0;
 
   const flashing = useFlash(state.flashAt, now);
 
   const messages = visibleMessages(state);
   const takeover = messages.filter((message) => message.fullScreen);
+
+  const hasName = Boolean(showName && reading?.name);
+
+  // What the furniture is taking, as a fraction of the frame. The bar is not
+  // in it — it lies in the margin below the column, not in the column.
+  const spent =
+    (hasName ? NAME.size + NAME.gap : 0) +
+    (showClock ? CLOCK.size + CLOCK.gap : 0) +
+    (messages.length > 0 ? MESSAGE.gap + MESSAGE.share : 0);
+
+  // The notes' own box: a fixed height, whatever they say. A full-screen one
+  // has the frame instead.
+  const notesHeight =
+    takeover.length > 0 ? unit : Math.round(unit * MESSAGE.share);
+
+  /**
+   * Fit the notes to the box, rather than the box to the notes.
+   *
+   * `fitText` writes the size straight onto the node, so a long note shrinks
+   * to two or three lines without a re-render and without the digits moving —
+   * the room was set aside for it either way. In a layout effect, so the size
+   * is settled before the paint that first shows the words.
+   */
+  const notesRef = useRef<HTMLDivElement>(null);
+
+  // Weight and capitals change how wide the words are, so they belong in what
+  // the fit is keyed on alongside the words themselves.
+  const said = messages
+    .map((message) => `${message.text}|${message.caps}|${message.bold}`)
+    .join("\u241f");
+
+  useLayoutEffect(() => {
+    const refit = () =>
+      fitText(notesRef.current, notesHeight, {
+        min: 10,
+        max: Math.max(
+          12,
+          unit * (takeover.length > 0 ? MESSAGE.takeover : MESSAGE.cap),
+        ),
+      });
+
+    refit();
+
+    return refitOnFontLoad(refit);
+  }, [notesHeight, said, takeover.length, unit]);
+
+  // The digits fit the room they are actually left, on the same frame the
+  // message appears — no jump, and nothing to overlap.
+  const digitsHeight = Math.max(DIGITS_MIN, 1 - spent) * unit;
+  const digitSize = Math.floor(
+    Math.min(frame.width / widthInEms(text), digitsHeight),
+  );
 
   if (state.blackout)
     return <div className={cn("size-full bg-black", className)} />;
@@ -247,115 +335,119 @@ export const TimerScreen = ({
   // person on stage should not have to find it under the digits.
   if (takeover.length > 0)
     return (
-      <div
-        ref={frameRef}
-        className={cn(
-          "relative flex size-full flex-col items-center justify-center gap-[3%] px-[6%] text-center",
-          className,
-        )}
-      >
-        {takeover.map((message) => (
-          <MessageLine
-            key={message.id}
-            message={message}
-            now={now}
-            // The same four blinks the digits wear, so Flash still reads.
-            screenFlashing={flashing}
-            fontSize={Math.max(16, unit * (takeover.length > 1 ? 0.14 : 0.2))}
-            weight={message.bold ? 700 : 600}
-          />
-        ))}
+      <div className={cn("relative size-full px-[6%] py-[5%]", className)}>
+        <div
+          ref={frameRef}
+          className="flex size-full items-center justify-center overflow-hidden"
+        >
+          <div ref={notesRef} className="w-full space-y-[0.12em] text-center">
+            {takeover.map((message) => (
+              <MessageLine
+                key={message.id}
+                message={message}
+                now={now}
+                // The same four blinks the digits wear, so Flash still reads.
+                screenFlashing={flashing}
+                weight={message.bold ? 700 : 600}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     );
 
   return (
+    // The padding is the screen's own, not the caller's: the bar hangs below
+    // it, flush with the bottom edge and corner to corner, the way a stage
+    // clock draws it. The column inside is what gets measured, so `unit` stays
+    // the room the digits actually have.
     <div
-      ref={frameRef}
-      className={cn(
-        "relative flex size-full flex-col justify-center",
-        className,
-      )}
+      className={cn("relative size-full px-[5%] pt-[6%] pb-[7%]", className)}
     >
-      {showName && reading?.name ? (
-        <div
-          className="shrink-0 truncate text-center font-medium tracking-[0.2em] text-white/70 uppercase"
-          style={{
-            fontSize: Math.max(10, unit * 0.05),
-            marginBottom: unit * 0.03,
-          }}
-        >
-          {reading.name}
-        </div>
-      ) : null}
+      <div ref={frameRef} className="flex size-full flex-col justify-center">
+        {showName && reading?.name ? (
+          <div
+            className="shrink-0 truncate text-center font-medium tracking-[0.2em] text-white/70 uppercase"
+            style={{
+              fontSize: Math.max(10, unit * NAME.size),
+              marginBottom: unit * NAME.gap,
+            }}
+          >
+            {reading.name}
+          </div>
+        ) : null}
 
-      <div
-        ref={digitsRef}
-        className="flex min-h-0 flex-1 items-center justify-center overflow-hidden"
-        // A note on the screen is what the room is being asked to read, so the
-        // digits give way to it: they keep a third of the height and the words
-        // take the rest, rather than both settling for half.
-        style={messages.length > 0 ? { maxHeight: unit * 0.34 } : undefined}
-      >
-        <span
-          className="leading-none font-semibold whitespace-nowrap tabular-nums"
-          style={{
-            fontSize: digitSize || 1,
-            color: PHASE_COLOR[reading?.phase ?? "normal"],
-            transition: "color 300ms linear",
-            // Four blinks over the flash, on the digits themselves.
-            animation: flashAnimation(flashing),
-          }}
-        >
-          {text}
-        </span>
+        {/* A note on the screen is what the room is being asked to read, so the
+          digits give way to it: with one up they come down to about a third of
+          the height and the words take the rest, rather than both settling for
+          half. */}
+        <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+          <span
+            className="leading-none font-semibold whitespace-nowrap tabular-nums"
+            style={{
+              fontSize: digitSize || 1,
+              color: PHASE_COLOR[reading?.phase ?? "normal"],
+              transition: "color 300ms linear",
+              animation: digitAnimation(flashing, reading?.phase === "final"),
+            }}
+          >
+            {text}
+          </span>
+        </div>
+
+        {messages.length > 0 ? (
+          <div
+            // A note is the point of the screen while it is up — the person
+            // reading it is at the back of a hall, glancing — so it takes the
+            // larger half and the digits give way. However long the words are,
+            // they are set to this box: several notes, or one that runs to
+            // three lines, come down in size rather than off the bottom.
+            className="flex shrink-0 items-center justify-center overflow-hidden"
+            style={{ height: notesHeight, marginTop: unit * MESSAGE.gap }}
+          >
+            <div
+              ref={notesRef}
+              className="w-full space-y-[0.12em] px-[2%] text-center"
+            >
+              {messages.map((message) => (
+                <MessageLine
+                  key={message.id}
+                  message={message}
+                  now={now}
+                  // The screen's own flash is the digits' business; a note
+                  // under them blinks only when it was the one flashed.
+                  screenFlashing={false}
+                  weight={message.bold ? 700 : 400}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {showClock ? (
+          <div
+            className="shrink-0 text-center tabular-nums text-white/40"
+            style={{
+              marginTop: unit * CLOCK.gap,
+              fontSize: Math.max(10, unit * CLOCK.size),
+            }}
+          >
+            {now === null ? "--:--:--" : formatClock(now)}
+          </div>
+        ) : null}
       </div>
 
-      {messages.length > 0 ? (
-        <div
-          // A message is the point of the screen while it is up — the person
-          // reading it is at the back of a hall, glancing — so it is set
-          // larger than the digits, and takes its room from them. Several at
-          // once share the space rather than overflowing it.
-          className="max-h-[55%] shrink-0 space-y-1 overflow-hidden text-center"
-          style={{ marginTop: unit * 0.04 }}
-        >
-          {messages.map((message) => (
-            <MessageLine
-              key={message.id}
-              message={message}
-              now={now}
-              // The screen's own flash is the digits' business; a note under
-              // them blinks only when it was the one flashed.
-              screenFlashing={false}
-              fontSize={Math.max(14, unit * (messages.length > 1 ? 0.16 : 0.3))}
-              weight={message.bold ? 700 : 400}
-            />
-          ))}
-        </div>
-      ) : null}
-
-      {showClock ? (
-        <div
-          className="shrink-0 text-center tabular-nums text-white/40"
-          style={{
-            marginTop: unit * 0.04,
-            fontSize: Math.max(10, unit * 0.05),
-          }}
-        >
-          {now === null ? "--:--:--" : formatClock(now)}
-        </div>
-      ) : null}
-
       {reading && reading.progress !== null ? (
+        // Corner to corner along the very bottom, square and full bleed: the
+        // run's own margin, read out of the corner of an eye and never in the
+        // way of the words. It fills as the run goes and goes green, amber,
+        // red with the digits.
         <div
-          // Along the foot of the screen, under everything: the run's own
-          // margin, read at a glance and never in the way of the words. It
-          // goes green, amber, red with the digits.
-          className="shrink-0 overflow-hidden rounded-full bg-white/15"
-          style={{ height: Math.max(5, unit * 0.03), marginTop: unit * 0.05 }}
+          className="absolute inset-x-0 bottom-0 overflow-hidden bg-white/10"
+          style={{ height: Math.max(4, unit * BAR_HEIGHT) }}
         >
           <div
-            className="h-full rounded-full"
+            className="h-full"
             style={{
               width: `${reading.progress * 100}%`,
               backgroundColor: PHASE_BAR[reading.phase],

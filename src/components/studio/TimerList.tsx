@@ -151,14 +151,18 @@ const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: b
         options={TIMER_KINDS}
       />
 
-      {timer.kind === 'clock' ? null : (
+      {/* The wrap-up is a countdown's own: it is the amount of time *left*, and
+          a count-up counts away from a start rather than towards a deadline the
+          operator is watching. Offering the field there only invited someone to
+          set an amber warning that never arrives. */}
+      {timer.kind === 'countdown' ? (
         <DurationInput
           value={timer.wrapUp}
           label="Wrap-up warning — the digits turn amber with this much left"
           className="w-[70px] shrink-0 border-amber-300 text-amber-600"
           onCommit={wrapUp => patch({ wrapUp })}
         />
-      )}
+      ) : null}
 
       <div className="ml-auto flex shrink-0 items-center gap-0.5">
         <IconButton

@@ -19,6 +19,10 @@ export const MINUTE = 60_000;
 /** How long an output holds the flash. */
 export const FLASH_MS = 1600;
 
+/** The last of a run, when the digits go red and start pulsing a second at a
+ *  time. Ten seconds is what a stage manager counts out loud. */
+export const FINAL_MS = 10_000;
+
 export type TimerKind = "countdown" | "countup" | "clock";
 
 export const TIMER_KINDS: { value: TimerKind; label: string }[] = [
@@ -347,10 +351,37 @@ export const formatDuration = (ms: number): string => {
     : `${minutes}:${pad(seconds)}`;
 };
 
-export const formatClock = (now = Date.now()): string => {
+/**
+ * The time of day. Seconds are optional because the two places it is read want
+ * different things: a wall clock on a screen is read the way a clock on a wall
+ * is — `16:32`, no ticking last pair to catch the eye — while the console's own
+ * `NOW` is an operator's readout, where the seconds are the point.
+ */
+export const formatClock = (now = Date.now(), withSeconds = true): string => {
   const date = new Date(now);
+  const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  return withSeconds ? `${time}:${pad(date.getSeconds())}` : time;
+};
+
+export const HOUR = 60 * MINUTE;
+
+/**
+ * How far into its hour `at` is.
+ *
+ * A wall clock's run is the hour it is in — the only span short enough to
+ * watch move and long enough to mean something across a service. Taken off a
+ * `Date` rather than by remainder, because a good many zones are offset by
+ * half an hour and their hours do not line up with UTC's.
+ */
+export const intoHour = (at: number): number => {
+  const date = new Date(at);
+
+  return (
+    date.getMinutes() * MINUTE +
+    date.getSeconds() * 1_000 +
+    date.getMilliseconds()
+  );
 };
 
 /** Parse `10`, `10:00` or `1:02:30` into milliseconds; `null` if it is none of them. */
@@ -374,17 +405,43 @@ export const parseDuration = (input: string): number | null => {
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
-export type Phase = "normal" | "warn" | "over";
+/**
+ * `warn` is the wrap-up the operator set, `final` is the last ten seconds and
+ * `over` is past zero. The last two are both red — what separates them is that
+ * `final` is still time the speaker has.
+ */
+export type Phase = "normal" | "warn" | "final" | "over";
 
 export interface TimerReading {
   name: string;
   kind: TimerKind;
   text: string;
-  /** How much of the run is left, 0–1; `null` when the timer is a wall clock. */
+  /**
+   * How much of the run has *gone*, 0–1 — `null` when there is no run to be
+   * through, which is a count-up nobody gave a target.
+   *
+   * Elapsed rather than remaining so a bar drawn from it fills left to right
+   * whichever way the digits are counting. A countdown whose bar drained
+   * right-to-left had the moving edge travelling backwards past a room reading
+   * it out of the corner of an eye.
+   */
   progress: number | null;
   phase: Phase;
   overtime: boolean;
 }
+
+/**
+ * Which colour a run is wearing, from how much of it is left. `null` is a run
+ * with no target to be near the end of — a count-up nobody set a length for.
+ */
+const phaseOf = (remaining: number | null, wrapUp: number): Phase =>
+  remaining === null
+    ? "normal"
+    : remaining <= FINAL_MS
+      ? "final"
+      : remaining <= wrapUp
+        ? "warn"
+        : "normal";
 
 /** Everything an output needs to draw one frame. */
 export const timerReading = (
@@ -400,8 +457,9 @@ export const timerReading = (
   if (timer.kind === "clock") {
     return {
       ...base,
-      text: formatClock(now),
-      progress: null,
+      text: formatClock(now, false),
+      // Its run is the hour, so the line under it is the hour going by.
+      progress: clamp01(intoHour(now) / HOUR),
       phase: "normal",
       overtime: false,
     };
@@ -419,9 +477,7 @@ export const timerReading = (
       progress: total ? clamp01(elapsed / total) : null,
       phase: overtime
         ? "over"
-        : total && total - elapsed <= timer.wrapUp
-          ? "warn"
-          : "normal",
+        : phaseOf(total ? total - elapsed : null, timer.wrapUp),
       overtime,
     };
   }
@@ -432,8 +488,8 @@ export const timerReading = (
   return {
     ...base,
     text: `${overtime ? "-" : ""}${formatDuration(Math.abs(remaining))}`,
-    progress: total ? clamp01(remaining / total) : 0,
-    phase: overtime ? "over" : remaining <= timer.wrapUp ? "warn" : "normal",
+    progress: total ? clamp01(elapsed / total) : 0,
+    phase: overtime ? "over" : phaseOf(remaining, timer.wrapUp),
     overtime,
   };
 };
@@ -456,14 +512,39 @@ export const finishesAt = (
 export const PHASE_COLOR: Record<Phase, string> = {
   normal: "#ffffff",
   warn: "#fbbf24",
+  final: "#f87171",
   over: "#f87171",
 };
 
 export const PHASE_BAR: Record<Phase, string> = {
   normal: "#22c55e",
   warn: "#fbbf24",
+  final: "#ef4444",
   over: "#ef4444",
 };
 
 export const visibleMessages = (state: TimerState): TimerMessage[] =>
   state.messages.filter((message) => message.visible && message.text.trim());
+
+/** Whether the timer is putting anything in front of the room. */
+export const onOutputs = (state: TimerState): boolean =>
+  state.onProjector || visibleMessages(state).length > 0;
+
+/**
+ * Take the timer off the outputs: disarm it from the projector and pull every
+ * message down.
+ *
+ * The run itself is left alone. Clearing answers for what the room can see,
+ * and an operator who takes a note down mid-sermon still wants the count they
+ * have been keeping — starting it over is what `resetRun` is for.
+ */
+export const clearOutputs = (state: TimerState): TimerState =>
+  onOutputs(state)
+    ? {
+        ...state,
+        onProjector: false,
+        messages: state.messages.map((message) =>
+          message.visible ? { ...message, visible: false } : message,
+        ),
+      }
+    : state;

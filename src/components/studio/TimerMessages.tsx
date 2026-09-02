@@ -104,7 +104,10 @@ const Card = ({
         onDrop(sideOf(event) === "after" ? index + 1 : index);
       }}
       className={cn(
-        "relative rounded-studio-lg border transition-colors duration-150",
+        // The console's ordinary radius, not the larger one: `rounded-studio-lg`
+        // is for surfaces that float — a modal, a menu — and a card sitting in
+        // a list reads as a pill at that corner.
+        "relative rounded-studio border transition-colors duration-150",
         // A message on the screen is tinted rather than repainted: same border
         // width, same padding, so nothing under it moves when it goes up.
         message.visible
@@ -137,7 +140,7 @@ const Card = ({
             setSide(null);
           }}
           title="Drag to reorder"
-          className="flex w-5 shrink-0 cursor-grab items-center justify-center rounded-l-studio-lg text-studio-faint
+          className="flex w-5 shrink-0 cursor-grab items-center justify-center rounded-l-studio text-studio-faint
             transition-colors duration-150 hover:text-studio-muted active:cursor-grabbing"
         >
           <GripVertical className="size-3.5" />

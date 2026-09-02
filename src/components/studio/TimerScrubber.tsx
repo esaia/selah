@@ -11,11 +11,14 @@ import {
 import { useTimerNow } from "@/components/projector/TimerScreen";
 import { cn } from "@/lib/cn";
 import {
+  HOUR,
   MINUTE,
   PHASE_BAR,
   activeTimer,
   elapsedOf,
+  formatClock,
   formatDuration,
+  intoHour,
   seekRun,
   timerReading,
   totalOf,
@@ -95,7 +98,13 @@ export const TimerScrubber = () => {
   }, []);
 
   const kind = activeTimer(timer)?.kind;
-  const total = totalOf(timer);
+
+  // A wall clock's line is the hour it is in. It cannot be dragged — there is
+  // nowhere to drag time of day to — but leaving the track out altogether put
+  // a hole in the panel where the run is meant to be, and took away the one
+  // thing the operator was reading it for: how far through the hour they are.
+  const isClock = kind === "clock";
+  const total = isClock ? HOUR : totalOf(timer);
 
   const elapsedAt = useCallback(
     (clientX: number) => {
@@ -109,7 +118,7 @@ export const TimerScrubber = () => {
   );
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || !total) return;
+    if (event.button !== 0 || !total || isClock) return;
 
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -134,31 +143,56 @@ export const TimerScrubber = () => {
     updateTimer((state) => seekRun(state, elapsed));
   };
 
-  // A wall clock has no run to scrub, and a timer with no length has no line.
-  if (kind === "clock" || !total) return null;
+  // A timer with no length has no line.
+  if (!total) return null;
 
-  const reading = timerReading(timer, now ?? timer.startedAt ?? 0);
+  const at = now ?? timer.startedAt ?? 0;
+
+  const reading = timerReading(timer, at);
   const colour = PHASE_BAR[reading?.phase ?? "normal"];
 
-  const elapsed = dragging ?? elapsedOf(timer, now ?? timer.startedAt ?? 0);
+  const elapsed = isClock ? intoHour(at) : (dragging ?? elapsedOf(timer, at));
   const left = Math.max(0, Math.min(1, elapsed / total)) * 100;
 
   const up = kind === "countup";
   const smooth =
-    dragging === null && !up
+    dragging === null && !up && !isClock
       ? "transition-[left] duration-200 ease-linear"
       : "";
 
+  // The top of the hour the clock is in, which its marks are counted from.
+  const struck = at - intoHour(at);
+
+  // Where the marks go and what each says: a run is read in whole minutes from
+  // whichever end matters, an hour in the times it will actually be.
+  const marks = isClock
+    ? [10, 20, 30, 40, 50].map((minutes) => ({
+        key: minutes,
+        at: (minutes * MINUTE) / HOUR,
+        label: formatClock(struck + minutes * MINUTE, false),
+      }))
+    : ticksFor(total, width).map((mark) => ({
+        key: mark,
+        at: up ? mark / total : (total - mark) / total,
+        label: formatDuration(mark),
+      }));
+
   return (
     <div
-      role="slider"
-      tabIndex={0}
-      aria-label="Move the timer"
-      aria-valuemin={0}
-      aria-valuemax={Math.round(total / 1000)}
-      aria-valuenow={Math.round(elapsed / 1000)}
-      aria-valuetext={formatDuration(up ? elapsed : total - elapsed)}
+      {...(isClock
+        ? { role: "img" as const, "aria-label": "How far the hour has gone" }
+        : {
+            role: "slider" as const,
+            tabIndex: 0,
+            "aria-label": "Move the timer",
+            "aria-valuemin": 0,
+            "aria-valuemax": Math.round(total / 1000),
+            "aria-valuenow": Math.round(elapsed / 1000),
+            "aria-valuetext": formatDuration(up ? elapsed : total - elapsed),
+          })}
       onKeyDown={(event) => {
+        if (isClock) return;
+
         const nudge =
           event.key === "ArrowRight"
             ? 10_000
@@ -177,7 +211,10 @@ export const TimerScrubber = () => {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
-      className="group relative cursor-ew-resize touch-none pt-2 pb-1 select-none focus:outline-none"
+      className={cn(
+        "group relative touch-none pt-2 pb-1 select-none focus:outline-none",
+        isClock ? "cursor-default" : "cursor-ew-resize",
+      )}
     >
       <div
         ref={track}
@@ -190,28 +227,26 @@ export const TimerScrubber = () => {
           style={{ width: `${left}%`, backgroundColor: colour }}
         />
 
-        {ticksFor(total, width)
-          .map((mark) => ({
-            mark,
-            at: up ? mark / total : (total - mark) / total,
-          }))
-          // The run's own total sits in the left corner; a mark landing on top
-          // of it printed one number over the other.
-          .filter(({ at }) => at * width >= LABEL_ROOM)
-          .map(({ mark, at }) => (
+        {marks
+          // The corner label sits at the start; a mark landing on top of it
+          // printed one number over the other.
+          .filter((mark) => mark.at * width >= LABEL_ROOM)
+          .map((mark) => (
             <span
-              key={mark}
+              key={mark.key}
               className="absolute inset-y-0 border-l border-studio-border"
-              style={{ left: `${at * 100}%` }}
+              style={{ left: `${mark.at * 100}%` }}
             >
               <span className="absolute top-1/2 left-1.5 -translate-y-1/2 text-[10px] tabular-nums text-studio-faint">
-                {formatDuration(mark)}
+                {mark.label}
               </span>
             </span>
           ))}
 
         <span className="absolute top-1/2 left-1.5 -translate-y-1/2 text-[10px] font-semibold tabular-nums text-studio-muted">
-          {formatDuration(up ? 0 : total)}
+          {isClock
+            ? formatClock(struck, false)
+            : formatDuration(up ? 0 : total)}
         </span>
 
         <span
@@ -223,15 +258,18 @@ export const TimerScrubber = () => {
         />
       </div>
 
-      {/* The grip sits proud of the track, so there is something to aim at. */}
-      <span
-        className={cn(
-          "pointer-events-none absolute top-0 size-3 -translate-x-1/2 rounded-full border-2 border-white shadow-studio",
-          smooth,
-          dragging === null ? "" : "scale-125",
-        )}
-        style={{ left: `${left}%`, backgroundColor: colour }}
-      />
+      {/* The grip sits proud of the track, so there is something to aim at —
+          and there is nothing to aim at on an hour. */}
+      {isClock ? null : (
+        <span
+          className={cn(
+            "pointer-events-none absolute top-0 size-3 -translate-x-1/2 rounded-full border-2 border-white shadow-studio",
+            smooth,
+            dragging === null ? "" : "scale-125",
+          )}
+          style={{ left: `${left}%`, backgroundColor: colour }}
+        />
+      )}
     </div>
   );
 };

@@ -46,9 +46,7 @@ export const TimerOutput = ({ outputKey, initial }: { outputKey: string; initial
 
   return (
     <div className="relative h-dvh w-full bg-black">
-      <div className="h-full w-full px-[4vw] py-[5vh]">
-        <TimerScreen state={state} />
-      </div>
+      <TimerScreen state={state} />
 
       {!fullscreen ? (
         <button
