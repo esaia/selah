@@ -47,7 +47,9 @@ export default async function StudioPage() {
   const [{ data: workspace }, { data: state }, audioTracks, audioCategories] = await Promise.all([
     supabase.from('session_workspace').select('*').eq('session_id', session.data.id).maybeSingle(),
     supabase.from('session_state').select('show_data').eq('session_id', session.data.id).maybeSingle(),
-    supabase.from('audio_tracks').select('*').eq('user_id', user.id).order('created_at'),
+    // The operator's own running order, with the order they were added in as
+    // the tie-break for rows that have never been dragged.
+    supabase.from('audio_tracks').select('*').eq('user_id', user.id).order('position').order('created_at'),
     supabase.from('audio_categories').select('id, name').eq('user_id', user.id).order('name'),
   ]);
 
@@ -61,6 +63,8 @@ export default async function StudioPage() {
       localId: row.local_id,
       categoryId: row.category_id,
       durationMs: row.duration_ms,
+      position: row.position,
+      libraryPosition: row.library_position,
     })),
     categories: audioCategories.data ?? [],
   };

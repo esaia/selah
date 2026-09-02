@@ -26,6 +26,10 @@ export interface Track {
   localId?: string | null;
   categoryId?: string | null;
   durationMs?: number | null;
+  /** Where the track sits in the All tracks order. */
+  position: number;
+  /** Where it sits in the library it is filed in, which is its own order. */
+  libraryPosition: number;
 }
 
 export interface Category {
@@ -54,6 +58,9 @@ interface AudioValue {
   addUrlTrack: (input: { title: string; src: string }) => Promise<void>;
   addLocalFiles: (files: Iterable<File>) => Promise<Track[]>;
   removeTrack: (id: string) => Promise<void>;
+  /** One list in the order it is dragged into: null is All tracks. */
+  trackList: (libraryId: string | null) => Track[];
+  moveTrack: (id: string, beforeId: string | null, libraryId: string | null) => Promise<void>;
   setTrackCategory: (id: string, categoryId: string | null) => Promise<void>;
   addCategory: (name: string) => Promise<void>;
   removeCategory: (id: string) => Promise<void>;
@@ -101,6 +108,9 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
   const fadeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const objectUrls = useRef(new Map<string, string>());
   const probed = useRef(new Set<string>());
+  // The highest position handed out, so a new track lands at the end rather
+  // than in front of everything the operator has already arranged.
+  const lastPosition = useRef(Math.max(0, ...initial.tracks.map(track => track.position)));
 
   const [tracks, setTracks] = useState<Track[]>(initial.tracks);
   const [categories, setCategories] = useState<Category[]>(initial.categories);
@@ -330,16 +340,29 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
 
   const addUrlTrack = useCallback<AudioValue['addUrlTrack']>(
     async ({ title, src }) => {
-      const { data } = await db
+      const position = (lastPosition.current += 1);
+      const { data, error: failed } = await db
         .from('audio_tracks')
-        .insert({ user_id: initial.userId, kind: 'url', title, artist: 'Added by URL', src })
+        .insert({ user_id: initial.userId, kind: 'url', title, artist: 'Added by URL', src, position })
         .select()
         .single();
+
+      // A rejected insert used to leave the operator staring at a library that
+      // simply never grew. Say so instead.
+      if (failed) setError(`“${title}” could not be saved: ${failed.message}`);
 
       if (data) {
         setTracks(current => [
           ...current,
-          { id: data.id, title: data.title, artist: data.artist, src: data.src, categoryId: data.category_id },
+          {
+            id: data.id,
+            title: data.title,
+            artist: data.artist,
+            src: data.src,
+            categoryId: data.category_id,
+            position: data.position,
+            libraryPosition: data.library_position,
+          },
         ]);
       }
     },
@@ -352,7 +375,7 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
 
       for (const file of [...files].filter(isAudioFile)) {
         const record = await saveLocalFile(file);
-        const { data } = await db
+        const { data, error: failed } = await db
           .from('audio_tracks')
           .insert({
             user_id: initial.userId,
@@ -361,12 +384,22 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
             artist: 'On this computer',
             local_id: record.id,
             size: record.size,
+            position: (lastPosition.current += 1),
           })
           .select()
           .single();
 
+        if (failed) setError(`“${record.name}” could not be saved: ${failed.message}`);
+
         if (data) {
-          const track: Track = { id: data.id, title: data.title, artist: data.artist, localId: data.local_id };
+          const track: Track = {
+            id: data.id,
+            title: data.title,
+            artist: data.artist,
+            localId: data.local_id,
+            position: data.position,
+            libraryPosition: data.library_position,
+          };
 
           added.push(track);
           setTracks(current => [...current, track]);
@@ -388,6 +421,76 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
     [db],
   );
 
+  /**
+   * One list, in the order the operator dragged it into: All tracks, or one of
+   * their libraries. A library keeps an order of its own, so arranging a
+   * running order inside it leaves All tracks exactly as it was.
+   */
+  const trackList = useCallback<AudioValue['trackList']>(
+    libraryId =>
+      libraryId === null
+        ? [...tracks].sort((a, b) => a.position - b.position)
+        : tracks
+            .filter(track => (track.categoryId ?? null) === libraryId)
+            .sort((a, b) => a.libraryPosition - b.libraryPosition),
+    [tracks],
+  );
+
+  /**
+   * Drop a track in front of another, or at the end when `beforeId` is null.
+   * Only the list being looked at is renumbered — and only the rows whose place
+   * in it actually moved are written.
+   */
+  const moveTrack = useCallback<AudioValue['moveTrack']>(
+    async (id, beforeId, libraryId) => {
+      if (id === beforeId) return;
+
+      const list = trackList(libraryId);
+      const moved = list.find(track => track.id === id);
+
+      if (!moved) return;
+
+      const without = list.filter(track => track.id !== id);
+      const target = beforeId ? without.findIndex(track => track.id === beforeId) : -1;
+      const at = target === -1 ? without.length : target;
+      const ordered = [...without.slice(0, at), moved, ...without.slice(at)];
+
+      if (ordered.every((track, index) => track.id === list[index].id)) return;
+
+      const placeOf = (track: Track) => (libraryId === null ? track.position : track.libraryPosition);
+      const placed = (track: Track, place: number): Track =>
+        libraryId === null ? { ...track, position: place } : { ...track, libraryPosition: place };
+
+      const places = new Map(ordered.map((track, index) => [track.id, index + 1]));
+      const patch = (place: number) => (libraryId === null ? { position: place } : { library_position: place });
+
+      setTracks(current =>
+        current.map(track => {
+          const place = places.get(track.id);
+
+          return place === undefined ? track : placed(track, place);
+        }),
+      );
+
+      if (libraryId === null) lastPosition.current = Math.max(lastPosition.current, ordered.length);
+
+      await Promise.all(
+        ordered
+          .filter(track => places.get(track.id) !== placeOf(track))
+          .map(track =>
+            save(
+              db
+                .from('audio_tracks')
+                .update(patch(places.get(track.id) as number))
+                .eq('id', track.id),
+              'the track order',
+            ),
+          ),
+      );
+    },
+    [db, trackList],
+  );
+
   const value = useMemo<AudioValue>(
     () => ({
       tracks,
@@ -405,9 +508,25 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       addUrlTrack,
       addLocalFiles,
       removeTrack,
+      trackList,
+      moveTrack,
       setTrackCategory: async (id, categoryId) => {
-        await db.from('audio_tracks').update({ category_id: categoryId }).eq('id', id);
-        setTracks(current => current.map(track => (track.id === id ? { ...track, categoryId } : track)));
+        // Filed at the end of its new library, which is where a track dropped
+        // onto one is expected to land.
+        const libraryPosition =
+          Math.max(
+            0,
+            ...tracks.filter(track => (track.categoryId ?? null) === categoryId).map(track => track.libraryPosition),
+          ) + 1;
+
+        await db
+          .from('audio_tracks')
+          .update({ category_id: categoryId, library_position: libraryPosition })
+          .eq('id', id);
+
+        setTracks(current =>
+          current.map(track => (track.id === id ? { ...track, categoryId, libraryPosition } : track)),
+        );
       },
       addCategory: async name => {
         const { data } = await db
@@ -452,6 +571,7 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       initial.userId,
       loop,
       missing,
+      moveTrack,
       muted,
       play,
       playing,
@@ -459,6 +579,7 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       removeTrack,
       stop,
       togglePlay,
+      trackList,
       tracks,
       volume,
     ],

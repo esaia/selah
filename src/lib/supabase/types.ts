@@ -107,6 +107,8 @@ export interface Database {
         size: number | null;
         category_id: string | null;
         duration_ms: number | null;
+        position: number;
+        library_position: number;
         created_at: string;
       }>;
       audio_playlist: Row<{

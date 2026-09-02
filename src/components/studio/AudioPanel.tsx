@@ -7,6 +7,7 @@ import { cn } from '@/lib/cn';
 import { useAudio, type Track } from '@/lib/studio/AudioProvider';
 
 import { DROP_ZONE } from './dropZone';
+import { END, useTrackReorder } from './trackDrag';
 
 /** Every track, as opposed to one of the operator's libraries. */
 const ALL = '__all__';
@@ -130,6 +131,8 @@ export const AudioPanel = () => {
     addCategory,
     removeCategory,
     setTrackCategory,
+    trackList,
+    moveTrack,
     play,
   } = useAudio();
 
@@ -142,12 +145,16 @@ export const AudioPanel = () => {
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
 
-  // Dragging: a file coming in from the desktop, and the row being moved.
+  // Dragging: a file coming in from the desktop, and the row being moved —
+  // onto a library to file it, or between rows to reorder the list.
   const [filesOver, setFilesOver] = useState(false);
-  const [lifted, setLifted] = useState<string | null>(null);
 
   const open = categories.some(category => category.id === library) ? library : ALL;
-  const shown = open === ALL ? tracks : tracks.filter(track => (track.categoryId ?? null) === open);
+  const shown = trackList(open === ALL ? null : open);
+
+  // Reordering is scoped to the list being looked at: a library keeps its own
+  // running order, and All tracks keeps its own.
+  const reorder = useTrackReorder((id, beforeId) => void moveTrack(id, beforeId, open === ALL ? null : open));
 
   const file = (event: DragEvent, categoryId: string | null) => {
     const id = event.dataTransfer.getData('text/plain');
@@ -316,28 +323,36 @@ export const AudioPanel = () => {
             {open === ALL ? 'All tracks' : (categories.find(category => category.id === open)?.name ?? 'All tracks')}
           </li>
 
-          {shown.map((track: Track) => {
+          {shown.map((track: Track, index: number) => {
             const unavailable = missing.has(track.id);
             const isCurrent = current?.id === track.id;
             const length = clock(track.durationMs);
+            const last = index === shown.length - 1;
 
             return (
               <li
                 key={track.id}
-                draggable
-                onDragStart={event => {
-                  event.dataTransfer.effectAllowed = 'move';
-                  event.dataTransfer.setData('text/plain', track.id);
-                  setLifted(track.id);
-                }}
-                onDragEnd={() => setLifted(null)}
+                {...reorder.row(track.id, shown[index + 1]?.id ?? null)}
                 className={cn(
-                  'group mx-1 flex cursor-grab items-center gap-2.5 rounded-studio px-2 py-1.5',
+                  'group relative mx-1 flex cursor-grab items-center gap-2.5 rounded-studio px-2 py-1.5',
                   'transition-colors duration-150 active:cursor-grabbing',
                   isCurrent ? 'bg-studio-accent/10' : 'hover:bg-studio-surface',
-                  lifted === track.id && 'opacity-40',
+                  reorder.lifted === track.id && 'opacity-40',
                 )}
               >
+                {/* Where the row being carried would land. Drawn over the row
+                    rather than as a border on it, so the line keeps its square
+                    ends instead of taking the row's rounded corners. */}
+                {reorder.before === track.id || (last && reorder.before === END) ? (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'pointer-events-none absolute -inset-x-1 h-0.5 bg-studio-accent',
+                      reorder.before === track.id ? '-top-px' : '-bottom-px',
+                    )}
+                  />
+                ) : null}
+
                 <button
                   type="button"
                   onClick={() => play(track)}

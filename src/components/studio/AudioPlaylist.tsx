@@ -8,6 +8,7 @@ import { useAudio, type Track } from '@/lib/studio/AudioProvider';
 import { useStudio } from '@/lib/studio/StudioProvider';
 
 import { DROP_ZONE } from './dropZone';
+import { END, useTrackReorder } from './trackDrag';
 
 /** Three bars, animated only on the track actually playing. */
 const Equalizer = () => (
@@ -97,8 +98,20 @@ const LibraryRow = ({
  * here is what the Audio tab holds, in the order it holds it.
  */
 export const AudioPlaylist = () => {
-  const { tracks, categories, current, playing, missing, fadeMs, setFadeMs, playTrack, addLocalFiles, setTrackCategory } =
-    useAudio();
+  const {
+    tracks,
+    categories,
+    current,
+    playing,
+    missing,
+    fadeMs,
+    setFadeMs,
+    playTrack,
+    addLocalFiles,
+    setTrackCategory,
+    trackList,
+    moveTrack,
+  } = useAudio();
   const { setTab } = useStudio();
 
   const [view, setView] = useState(ALL);
@@ -108,7 +121,11 @@ export const AudioPlaylist = () => {
   // A library deleted from the Audio tab must not leave the rail looking at
   // nothing.
   const open = categories.some(category => category.id === view) ? view : ALL;
-  const shown = open === ALL ? tracks : tracks.filter(track => (track.categoryId ?? null) === open);
+  const shown = trackList(open === ALL ? null : open);
+
+  // Reordering is scoped to the list being looked at: a library keeps its own
+  // running order, and All tracks keeps its own.
+  const reorder = useTrackReorder((id, beforeId) => void moveTrack(id, beforeId, open === ALL ? null : open));
   const span = runtime(shown);
 
   // Dropped straight onto the rail, a file is meant for the library the
@@ -210,20 +227,26 @@ export const AudioPlaylist = () => {
             )}
           </p>
         ) : (
-          shown.map(track => {
+          shown.map((track, index) => {
             const isCurrent = current?.id === track.id;
             const length = clock(track.durationMs);
             const unavailable = missing.has(track.id);
+            const last = index === shown.length - 1;
 
             return (
               <div
                 key={track.id}
+                {...reorder.row(track.id, shown[index + 1]?.id ?? null)}
                 className={cn(
-                  'flex items-center gap-1 border-b border-studio-divider px-1.5 py-1.5 last:border-b-0',
+                  'flex cursor-grab items-center gap-1 border-b border-studio-divider px-1.5 py-1.5 last:border-b-0',
                   // Stopping a track takes its highlight off the row; fading it
                   // out matches the sound, which is on its own ramp.
-                  'transition-colors duration-200',
+                  'transition-colors duration-200 active:cursor-grabbing',
                   isCurrent ? 'bg-studio-accent/10' : 'hover:bg-studio-surface',
+                  reorder.lifted === track.id && 'opacity-40',
+                  // Where the row being carried would land.
+                  reorder.before === track.id && 'border-t-2 border-t-studio-accent',
+                  last && reorder.before === END && 'border-b-2 border-b-studio-accent',
                 )}
               >
                 <button
