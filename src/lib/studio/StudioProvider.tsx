@@ -18,7 +18,7 @@ import type { SignalTransport, SlidePayload } from '@/lib/live/protocol';
 import { loadLocalFile } from '@/lib/media/localMedia';
 import { serveAssets } from '@/lib/media/peerAssets';
 import { LOCAL_THEME } from '@/lib/projector/themes';
-import { asTimerState, type TimerState } from '@/lib/timer/model';
+import { armTimer, asTimerState, finishesAt, linkedNext, startRun, type TimerState } from '@/lib/timer/model';
 import { supabase } from '@/lib/supabase/client';
 import { save } from '@/lib/supabase/save';
 import {
@@ -346,6 +346,34 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   useDebouncedSave(timer, next => {
     void save(db.from('session_state').update({ timer: next }).eq('session_id', initial.session.id), 'the stage timer');
   });
+
+  /**
+   * Linked timers: an item that follows the one above it starts itself the
+   * moment that one runs out.
+   *
+   * Waited out rather than watched. The run already says when it will end, so
+   * this is one timeout for the whole segment instead of a tick that has to be
+   * running on every tab — and every edit to the run (a pause, a drag, ±1m)
+   * re-runs the effect and moves the alarm with it.
+   *
+   * The console alone does this. It is the desk pressing play a little late,
+   * and an output that started timers of its own would be a second one.
+   */
+  useEffect(() => {
+    if (!timer.running) return;
+
+    const next = linkedNext(timer);
+    const ends = next ? finishesAt(timer) : null;
+
+    if (!next || ends === null) return;
+
+    const wait = setTimeout(
+      () => setTimer(current => (current.running ? startRun(armTimer(current, next.id)) : current)),
+      Math.max(0, ends - Date.now()),
+    );
+
+    return () => clearTimeout(wait);
+  }, [timer]);
 
   /** Normalised on the way out, so a hand-typed duration or a stale row can
    *  never reach an output half-formed. */

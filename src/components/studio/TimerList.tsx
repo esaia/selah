@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Check, Pause, Pencil, Play, Plus, RotateCcw, StickyNote, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/Button';
@@ -16,7 +16,6 @@ import {
   armTimer,
   formatDuration,
   newTimer,
-  parseDuration,
   resetRun,
   startRun,
   toggleRun,
@@ -25,81 +24,43 @@ import {
 } from '@/lib/timer/model';
 
 /**
- * A duration typed the way it is read: `10` for ten minutes, `10:00` or
- * `1:02:30` for the rest. Held as text while it is being typed — reformatting
- * mid-keystroke would fight the operator — and committed on blur or Enter.
- * Anything unparseable reverts rather than emptying the timer.
+ * A figure on a row: read here, edited in the panel behind the pencil.
+ *
+ * A button rather than a span, because it does something — and dashed under the
+ * digits, which is how a value you may click has been drawn since long before
+ * any of this.
  */
-const DurationInput = ({
+const Number = ({
   value,
   label,
-  className,
-  onCommit,
+  tone = 'plain',
+  onOpen,
 }: {
-  value: number;
+  value: string;
   label: string;
-  className?: string;
-  onCommit: (ms: number) => void;
-}) => {
-  const [text, setText] = useState(() => formatDuration(value));
-  const [editing, setEditing] = useState(false);
-
-  // A duration changed elsewhere — ±1m, or a reset — has to show here too, but
-  // not while it is being typed into. Adjusted during render rather than in an
-  // effect: the field must never paint the old value for a frame.
-  const [seen, setSeen] = useState(value);
-
-  if (value !== seen) {
-    setSeen(value);
-
-    if (!editing) setText(formatDuration(value));
-  }
-
-  const commit = () => {
-    setEditing(false);
-
-    const parsed = parseDuration(text);
-
-    if (parsed === null) {
-      setText(formatDuration(value));
-      return;
-    }
-
-    onCommit(parsed);
-  };
-
-  return (
-    <input
-      type="text"
-      inputMode="numeric"
-      aria-label={label}
-      title={label}
-      value={text}
-      onClick={event => event.stopPropagation()}
-      onFocus={event => {
-        setEditing(true);
-        event.target.select();
-      }}
-      onChange={event => setText(event.target.value)}
-      onBlur={commit}
-      onKeyDown={event => {
-        if (event.key === 'Enter') event.currentTarget.blur();
-
-        if (event.key === 'Escape') {
-          setText(formatDuration(value));
-          setEditing(false);
-          event.currentTarget.blur();
-        }
-      }}
-      className={cn(
-        'h-8 rounded-studio border border-studio-border bg-white px-2 text-center text-sm font-semibold',
-        'tabular-nums text-studio-text transition-colors duration-150 focus:outline-none focus-visible:ring-2',
-        'focus-visible:ring-studio-accent/40',
-        className,
-      )}
-    />
-  );
-};
+  tone?: 'plain' | 'warn';
+  onOpen: () => void;
+}) => (
+  <button
+    type="button"
+    title={label}
+    aria-label={label}
+    onClick={event => {
+      event.stopPropagation();
+      onOpen();
+    }}
+    className={cn(
+      'h-8 w-[76px] shrink-0 rounded-studio text-center text-sm font-semibold tabular-nums',
+      'underline decoration-dashed decoration-from-font underline-offset-4 transition-colors duration-150',
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
+      tone === 'warn'
+        ? 'text-amber-600 decoration-amber-300 hover:text-amber-700'
+        : 'text-studio-text decoration-studio-border hover:text-studio-accent',
+    )}
+  >
+    {value}
+  </button>
+);
 
 const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: boolean }) => {
   const { timer: state, updateTimer } = useStudio();
@@ -141,28 +102,51 @@ const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: b
         {played ? <Check className="size-3.5 text-studio-go" /> : index + 1}
       </span>
 
+      {/* Read on the row, typed in the panel — the same rule as the title. A
+          field here meant the running order was half a form: three boxes to tab
+          through on every line of a list that is mostly read, never edited. */}
       {timer.kind === 'clock' ? (
         <span className="flex h-8 w-[76px] items-center justify-center text-xs text-studio-muted">clock</span>
       ) : (
-        <DurationInput
-          value={timer.duration}
-          label={`Duration of ${timer.name}`}
-          className="w-[76px] shrink-0"
-          onCommit={duration => patch({ duration })}
+        <Number
+          value={formatDuration(timer.duration)}
+          label={`Duration of ${timer.name || 'this timer'}`}
+          onOpen={() => setEditing(true)}
         />
       )}
 
-      <input
-        type="text"
-        aria-label="Timer name"
-        value={timer.name}
-        onClick={event => event.stopPropagation()}
-        onChange={event => patch({ name: event.target.value })}
-        className="h-8 min-w-0 flex-1 rounded-studio border border-transparent bg-transparent px-2 text-sm
-          font-medium text-studio-text transition-colors duration-150 hover:border-studio-border
-          focus:border-studio-border focus:bg-white focus:outline-none focus-visible:ring-2
-          focus-visible:ring-studio-accent/40"
-      />
+      {/* The title is read here and written in the panel behind the pencil,
+          which is where the rest of what it says lives: a field in the row
+          invited the operator to type a name in one place and everything else
+          about the same item in another. */}
+      <span className="flex min-w-0 flex-1 items-center gap-1">
+        <span className={cn('truncate text-sm font-medium', timer.name ? 'text-studio-text' : 'text-studio-faint')}>
+          {timer.name || 'Untitled'}
+        </span>
+
+        {/* Faint until it is aimed at, so a running order at rest reads as
+            titles and times rather than a column of pencils — but never gone,
+            because a control that has to be discovered by sweeping a pointer
+            over the list is one an operator does not know is there. */}
+        <span
+          className={cn(
+            'relative shrink-0 transition-opacity duration-150 hover:opacity-100 focus-within:opacity-100',
+            editing ? 'opacity-100' : 'opacity-35',
+          )}
+        >
+          <IconButton
+            label="Title, speaker, notes and labels"
+            onClick={event => {
+              event.stopPropagation();
+              setEditing(current => !current);
+            }}
+          >
+            <Pencil className="size-3.5" />
+          </IconButton>
+
+          {editing ? <TimerEditor timer={timer} onClose={() => setEditing(false)} /> : null}
+        </span>
+      </span>
 
       <Select
         className="w-[118px] shrink-0"
@@ -177,29 +161,15 @@ const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: b
           operator is watching. Offering the field there only invited someone to
           set an amber warning that never arrives. */}
       {timer.kind === 'countdown' ? (
-        <DurationInput
-          value={timer.wrapUp}
+        <Number
+          value={formatDuration(timer.wrapUp)}
           label="Wrap-up warning — the digits turn amber with this much left"
-          className="w-[70px] shrink-0 border-amber-300 text-amber-600"
-          onCommit={wrapUp => patch({ wrapUp })}
+          tone="warn"
+          onOpen={() => setEditing(true)}
         />
       ) : null}
 
       <div className="ml-auto flex shrink-0 items-center gap-0.5">
-        <span className="relative">
-          <IconButton
-            label="Speaker, notes and labels"
-            onClick={event => {
-              event.stopPropagation();
-              setEditing(current => !current);
-            }}
-          >
-            <Pencil className="size-3.5" />
-          </IconButton>
-
-          {editing ? <TimerEditor timer={timer} onClose={() => setEditing(false)} /> : null}
-        </span>
-
         <IconButton
           label="Reset this timer"
           onClick={event => {
@@ -279,6 +249,56 @@ const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: b
   );
 };
 
+/**
+ * The join between one item and the next: with it made, the second starts the
+ * moment the first runs out.
+ *
+ * It is the gap itself, not a control parked in it. The whole strip between two
+ * rows takes the click, and the link only draws — a short bar bridging the two,
+ * the way a chain link reads — once the pointer is over that strip or the join
+ * has actually been made. A running order at rest is rows and nothing between
+ * them.
+ *
+ * The link belongs to the *second* of the pair — "I follow that" — so moving or
+ * deleting the row above cannot leave a timer promising to start something that
+ * is no longer there.
+ */
+const Join = ({ timer, linked }: { timer: StageTimer; linked: boolean }) => {
+  const { updateTimer } = useStudio();
+
+  return (
+    // Pulled into the space the list already leaves between rows, so making a
+    // link does not push the running order about.
+    <li className="-my-2 flex h-3">
+      <button
+        type="button"
+        aria-pressed={linked}
+        aria-label={linked ? 'Break the link with the timer above' : 'Start this when the timer above runs out'}
+        title={
+          linked
+            ? 'Starts when the one above runs out — click to break the link'
+            : 'Start this one when the one above runs out'
+        }
+        onClick={() =>
+          updateTimer(current => ({
+            ...current,
+            timers: current.timers.map(item => (item.id === timer.id ? { ...item, linked: !linked } : item)),
+          }))
+        }
+        className="group/join flex flex-1 items-center pl-[1.55rem] focus:outline-none"
+      >
+        <span
+          className={cn(
+            'h-5 w-[6px] rounded-full transition-opacity duration-150',
+            'group-hover/join:opacity-100 group-focus-visible/join:opacity-100',
+            linked ? 'bg-studio-accent opacity-100' : 'bg-studio-faint/50 opacity-0',
+          )}
+        />
+      </button>
+    </li>
+  );
+};
+
 /** The running order: every timer the service needs, in the order it needs them. */
 export const TimerList = () => {
   const { timer, updateTimer } = useStudio();
@@ -287,10 +307,14 @@ export const TimerList = () => {
     <section className="space-y-2">
       <ul className="space-y-2">
         {timer.timers.map((item, index) => (
-          // Live means on a screen, not merely armed: cleared, the running
-          // order goes quiet and nothing in it claims to be up, which is the
-          // whole point of having pressed Clear.
-          <Row key={item.id} timer={item} index={index} live={item.id === timer.activeId && timer.onStage} />
+          <Fragment key={item.id}>
+            {index > 0 ? <Join timer={item} linked={item.linked} /> : null}
+
+            {/* Live means on a screen, not merely armed: cleared, the running
+                order goes quiet and nothing in it claims to be up, which is the
+                whole point of having pressed Clear. */}
+            <Row timer={item} index={index} live={item.id === timer.activeId && timer.onStage} />
+          </Fragment>
         ))}
       </ul>
 

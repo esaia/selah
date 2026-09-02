@@ -10,6 +10,7 @@ import {
   MESSAGE_COLORS,
   formatClock,
   formatDuration,
+  runUnderWay,
   visibleMessages,
   type StageTimer,
   type TimerMessage,
@@ -17,7 +18,7 @@ import {
 } from '@/lib/timer/model';
 import { LANGS, type Lang, type ProjectorStyle, type ShowData } from '@/lib/types';
 
-import { useTimerNow } from './TimerScreen';
+import { TimerScreen, useTimerNow } from './TimerScreen';
 
 /**
  * The stage display, for the person standing in front of the room: what is on
@@ -428,6 +429,9 @@ export const StageScreen = ({
   // screen, and once it has been cleared the stage is done with it.
   const notes = visibleMessages(timer);
 
+  // A run that is going, on a screen the operator has left showing the slides.
+  const onRail = runUnderWay(timer);
+
   // The operator's Flash blinks the whole screen. On the timer's face it is the
   // digits that blink, because the digits are the screen; here there is no one
   // element that is, so the frame wears it and every panel blinks together.
@@ -490,16 +494,27 @@ export const StageScreen = ({
           </Panel>
         </div>
 
+        {/* One box for the two things the operator sends down the rail. A run
+            under way is drawn here rather than over the slides, and a note takes
+            it back the moment one goes up: words written to the person standing
+            there outrank a count they can see coming anyway, and two boxes would
+            mean one of them is empty for most of a service. */}
         <div className="flex min-h-0 flex-[36] flex-col">
           <Panel
-            label="Stage message"
+            label={notes.length > 0 || !onRail ? 'Stage message' : 'Timer'}
             color={notes.length > 0 ? MESSAGE_COLORS[notes[0].color] : '#ffffff'}
             unit={unit}
             outlined={notes.length > 0}
           >
-            {/* The screen's own flash is worn by the frame, so a note under it
-                blinks only when it was the one flashed. */}
-            <Notes messages={notes} now={now} screenFlashing={0} />
+            {notes.length === 0 && onRail ? (
+              // The clock has its own box above, and the name is already on the
+              // agenda, so what is wanted here is the digits.
+              <TimerScreen state={timer} showClock={false} showName={false} />
+            ) : (
+              // The screen's own flash is worn by the frame, so a note under it
+              // blinks only when it was the one flashed.
+              <Notes messages={notes} now={now} screenFlashing={0} />
+            )}
           </Panel>
         </div>
       </div>

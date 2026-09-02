@@ -75,6 +75,14 @@ export interface StageTimer {
   notes: string;
   /** Console-side colour-coding, so a long running order can be read at speed. */
   labels: TimerLabel[];
+  /**
+   * Starts itself when the item before it in the running order runs out.
+   *
+   * The link belongs to the *second* of the pair — "I follow that" — so moving
+   * or deleting the one above cannot leave a timer promising to start something
+   * that is no longer there.
+   */
+  linked: boolean;
   kind: TimerKind;
   duration: number;
   /** With this much left the digits turn amber. */
@@ -143,6 +151,7 @@ export const newTimer = (overrides: Partial<StageTimer> = {}): StageTimer => ({
   speaker: "",
   notes: "",
   labels: [],
+  linked: false,
   kind: "countdown",
   duration: 10 * MINUTE,
   wrapUp: MINUTE,
@@ -234,6 +243,7 @@ export const asTimerState = (raw: unknown): TimerState => {
               ? (label.color as LabelColor)
               : "amber",
         })),
+      linked: Boolean(timer.linked),
       kind: isKind(timer.kind) ? timer.kind : "countdown",
       duration: Math.max(0, num(timer.duration, 10 * MINUTE)),
       wrapUp: Math.max(0, num(timer.wrapUp, MINUTE)),
@@ -332,9 +342,10 @@ export const elapsedOf = (state: TimerState, now = Date.now()): number =>
 /* -- Transport. Pure, so a second console adopting the state agrees with the
       first about what pressing play meant. -------------------------------- */
 
-// Starting is also what puts the timer up: an operator who pressed play meant
-// the stage to see it, and a second arming step would only be one more thing
-// to forget. Taking it down is deliberate — that is what Clear is for.
+// Starting a run says nothing about what the stage is showing. Which face is
+// up is the operator's switch (`onStage`), and a count under way appears on the
+// slides face in the shared box down the rail — so pressing play mid-service no
+// longer takes the slides away from the person reading them.
 export const startRun = (state: TimerState, now = Date.now()): TimerState =>
   state.running
     ? state
@@ -342,7 +353,6 @@ export const startRun = (state: TimerState, now = Date.now()): TimerState =>
         ...state,
         running: true,
         startedAt: now,
-        onStage: true,
         // Pressing play is what makes an item the one that was given; arming
         // it, or resetting it afterwards, is not.
         playedId: state.activeId,
@@ -611,6 +621,20 @@ export const finishesAt = (
   return total ? now + (total - elapsedOf(state, now)) : null;
 };
 
+/**
+ * The item that follows the armed one *if* it has asked to be started by it.
+ *
+ * The console watches this rather than every screen: a linked pair is one
+ * operator action deferred, and an output that started timers of its own would
+ * be a second desk pressing play.
+ */
+export const linkedNext = (state: TimerState): StageTimer | null => {
+  const at = state.timers.findIndex((timer) => timer.id === state.activeId);
+  const next = at === -1 ? null : (state.timers[at + 1] ?? null);
+
+  return next?.linked ? next : null;
+};
+
 /** The ink a phase is drawn in, on an output and in the console preview. */
 export const PHASE_COLOR: Record<Phase, string> = {
   normal: "#ffffff",
@@ -636,15 +660,25 @@ export const onOutputs = (state: TimerState): boolean =>
 /**
  * Whether the stage screen gives itself over to the run.
  *
- * One flag, moved by two deliberate acts: play puts the timer up, Clear takes
- * it down. Stop does not, because stopping is a thing an operator does *to* a
- * running count and not a statement that the stage has finished with it.
+ * A switch on the console, and nothing else: the operator says whether the
+ * stage is a timer or the slides, and starting, stopping or resetting a count
+ * does not change its mind for them. Clear puts it back to the slides.
  *
- * With it down the stage goes back to the slides on its own, and a note the
- * operator has up is shown there in its own box — the screen never has to be
- * reloaded to change its mind.
+ * With it down the stage shows the slides, and a run under way is drawn in the
+ * box at the foot of the rail — the one the stage messages use, which they take
+ * back the moment one is sent.
  */
 export const timerIsLive = (state: TimerState): boolean => state.onStage;
+
+/**
+ * Whether there is a run to draw at all: one going, or one stopped part-way.
+ *
+ * A timer sitting at the top of its duration is not "on" — it is the next thing
+ * to press play on — so the shared box stays a stage message box until the
+ * operator actually starts something.
+ */
+export const runUnderWay = (state: TimerState): boolean =>
+  state.running || state.elapsedBefore > 0;
 
 /**
  * Take the timer off the outputs: off the stage screen, disarmed from the
@@ -658,7 +692,7 @@ export const timerIsLive = (state: TimerState): boolean => state.onStage;
  * for twice.
  */
 export const clearOutputs = (state: TimerState): TimerState =>
-  onOutputs(state) || state.running
+  onOutputs(state) || runUnderWay(state)
     ? {
         ...resetRun(state),
         onProjector: false,

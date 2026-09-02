@@ -1,11 +1,11 @@
 'use client';
 
-import { Ban, ExternalLink, Tv, X, Zap } from 'lucide-react';
+import { Ban, MonitorPlay, Tv, X, Zap } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
 import { useStudio } from '@/lib/studio/StudioProvider';
-import { clearOutputs, onOutputs } from '@/lib/timer/model';
+import { clearOutputs, onOutputs, runUnderWay } from '@/lib/timer/model';
 
 import { TimerDashboard } from './TimerDashboard';
 import { TimerList } from './TimerList';
@@ -58,12 +58,14 @@ const ToggleButton = ({
  * through the whole service while the room goes on seeing scripture.
  */
 export const TimerPanel = () => {
-  const { session, timer, updateTimer } = useStudio();
+  const { timer, updateTimer } = useStudio();
 
   // Dead unless the timer is actually putting something out, so a stab at it
   // between services cannot be mistaken for one that did something — and so
   // the button doubles as a read of whether the stage is on the timer.
-  const live = onOutputs(timer);
+  // A count on the stage's rail is as much "showing" as one filling the screen,
+  // so Clear answers for it too.
+  const live = onOutputs(timer) || runUnderWay(timer);
 
   return (
     <div className="studio-scroll min-h-0 flex-1 overflow-y-auto">
@@ -78,22 +80,50 @@ export const TimerPanel = () => {
         >
           <div className="min-w-0">
             <h1 className="text-sm font-semibold text-studio-text">Stage timer</h1>
-            <p className="text-xs text-studio-muted">Runs on its own screen, and on the projector when you arm it.</p>
+            <p className="text-xs text-studio-muted">
+              Runs beside the slides on the stage screen, or takes it over when you switch it.
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            {/* Which face the stage is showing. Starting a count no longer
+                decides it: with the slides up a run appears in the box at the
+                foot of the stage's rail, and the person standing there keeps
+                the verse in front of them. */}
             <ToggleButton
-              active={timer.onProjector}
-              label="Put the timer on the projector, in place of the slide"
-              onClick={() => updateTimer(current => ({ ...current, onProjector: !current.onProjector }))}
+              active={timer.onStage}
+              label="Give the stage screen over to the timer, in place of the slides"
+              onClick={() =>
+                updateTimer(current => ({
+                  ...current,
+                  onStage: !current.onStage,
+                  // The projector follows the stage off: its own button goes
+                  // with it, and a timer left on the wall with no way to take
+                  // it down is not a state to leave an operator in.
+                  onProjector: current.onStage ? false : current.onProjector,
+                }))
+              }
             >
-              <Tv className="size-3.5" />
-              On projector
+              <MonitorPlay className="size-3.5" />
+              Timer on stage
             </ToggleButton>
 
-            {/* What takes the timer back off the screens. Starting one puts it
-                up; nothing about the run itself takes it down again, because
-                pausing a count is not the same as being finished with it. */}
+            {/* The projector is a second screen for the same face, so it is
+                only on offer once the stage is showing it. */}
+            {timer.onStage ? (
+              <ToggleButton
+                active={timer.onProjector}
+                label="Put the timer on the projector, in place of the slide"
+                onClick={() => updateTimer(current => ({ ...current, onProjector: !current.onProjector }))}
+              >
+                <Tv className="size-3.5" />
+                On projector
+              </ToggleButton>
+            ) : null}
+
+            {/* What takes the timer back off the screens and the run back to
+                the top. Nothing about the run itself does it — pausing a count
+                is not the same as being finished with it. */}
             <button
               type="button"
               disabled={!live}
@@ -134,18 +164,6 @@ export const TimerPanel = () => {
               Flash
             </button>
 
-            <a
-              href={`/stage/${session.outputKey}`}
-              target="_blank"
-              rel="noreferrer"
-              title="Open the stage display"
-              className="inline-flex h-8 items-center gap-1.5 rounded-studio border border-studio-border bg-white
-                px-2.5 text-xs font-medium text-studio-text transition-colors duration-150 hover:bg-studio-surface
-                md:px-3"
-            >
-              <ExternalLink className="size-3.5" />
-              Open stage
-            </a>
           </div>
         </div>
 

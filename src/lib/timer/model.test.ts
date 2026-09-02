@@ -17,6 +17,7 @@ import {
   parseDuration,
   pauseRun,
   resetRun,
+  runUnderWay,
   seekRun,
   startRun,
   stepTimer,
@@ -356,16 +357,33 @@ describe("the last ten seconds", () => {
 });
 
 describe("timerIsLive", () => {
-  it("leaves the stage screen to the slides while nothing has been started", () => {
+  const switched = (): TimerState => ({ ...emptyTimerState(), onStage: true });
+
+  it("leaves the stage screen to the slides until it is switched over", () => {
     expect(timerIsLive(emptyTimerState())).toBe(false);
   });
 
-  it("goes up when a timer is started, and stays up through stop and reset", () => {
+  it("is the operator's switch, and not something starting a run decides", () => {
     const started = startRun(emptyTimerState(), 1_000);
+
+    expect(timerIsLive(started)).toBe(false);
+    expect(runUnderWay(started)).toBe(true);
+  });
+
+  it("stays up through stop and reset once it has been switched", () => {
+    const started = startRun(switched(), 1_000);
 
     expect(timerIsLive(started)).toBe(true);
     expect(timerIsLive(pauseRun(started, 5_000))).toBe(true);
     expect(timerIsLive(resetRun(started))).toBe(true);
+  });
+
+  it("puts a run on the rail while it is going, and only while it is going", () => {
+    const started = startRun(emptyTimerState(), 1_000);
+
+    expect(runUnderWay(emptyTimerState())).toBe(false);
+    expect(runUnderWay(pauseRun(started, 5_000))).toBe(true);
+    expect(runUnderWay(resetRun(started))).toBe(false);
   });
 
   it("reads a run stored before the flag existed as up, so Clear has something to do", () => {
@@ -376,7 +394,7 @@ describe("timerIsLive", () => {
   });
 
   it("stops the run it takes down, so the transport does not offer to pause nothing", () => {
-    const cleared = clearOutputs(startRun(emptyTimerState(), 1_000));
+    const cleared = clearOutputs(startRun(switched(), 1_000));
 
     expect(cleared.running).toBe(false);
     expect(cleared.elapsedBefore).toBe(0);
@@ -384,7 +402,7 @@ describe("timerIsLive", () => {
   });
 
   it("comes down only on clear", () => {
-    const started = startRun(emptyTimerState(), 1_000);
+    const started = startRun(switched(), 1_000);
 
     expect(timerIsLive(clearOutputs(pauseRun(started, 5_000)))).toBe(false);
   });
