@@ -1,26 +1,542 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+/* The projector faces. Loaded from /public/fonts rather than a CDN so the hall
+   does not need internet for the verse to render in the right typeface. */
+@font-face {
+  font-family: 'BPG Banner Caps';
+  src: url('/fonts/bpg-banner-caps-webfont.ttf') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Varela Round';
+  src: url('/fonts/Varela-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* FiraGO covers Georgian, Latin and Cyrillic in a single file. */
+@font-face {
+  font-family: 'FiraGO';
+  src: url('/fonts/FiraGO-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Noto Sans Trilingual: one family assembled from per-script subsets, so Georgian,
+ * Latin and Cyrillic all render in the same typeface. */
+@font-face {
+  font-family: 'Noto Sans Trilingual';
+  src: url('/fonts/NotoSansGeorgian-georgian.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0589, U+10A0-10FF, U+1C90-1CBA, U+1CBD-1CBF, U+205A, U+2D00-2D2F, U+2E31;
+}
+
+@font-face {
+  font-family: 'Noto Sans Trilingual';
+  src: url('/fonts/NotoSans-latin.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Noto Sans Trilingual';
+  src: url('/fonts/NotoSans-latin-ext.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Noto Sans Trilingual';
+  src: url('/fonts/NotoSans-cyrillic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+@font-face {
+  font-family: 'Noto Sans Trilingual';
+  src: url('/fonts/NotoSans-cyrillic-ext.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+
+/* Noto Serif Trilingual: one family assembled from per-script subsets, so Georgian,
+ * Latin and Cyrillic all render in the same typeface. */
+@font-face {
+  font-family: 'Noto Serif Trilingual';
+  src: url('/fonts/NotoSerifGeorgian-georgian.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0589, U+10A0-10FF, U+1C90-1CBA, U+1CBD-1CBF, U+205A, U+2D00-2D2F, U+2E31;
+}
+
+@font-face {
+  font-family: 'Noto Serif Trilingual';
+  src: url('/fonts/NotoSerif-latin.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Noto Serif Trilingual';
+  src: url('/fonts/NotoSerif-latin-ext.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Noto Serif Trilingual';
+  src: url('/fonts/NotoSerif-cyrillic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+@font-face {
+  font-family: 'Noto Serif Trilingual';
+  src: url('/fonts/NotoSerif-cyrillic-ext.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+
+
+@theme {
+  /* Typefaces the operator can pick for the projector and the lower third.
+     These names are the values stored in settings.font — keep them stable. */
+  --font-banner: 'BPG Banner Caps', sans-serif;
+  --font-valera: 'Varela Round', sans-serif;
+  --font-firago: 'FiraGO', 'Noto Sans Georgian', sans-serif;
+  --font-notosans: 'Noto Sans Trilingual', 'Noto Sans Georgian', sans-serif;
+  --font-notoserif: 'Noto Serif Trilingual', 'Noto Serif Georgian', serif;
+  --font-ui:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Georgian', 'Helvetica Neue', Arial, sans-serif;
+
+  /* Console chrome. Dark by default: an operator's screen sits next to a lit
+     stage, and a white console throws light on the person running it. */
+  --color-ink-950: oklch(0.16 0.012 265);
+  --color-ink-900: oklch(0.2 0.014 265);
+  --color-ink-850: oklch(0.24 0.014 265);
+  --color-ink-800: oklch(0.29 0.014 265);
+  --color-ink-700: oklch(0.38 0.014 265);
+  --color-ink-500: oklch(0.58 0.016 265);
+  --color-ink-300: oklch(0.78 0.012 265);
+  --color-ink-100: oklch(0.93 0.008 265);
+
+  --color-brand-400: oklch(0.78 0.13 78);
+  --color-brand-500: oklch(0.72 0.15 72);
+  --color-brand-600: oklch(0.63 0.15 68);
+
+  --color-live: oklch(0.66 0.2 25);
+}
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-ink-950);
+  color: var(--color-ink-100);
+  font-family: var(--font-ui);
+}
+
+/* Verse HTML from the API carries its own search highlight markup. */
+.markedText {
+  background-color: rgb(254, 238, 114);
+  color: rgb(56, 54, 54);
+}
+
+@utility studio-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-700) transparent;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-ink-700);
+    border: 2px solid transparent;
+    background-clip: content-box;
+    border-radius: 9999px;
+  }
+}
+
+/* Without this the projector block inherits the browser's 1.5, which at
+   projector size opens a gap wider than the caps are tall. Tighter lines also
+   let fitText spend the reclaimed height on a larger font. */
+@utility show-text {
+  color: white;
+  line-height: 1.2;
+  padding: 0.5rem 4rem;
+}
+/* ---------------------------------------------------------------------------
+   /lower3rd — the OBS Browser Source output.
+
+   Everything here composites over live video, so the stage stays transparent
+   and the bar carries its own scrim. Sizes are in `em` so the fit-to-width
+   pass in `fitText` scales the whole block by setting one font size.
+   --------------------------------------------------------------------------- */
+
+.lower3rd-stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.lower3rd-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* Equal top and bottom, so a line sits on the middle of the plate rather
+     than above it — with the bar hugging its content, any difference between
+     the two shows up directly as text off centre. */
+  padding: 4.5vh 6vw;
+
+  /* Per-variant knobs. Each look below re-points these rather than restating
+     the layout, so position (top/bottom) and appearance stay independent. */
+  --l3-fg: #ffffff;
+  --l3-ref: rgba(255, 255, 255, 0.72);
+  --l3-dir: to top;
+  --l3-shadow: 0 2px 10px rgba(0, 0, 0, 0.65);
+
+  /* Fading the scrim out rather than ending it on a hard edge keeps the bar
+     from cutting a visible line across the shot. */
+  background: linear-gradient(var(--l3-dir), rgba(6, 8, 12, 0.9) 0%, rgba(6, 8, 12, 0.74) 58%, rgba(6, 8, 12, 0) 100%);
+}
+
+.lower3rd-bar--top {
+  top: 0;
+  bottom: auto;
+  --l3-dir: to bottom;
+}
+
+/* The bar hugs its content, so this centres nothing in the usual case — it is
+   here for the looks that give the block a floor of their own, where a single
+   line would otherwise sit at the top of it. */
+.lower3rd-inner {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Solid slab — reads harder than the scrim over a busy or bright shot. */
+.lower3rd-bar--solid {
+  background: rgba(8, 10, 14, 0.88);
+}
+
+/* No plate at all: text straight on the video, carried by its shadow. Needs a
+   reasonably calm background to stay legible. */
+.lower3rd-bar--plain {
+  background: none;
+  --l3-shadow: 0 2px 14px rgba(0, 0, 0, 0.9), 0 0 3px rgba(0, 0, 0, 0.8);
+}
+
+/* Broadcast bands: each line of text sits on its own plate running the full
+   width of the frame, with the bar itself carrying nothing — the plates are
+   the graphic. Two colourways share all the mechanics and differ only in the
+   plate and ink. The bar gives up its side padding so the plates can reach
+   both edges; the text keeps its own inset instead. */
+.lower3rd-bar--bands,
+.lower3rd-bar--bandsdark {
+  background: none;
+  padding-left: 0;
+  padding-right: 0;
+  --l3-shadow: none;
+}
+
+.lower3rd-bar--bands {
+  --l3-fg: #14171c;
+  --l3-ref: rgba(20, 23, 28, 0.6);
+  --l3-plate: rgba(255, 255, 255, 0.93);
+}
+
+.lower3rd-bar--bandsdark {
+  --l3-fg: #ffffff;
+  --l3-ref: rgba(255, 255, 255, 0.7);
+  --l3-plate: rgba(10, 12, 16, 0.86);
+}
+
+/* One plate per line box, drawn as a repeating stripe on the block rather than
+   as a background on the text, which is what lets a plate run edge to edge
+   while an inline one could only ever be as wide as its words. The stripe's
+   period is the line-height, so it lands on the line boxes whatever the text
+   says; the leading left over at each end of the period is the gap between
+   plates, and starting the stripe inside it keeps the words centred on their
+   own plate. The inset is a percentage, not vw, so the style picker's tiles
+   scale it with them. */
+.lower3rd-bar--bands .lower3rd-text,
+.lower3rd-bar--bandsdark .lower3rd-text {
+  display: block;
+  line-height: 1.5;
+  padding: 0 6%;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 0.08em,
+    var(--l3-plate) 0.08em,
+    var(--l3-plate) 1.42em,
+    transparent 1.42em,
+    transparent 1.5em
+  );
+}
+
+.lower3rd-bar--bands .lower3rd-ref,
+.lower3rd-bar--bandsdark .lower3rd-ref {
+  display: block;
+  line-height: 1.8;
+  padding: 0 6%;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 0.16em,
+    var(--l3-plate) 0.16em,
+    var(--l3-plate) 1.64em,
+    transparent 1.64em,
+    transparent 1.8em
+  );
+}
+
+/* The reference is its own full-width plate now, so it no longer needs the
+   inline-block shrink-to-fit the other looks rely on. */
+.lower3rd-bar--bands .lower3rd-refline,
+.lower3rd-bar--bandsdark .lower3rd-refline {
+  margin-top: 0.16em;
+}
+
+.lower3rd-refline {
+  margin-top: 0.08em;
+}
+
+/* Reference card: the verse on a filled slab with its reference on a chip
+   riding above it, the way a broadcast scripture graphic is usually set. The
+   block is reversed rather than reordered in markup, so every other look keeps
+   the reading order reference-after-verse. */
+.lower3rd-bar--card {
+  background: none;
+  --l3-fg: #ffffff;
+  --l3-ref: #ffffff;
+  --l3-shadow: none;
+  --l3-plate: rgba(45, 85, 71, 0.93);
+  --l3-chip: rgba(10, 12, 16, 0.95);
+}
+
+.lower3rd-bar--card .lower3rd-block {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-start;
+  gap: 0.32em;
+}
+
+.lower3rd-bar--card.text-center .lower3rd-block {
+  align-items: center;
+}
+
+.lower3rd-bar--card.text-right .lower3rd-block {
+  align-items: flex-end;
+}
+
+.lower3rd-bar--card .lower3rd-text {
+  width: 100%;
+  background: var(--l3-plate);
+  padding: 0.5em 0.7em;
+  line-height: 1.34;
+}
+
+.lower3rd-bar--card .lower3rd-refline {
+  margin-top: 0;
+}
+
+.lower3rd-bar--card .lower3rd-ref {
+  margin-top: 0;
+  padding: 0.26em 0.7em;
+  background: var(--l3-chip);
+  font-size: 0.42em;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lower3rd-bar--card .lower3rd-block + .lower3rd-block {
+  margin-top: 0.5em;
+  padding-top: 0;
+  border-top: none;
+}
+
+/* Split bar: a full-width slab with the reference standing in its own column,
+   ruled off from the verse — the arrangement broadcast scripture graphics use,
+   where the numbers are meant to be read from across a room. */
+.lower3rd-bar--split {
+  background: rgba(18, 20, 24, 0.93);
+  border-top: 2px solid rgba(198, 94, 43, 0.9);
+  padding: 2.8vh 5vw;
+  --l3-fg: #ffffff;
+  --l3-ref: #ffffff;
+  --l3-shadow: none;
+}
+
+/* The accent rule always faces the picture, so it swaps edges with the bar. */
+.lower3rd-bar--split.lower3rd-bar--top {
+  border-top: none;
+  border-bottom: 2px solid rgba(198, 94, 43, 0.9);
+}
+
+/* Reversed so the reference — second in the markup, for reading order — sits
+   to the left of the verse. */
+.lower3rd-bar--split .lower3rd-block {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  gap: 0.85em;
+  text-align: left;
+}
+
+.lower3rd-bar--split .lower3rd-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.34;
+}
+
+.lower3rd-bar--split .lower3rd-refline {
+  flex: 0 0 auto;
+  margin-top: 0;
+  padding-right: 0.85em;
+  border-right: 1px solid rgba(255, 255, 255, 0.22);
+  align-self: stretch;
+}
+
+.lower3rd-bar--split .lower3rd-ref {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-top: 0;
+  font-size: 1em;
+  font-style: normal;
+  letter-spacing: normal;
+  color: var(--l3-fg);
+}
+
+.lower3rd-bar--split .lower3rd-ref-num {
+  order: 1;
+  font-size: 1.02em;
+  font-weight: 700;
+  line-height: 1.12;
+  white-space: nowrap;
+}
+
+.lower3rd-bar--split .lower3rd-ref-book {
+  order: 2;
+  font-size: 0.46em;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.lower3rd-bar--split .lower3rd-block + .lower3rd-block {
+  margin-top: 0.6em;
+  padding-top: 0;
+  border-top: none;
+}
+
+.lower3rd-block + .lower3rd-block {
+  margin-top: 0.5em;
+  padding-top: 0.5em;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+/* The plates are already separated by their own edges, so the rule that
+   divides stacked languages would only add noise. */
+.lower3rd-bar--bands .lower3rd-block + .lower3rd-block,
+.lower3rd-bar--bandsdark .lower3rd-block + .lower3rd-block {
+  margin-top: 0.28em;
+  padding-top: 0.34em;
+  border-top: none;
+}
+
+.lower3rd-text {
+  color: var(--l3-fg);
+  line-height: 1.28;
+  /* Video behind the bar can be any brightness; the shadow keeps the text
+     legible over a blown-out window or a white shirt. */
+  text-shadow: var(--l3-shadow);
+}
+
+.lower3rd-ref {
+  display: inline-block;
+  margin-top: 0.3em;
+  font-size: 0.62em;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  color: var(--l3-ref);
+  text-shadow: var(--l3-shadow);
+}
+
+/* Diagnostic panel for `/lower3rd?debug=1`. Deliberately opaque: its whole job
+   is to be visible when the rest of the page is correctly invisible. */
+.lower3rd-debug {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 50;
+  max-width: 520px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: rgba(10, 12, 18, 0.88);
+  color: #d6f5c8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* Stands in for the camera behind the lower-third preview: a chequerboard is
+   the conventional "nothing here" ground, so the operator reads the bar as an
+   overlay rather than as the whole picture. */
+.preview-alpha {
+  background-color: #2f333a;
+  background-image:
+    linear-gradient(45deg, #3a3f47 25%, transparent 25%, transparent 75%, #3a3f47 75%),
+    linear-gradient(45deg, #3a3f47 25%, transparent 25%, transparent 75%, #3a3f47 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    8px 8px;
 }

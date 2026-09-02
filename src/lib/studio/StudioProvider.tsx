@@ -1,0 +1,755 @@
+'use client';
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+
+import { loadChapterCount, loadPassage, loadVerseCount, type Target } from '@/lib/bible/loadPassage';
+import { openLiveChannel, type LiveChannel } from '@/lib/live/channel';
+import type { SignalTransport } from '@/lib/live/protocol';
+import { loadLocalFile } from '@/lib/media/localMedia';
+import { serveAssets } from '@/lib/media/peerAssets';
+import { LOCAL_THEME } from '@/lib/projector/themes';
+import { supabase } from '@/lib/supabase/client';
+import {
+  emptyShowData,
+  groupVerses,
+  LANGS,
+  type Block,
+  type Lang,
+  type Live,
+  type LocalFileMeta,
+  type ShowData,
+  type Song,
+} from '@/lib/types';
+
+import {
+  joinGroup as joinGroupIn,
+  moveBlock as moveBlockIn,
+  moveBlockTo as moveBlockToIn,
+  planExtension,
+  planTrim,
+  regroup,
+  removeBlock as removeBlockIn,
+  setCollapsed,
+  splitGroup as splitGroupIn,
+  stepWithin,
+  toggleCollapsed,
+  type Workspace,
+} from './blocks';
+import { fromRow, projectorStyle, streamLangOf, streamStyle, toRow, type Settings, type SettingsRow } from './settings';
+import { useDebouncedSave } from './useDebouncedSave';
+
+export type Tab = 'bible' | 'audio' | 'lyrics';
+
+export interface StudioSession {
+  id: string;
+  name: string;
+  outputKey: string;
+}
+
+export interface StudioInitial {
+  session: StudioSession;
+  settings: SettingsRow;
+  workspace: {
+    blocks: Block[];
+    live: Live;
+    setlist: string[];
+    activeSongId: string | null;
+    tab: Tab;
+    cardSize: number;
+  };
+  songs: Song[];
+  plan: string;
+}
+
+interface StudioValue {
+  session: StudioSession;
+  plan: string;
+
+  settings: Settings;
+  update: (patch: Partial<Settings>) => void;
+  moveLang: (lang: Lang, direction: number) => void;
+  setLocalBackground: (file: LocalFileMeta | null) => void;
+
+  blocks: Block[];
+  live: Live;
+  loading: boolean;
+
+  addPassage: (request: { book: number; chapter: number; from?: number | null; to?: number | null }) => Promise<Block | null>;
+  extendBlock: (id: string, side: 'start' | 'end') => Promise<void>;
+  removeGroup: (id: string, groupIndex: number) => Promise<void>;
+  joinGroup: (id: string, groupIndex: number) => void;
+  splitGroup: (id: string, groupIndex: number) => void;
+  removeBlock: (id: string) => void;
+  moveBlock: (id: string, direction: number) => void;
+  moveBlockTo: (id: string, insertIndex: number) => void;
+  toggleBlockCollapsed: (id: string) => void;
+  setAllCollapsed: (collapsed: boolean) => void;
+  clearBlocks: () => void;
+  refreshBlocks: () => Promise<void>;
+
+  goLive: (blockId: string, verseIndex: number) => void;
+  selectVerse: (blockId: string, verseIndex: number) => void;
+  stepLive: (direction: number) => void;
+  clearProjector: () => void;
+
+  songs: Song[];
+  activeSongId: string | null;
+  setActiveSongId: (id: string | null) => void;
+  setlist: string[];
+  importSongs: (songs: Song[]) => Promise<void>;
+  saveSong: (song: Song) => Promise<void>;
+  removeSong: (id: string) => Promise<void>;
+  placeInSetlist: (songId: string, index: number) => void;
+  removeFromSetlist: (songId: string) => void;
+  clearSetlist: () => void;
+  publishLyrics: (song: Song, slideIndex: number) => void;
+  selectLyric: (song: Song, slideIndex: number) => void;
+
+  showData: ShowData;
+  tab: Tab;
+  setTab: (tab: Tab) => void;
+  cardSize: number;
+  setCardSize: (size: number) => void;
+  peers: Record<'console' | 'show' | 'lower3rd', number>;
+
+  loadChapterCount: (query: { book: number; lang: Lang; version?: string }) => Promise<number>;
+  loadVerseCount: (query: { book: number; chapter: number; lang: Lang; version?: string }) => Promise<number>;
+}
+
+const StudioContext = createContext<StudioValue | null>(null);
+
+export const useStudio = () => {
+  const value = useContext(StudioContext);
+
+  if (!value) throw new Error('useStudio must be used inside StudioProvider');
+
+  return value;
+};
+
+export const StudioProvider = ({ initial, children }: { initial: StudioInitial; children: ReactNode }) => {
+  const client = useQueryClient();
+  const db = useMemo(() => supabase(), []);
+
+  const [settings, setSettings] = useState<Settings>(() => fromRow(initial.settings));
+  const [workspace, setWorkspace] = useState<Workspace>({
+    blocks: initial.workspace.blocks,
+    live: initial.workspace.live,
+  });
+  const [songs, setSongs] = useState<Song[]>(initial.songs);
+  const [setlist, setSetlist] = useState<string[]>(initial.workspace.setlist);
+  const [activeSongId, setActiveSongId] = useState<string | null>(initial.workspace.activeSongId);
+  const [tab, setTab] = useState<Tab>(initial.workspace.tab);
+  const [cardSize, setCardSize] = useState(initial.workspace.cardSize);
+  const [loading, setLoading] = useState(false);
+  const [showData, setShowData] = useState<ShowData>(emptyShowData);
+  const [peers, setPeers] = useState({ console: 0, show: 0, lower3rd: 0 });
+
+  const { blocks, live } = workspace;
+
+  // ------------------------------------------------------------ live channel
+
+  const channelRef = useRef<LiveChannel | null>(null);
+
+  // The look the outputs must be told about, derived rather than mirrored: it
+  // is a pure function of the settings and is needed on every push.
+  const wireStyle = useMemo(
+    () => ({
+      projector: projectorStyle(settings),
+      stream: streamStyle(settings),
+      streamLang: streamLangOf(settings),
+    }),
+    [settings],
+  );
+
+  // The last slide pushed. Held in a ref because a look change has to re-send
+  // it without making the slide itself a dependency of that effect — that would
+  // push twice for every verse.
+  const showRef = useRef<ShowData>(showData);
+
+  useEffect(() => {
+    showRef.current = showData;
+  }, [showData]);
+
+  useEffect(() => {
+    const channel = openLiveChannel(initial.session.outputKey, 'console');
+    channelRef.current = channel;
+
+    const offPresence = channel.onPresence(setPeers);
+
+    // This console serves its own backgrounds to any projector that asks. The
+    // bytes go peer to peer; only the handshake rides the channel.
+    const transport: SignalTransport = {
+      peerId: channel.peerId,
+      send: channel.sendSignal,
+      subscribe: channel.onSignal,
+    };
+    const offAssets = serveAssets(loadLocalFile, transport);
+
+    return () => {
+      offPresence();
+      offAssets();
+      channel.close();
+      channelRef.current = null;
+    };
+  }, [initial.session.outputKey]);
+
+  /**
+   * The single point that puts a slide on the outputs.
+   *
+   * It writes the session's state row first — that is what a projector reads
+   * when it joins or reloads — then broadcasts, which is what makes the change
+   * instant for the outputs already watching.
+   */
+  const pushShow = useCallback(
+    (payload: ShowData) => {
+      setShowData(payload);
+      showRef.current = payload;
+
+      channelRef.current?.publishSlide({
+        showData: payload,
+        style: wireStyle.stream,
+        projector: wireStyle.projector,
+        streamLang: wireStyle.streamLang,
+      });
+
+      void db.from('session_state').upsert({
+        session_id: initial.session.id,
+        show_data: payload,
+        projector: wireStyle.projector,
+        stream_style: wireStyle.stream,
+        stream_lang: wireStyle.streamLang,
+      });
+    },
+    [db, initial.session.id, wireStyle],
+  );
+
+  // A look change has to reach the outputs too — they cannot read the settings
+  // row themselves, so the current slide is re-sent with the new style.
+  useEffect(() => {
+    if (!channelRef.current) return;
+
+    channelRef.current.publishSlide({
+      showData: showRef.current,
+      style: wireStyle.stream,
+      projector: wireStyle.projector,
+      streamLang: wireStyle.streamLang,
+    });
+
+    void db.from('session_state').upsert({
+      session_id: initial.session.id,
+      show_data: showRef.current,
+      projector: wireStyle.projector,
+      stream_style: wireStyle.stream,
+      stream_lang: wireStyle.streamLang,
+    });
+  }, [db, initial.session.id, wireStyle]);
+
+  // ------------------------------------------------------------ persistence
+
+  useDebouncedSave(settings, next => {
+    void db.from('settings').update(toRow(next)).eq('user_id', initial.settings.user_id);
+  });
+
+  useDebouncedSave({ workspace, setlist, activeSongId, tab, cardSize }, state => {
+    void db.from('session_workspace').upsert({
+      session_id: initial.session.id,
+      blocks: state.workspace.blocks,
+      live: state.workspace.live,
+      setlist: state.setlist,
+      active_song_id: state.activeSongId,
+      tab: state.tab,
+      card_size: state.cardSize,
+    });
+  });
+
+  const update = useCallback((patch: Partial<Settings>) => {
+    setSettings(current => ({ ...current, ...patch }));
+  }, []);
+
+  const moveLang = useCallback((lang: Lang, direction: number) => {
+    setSettings(current => {
+      const order = [...current.langOrder];
+      const index = order.indexOf(lang);
+      const target = index + direction;
+
+      if (index === -1 || target < 0 || target >= order.length) return current;
+
+      [order[index], order[target]] = [order[target], order[index]];
+
+      return { ...current, langOrder: order };
+    });
+  }, []);
+
+  const setLocalBackground = useCallback((file: LocalFileMeta | null) => {
+    setSettings(current =>
+      file
+        ? { ...current, localImage: file, theme: LOCAL_THEME }
+        : { ...current, localImage: null, theme: current.theme === LOCAL_THEME ? '1' : current.theme },
+    );
+  }, []);
+
+  // ------------------------------------------------------------ passages
+
+  /** Every language that has to be fetched: the armed ones plus the one being browsed. */
+  const targets = useMemo((): Target[] => {
+    const langs = new Set<Lang>(LANGS.filter(lang => settings.enabled[lang]));
+    langs.add(settings.adminLang);
+
+    return [...langs].map(lang => ({
+      lang,
+      version: lang === settings.adminLang ? settings.adminVersion : settings.versions[lang],
+    }));
+  }, [settings.adminLang, settings.adminVersion, settings.enabled, settings.versions]);
+
+  const addPassage = useCallback<StudioValue['addPassage']>(
+    async ({ book, chapter, from = null, to = null }) => {
+      setLoading(true);
+
+      try {
+        const wanted = from ? Array.from({ length: (to || from) - from + 1 }, (_, i) => from + i) : undefined;
+        const { data, chapterLength, verses } = await loadPassage(client, {
+          book,
+          chapter,
+          verses: wanted,
+          adminLang: settings.adminLang,
+          targets,
+        });
+
+        if (verses.length === 0) return null;
+
+        const block: Block = {
+          id: `${book}-${chapter}-${Date.now()}`,
+          book,
+          chapter,
+          from,
+          to,
+          adminLang: settings.adminLang,
+          versions: Object.fromEntries(targets.map(target => [target.lang, target.version])),
+          chapterLength,
+          verses,
+          groups: verses.map(verse => [verse]),
+          data,
+        };
+
+        setWorkspace(current => ({ ...current, blocks: [...current.blocks, block] }));
+
+        return block;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [client, settings.adminLang, targets],
+  );
+
+  /** Refetch one block into a new shape — used by extending and trimming. */
+  const reloadBlock = useCallback(
+    async (block: Block, verses: number[], groups: number[][]) => {
+      setLoading(true);
+
+      try {
+        const loaded = await loadPassage(client, {
+          book: block.book,
+          chapter: block.chapter,
+          verses,
+          adminLang: settings.adminLang,
+          targets,
+        });
+
+        setWorkspace(current => ({
+          ...current,
+          blocks: current.blocks.map(item =>
+            item.id === block.id
+              ? {
+                  ...item,
+                  chapterLength: loaded.chapterLength,
+                  verses: loaded.verses,
+                  groups: regroup(groups, loaded.verses),
+                  adminLang: settings.adminLang,
+                  versions: Object.fromEntries(targets.map(target => [target.lang, target.version])),
+                  data: loaded.data,
+                }
+              : item,
+          ),
+        }));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [client, settings.adminLang, targets],
+  );
+
+  const extendBlock = useCallback<StudioValue['extendBlock']>(
+    async (id, side) => {
+      const block = blocks.find(item => item.id === id);
+
+      if (!block) return;
+
+      const plan = planExtension(block, side, live);
+
+      if (!plan) return;
+
+      await reloadBlock(block, plan.verses, plan.groups);
+      setWorkspace(current => ({ ...current, live: plan.live }));
+    },
+    [blocks, live, reloadBlock],
+  );
+
+  const removeGroup = useCallback<StudioValue['removeGroup']>(
+    async (id, groupIndex) => {
+      const block = blocks.find(item => item.id === id);
+
+      if (!block) return;
+
+      const plan = planTrim(block, groupIndex);
+
+      if (plan === undefined) return;
+
+      if (plan === null) {
+        setWorkspace(current => removeBlockIn(current, id));
+        return;
+      }
+
+      await reloadBlock(block, plan.verses, plan.groups);
+
+      // Anything from the cut point on is gone, so a live pointer there clears.
+      setWorkspace(current => ({
+        ...current,
+        live:
+          current.live && current.live.kind !== 'lyrics' && current.live.blockId === id &&
+          current.live.verseIndex >= groupIndex
+            ? null
+            : current.live,
+      }));
+    },
+    [blocks, reloadBlock],
+  );
+
+  const refreshBlocks = useCallback(async () => {
+    if (blocks.length === 0) return;
+
+    setLoading(true);
+
+    try {
+      const refreshed = await Promise.all(
+        blocks.map(async block => {
+          const loaded = await loadPassage(client, {
+            book: block.book,
+            chapter: block.chapter,
+            verses: block.verses,
+            adminLang: settings.adminLang,
+            targets,
+          });
+
+          return {
+            ...block,
+            chapterLength: loaded.chapterLength,
+            verses: loaded.verses,
+            groups: regroup(block.groups, loaded.verses),
+            adminLang: settings.adminLang,
+            versions: Object.fromEntries(targets.map(target => [target.lang, target.version])),
+            data: loaded.data,
+          };
+        }),
+      );
+
+      setWorkspace(current => ({ ...current, blocks: refreshed }));
+    } finally {
+      setLoading(false);
+    }
+  }, [blocks, client, settings.adminLang, targets]);
+
+  // Changing which languages are armed, or which translation any of them uses,
+  // invalidates every open passage. Tracked as a string so re-fetching — which
+  // replaces `blocks` — cannot retrigger it.
+  const settingsKey = `${settings.adminLang}|${settings.adminVersion}|${LANGS.map(
+    lang => `${lang}:${settings.enabled[lang] ? 1 : 0}:${settings.versions[lang]}`,
+  ).join('|')}`;
+  const lastSettingsKey = useRef(settingsKey);
+
+  useEffect(() => {
+    if (lastSettingsKey.current === settingsKey) return;
+
+    lastSettingsKey.current = settingsKey;
+    void refreshBlocks();
+  }, [refreshBlocks, settingsKey]);
+
+  // ------------------------------------------------------------ going live
+
+  const publish = useCallback(
+    (block: Block, groupIndex: number) => {
+      const group = block.groups[groupIndex] ?? [];
+
+      pushShow({
+        ...emptyShowData(),
+        ...Object.fromEntries(
+          LANGS.map(lang => [lang, settings.enabled[lang] ? groupVerses(block, lang, group) : []]),
+        ),
+      } as ShowData);
+
+      setWorkspace(current => ({ ...current, live: { blockId: block.id, verseIndex: groupIndex } }));
+    },
+    [pushShow, settings.enabled],
+  );
+
+  const goLive = useCallback<StudioValue['goLive']>(
+    (blockId, verseIndex) => {
+      const block = blocks.find(item => item.id === blockId);
+
+      if (block) publish(block, verseIndex);
+    },
+    [blocks, publish],
+  );
+
+  /** Clicking the card that is already live takes the projector back to black. */
+  const clearProjector = useCallback(() => {
+    pushShow(emptyShowData());
+    setWorkspace(current => ({ ...current, live: null }));
+  }, [pushShow]);
+
+  const selectVerse = useCallback<StudioValue['selectVerse']>(
+    (blockId, verseIndex) => {
+      if (live && live.kind !== 'lyrics' && live.blockId === blockId && live.verseIndex === verseIndex) {
+        clearProjector();
+        return;
+      }
+
+      goLive(blockId, verseIndex);
+    },
+    [clearProjector, goLive, live],
+  );
+
+  const publishLyrics = useCallback<StudioValue['publishLyrics']>(
+    (song, slideIndex) => {
+      const slide = song.slides[slideIndex];
+
+      if (!slide) return;
+
+      pushShow({ ...emptyShowData(), lyrics: { title: song.title, text: slide.text } });
+      setWorkspace(current => ({ ...current, live: { kind: 'lyrics', songId: song.id, slideIndex } }));
+    },
+    [pushShow],
+  );
+
+  const selectLyric = useCallback<StudioValue['selectLyric']>(
+    (song, slideIndex) => {
+      if (live?.kind === 'lyrics' && live.songId === song.id && live.slideIndex === slideIndex) {
+        clearProjector();
+        return;
+      }
+
+      publishLyrics(song, slideIndex);
+    },
+    [clearProjector, live, publishLyrics],
+  );
+
+  const stepLive = useCallback<StudioValue['stepLive']>(
+    direction => {
+      if (!live) return;
+
+      if (live.kind === 'lyrics') {
+        const song = songs.find(item => item.id === live.songId);
+        const next = live.slideIndex + direction;
+
+        if (song && next >= 0 && next < song.slides.length) publishLyrics(song, next);
+
+        return;
+      }
+
+      const block = blocks.find(item => item.id === live.blockId);
+      const next = stepWithin(block, live, direction);
+
+      if (block && next !== null) publish(block, next);
+    },
+    [blocks, live, publish, publishLyrics, songs],
+  );
+
+  // ------------------------------------------------------------ songs
+
+  const importSongs = useCallback<StudioValue['importSongs']>(
+    async imported => {
+      if (imported.length === 0) return;
+
+      // A re-import replaces the song of the same title rather than doubling it.
+      const { data } = await db
+        .from('songs')
+        .upsert(
+          imported.map(song => ({
+            user_id: initial.settings.user_id,
+            title: song.title,
+            slides: song.slides,
+            source: song.source ?? 'propresenter',
+          })),
+          { onConflict: 'user_id,title' },
+        )
+        .select();
+
+      if (!data) return;
+
+      setSongs(current => {
+        const byTitle = new Map(current.map(song => [song.title.toLowerCase(), song]));
+
+        data.forEach(row =>
+          byTitle.set(row.title.toLowerCase(), {
+            id: row.id,
+            title: row.title,
+            slides: row.slides as Song['slides'],
+            source: row.source,
+          }),
+        );
+
+        return [...byTitle.values()].sort((a, b) => a.title.localeCompare(b.title));
+      });
+    },
+    [db, initial.settings.user_id],
+  );
+
+  const saveSong = useCallback<StudioValue['saveSong']>(
+    async song => {
+      const { data } = await db
+        .from('songs')
+        .upsert({ id: song.id, user_id: initial.settings.user_id, title: song.title, slides: song.slides })
+        .select()
+        .single();
+
+      if (!data) return;
+
+      setSongs(current => {
+        const saved: Song = { id: data.id, title: data.title, slides: data.slides as Song['slides'] };
+        const without = current.filter(item => item.id !== saved.id);
+
+        return [...without, saved].sort((a, b) => a.title.localeCompare(b.title));
+      });
+
+      // A slide that was live and has since been edited away clears the output.
+      setWorkspace(current => {
+        if (current.live?.kind !== 'lyrics' || current.live.songId !== song.id) return current;
+
+        return current.live.slideIndex < song.slides.length ? current : { ...current, live: null };
+      });
+    },
+    [db, initial.settings.user_id],
+  );
+
+  const removeSong = useCallback<StudioValue['removeSong']>(
+    async id => {
+      await db.from('songs').delete().eq('id', id);
+
+      setSongs(current => current.filter(song => song.id !== id));
+      setSetlist(current => current.filter(songId => songId !== id));
+      setActiveSongId(current => (current === id ? null : current));
+      setWorkspace(current => ({
+        ...current,
+        live: current.live?.kind === 'lyrics' && current.live.songId === id ? null : current.live,
+      }));
+    },
+    [db],
+  );
+
+  const placeInSetlist = useCallback<StudioValue['placeInSetlist']>((songId, index) => {
+    setSetlist(current => {
+      const from = current.indexOf(songId);
+      const without = current.filter(id => id !== songId);
+      // Removing it first shifts every later slot down by one.
+      const target = from !== -1 && from < index ? index - 1 : index;
+
+      without.splice(Math.max(0, Math.min(target, without.length)), 0, songId);
+
+      return without;
+    });
+  }, []);
+
+  const value = useMemo<StudioValue>(
+    () => ({
+      session: initial.session,
+      plan: initial.plan,
+      settings,
+      update,
+      moveLang,
+      setLocalBackground,
+      blocks,
+      live,
+      loading,
+      addPassage,
+      extendBlock,
+      removeGroup,
+      joinGroup: (id, groupIndex) => setWorkspace(current => joinGroupIn(current, id, groupIndex)),
+      splitGroup: (id, groupIndex) => setWorkspace(current => splitGroupIn(current, id, groupIndex)),
+      removeBlock: id => setWorkspace(current => removeBlockIn(current, id)),
+      moveBlock: (id, direction) => setWorkspace(current => moveBlockIn(current, id, direction)),
+      moveBlockTo: (id, insertIndex) => setWorkspace(current => moveBlockToIn(current, id, insertIndex)),
+      toggleBlockCollapsed: id => setWorkspace(current => toggleCollapsed(current, id)),
+      setAllCollapsed: collapsed => setWorkspace(current => setCollapsed(current, collapsed)),
+      clearBlocks: () => setWorkspace({ blocks: [], live: null }),
+      refreshBlocks,
+      goLive,
+      selectVerse,
+      stepLive,
+      clearProjector,
+      songs,
+      activeSongId,
+      setActiveSongId,
+      setlist,
+      importSongs,
+      saveSong,
+      removeSong,
+      placeInSetlist,
+      removeFromSetlist: songId => setSetlist(current => current.filter(id => id !== songId)),
+      clearSetlist: () => setSetlist([]),
+      publishLyrics,
+      selectLyric,
+      showData,
+      tab,
+      setTab,
+      cardSize,
+      setCardSize,
+      peers,
+      loadChapterCount: query => loadChapterCount(client, query),
+      loadVerseCount: query => loadVerseCount(client, query),
+    }),
+    [
+      activeSongId,
+      addPassage,
+      blocks,
+      cardSize,
+      clearProjector,
+      client,
+      extendBlock,
+      goLive,
+      importSongs,
+      initial.plan,
+      initial.session,
+      live,
+      loading,
+      moveLang,
+      peers,
+      placeInSetlist,
+      publishLyrics,
+      refreshBlocks,
+      removeGroup,
+      removeSong,
+      saveSong,
+      selectLyric,
+      selectVerse,
+      setLocalBackground,
+      setlist,
+      settings,
+      showData,
+      songs,
+      stepLive,
+      tab,
+      update,
+    ],
+  );
+
+  return <StudioContext.Provider value={value}>{children}</StudioContext.Provider>;
+};
