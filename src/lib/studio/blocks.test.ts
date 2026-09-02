@@ -98,6 +98,18 @@ describe('splitGroup', () => {
 
     expect(next.blocks[0].groups).toEqual([[16], [17], [18]]);
   });
+
+  it('pushes a later live pointer along by the cards the split added', () => {
+    const joined = block({ groups: [[16, 17], [18]] });
+
+    expect(splitGroup({ blocks: [joined], live: live(1) }, 'b1', 0).live).toEqual({ blockId: 'b1', verseIndex: 2 });
+  });
+
+  it('leaves a pointer at the split alone', () => {
+    const joined = block({ groups: [[16, 17], [18]] });
+
+    expect(splitGroup({ blocks: [joined], live: live(0) }, 'b1', 0).live).toEqual({ blockId: 'b1', verseIndex: 0 });
+  });
 });
 
 describe('moveBlockTo', () => {

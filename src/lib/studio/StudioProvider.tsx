@@ -34,6 +34,7 @@ import {
 
 import {
   joinGroup as joinGroupIn,
+  liveGroup,
   moveBlock as moveBlockIn,
   moveBlockTo as moveBlockToIn,
   planExtension,
@@ -518,6 +519,31 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [pushShow, settings.enabled],
   );
 
+  /**
+   * Join or split cards, and put the result on the outputs when the card that
+   * changed is the one on screen. Regrouping only rewrites the workspace, so
+   * without this the projector keeps the slide it was last handed — joining the
+   * live verse with the next one left the single verse showing.
+   */
+  const regroupCards = useCallback(
+    (operate: (workspace: Workspace, id: string, groupIndex: number) => Workspace, id: string, groupIndex: number) => {
+      const before: Workspace = { blocks, live };
+      const after = operate(before, id, groupIndex);
+
+      setWorkspace(after);
+
+      const wasLive = liveGroup(before);
+      const nowLive = liveGroup(after);
+
+      if (!nowLive || String(wasLive) === String(nowLive)) return;
+
+      const block = after.blocks.find(item => item.id === id);
+
+      if (block && after.live && after.live.kind !== 'lyrics') publish(block, after.live.verseIndex);
+    },
+    [blocks, live, publish],
+  );
+
   const goLive = useCallback<StudioValue['goLive']>(
     (blockId, verseIndex) => {
       const block = blocks.find(item => item.id === blockId);
@@ -707,8 +733,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       addPassage,
       extendBlock,
       removeGroup,
-      joinGroup: (id, groupIndex) => setWorkspace(current => joinGroupIn(current, id, groupIndex)),
-      splitGroup: (id, groupIndex) => setWorkspace(current => splitGroupIn(current, id, groupIndex)),
+      joinGroup: (id, groupIndex) => regroupCards(joinGroupIn, id, groupIndex),
+      splitGroup: (id, groupIndex) => regroupCards(splitGroupIn, id, groupIndex),
       removeBlock: id => setWorkspace(current => removeBlockIn(current, id)),
       moveBlock: (id, direction) => setWorkspace(current => moveBlockIn(current, id, direction)),
       moveBlockTo: (id, insertIndex) => setWorkspace(current => moveBlockToIn(current, id, insertIndex)),
@@ -772,6 +798,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       placeInSetlist,
       publishLyrics,
       refreshBlocks,
+      regroupCards,
       removeGroup,
       setLangOrder,
       removeSong,

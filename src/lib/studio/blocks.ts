@@ -86,14 +86,33 @@ export const joinGroup = (workspace: Workspace, id: string, groupIndex: number):
 };
 
 /** Break a joined card back into one card per verse. */
-export const splitGroup = (workspace: Workspace, id: string, groupIndex: number): Workspace =>
-  withBlock(workspace, id, block => {
+export const splitGroup = (workspace: Workspace, id: string, groupIndex: number): Workspace => {
+  const added = (workspace.blocks.find(block => block.id === id)?.groups[groupIndex] ?? []).length - 1;
+
+  const next = withBlock(workspace, id, block => {
     if ((block.groups[groupIndex] ?? []).length < 2) return block;
 
     const groups = [...block.groups];
     groups.splice(groupIndex, 1, ...groups[groupIndex].map(verse => [verse]));
     return { ...block, groups };
   });
+
+  // The cards the split added push everything after them along.
+  return {
+    ...next,
+    live:
+      added > 0 && pointsAt(workspace.live, id) && workspace.live.verseIndex > groupIndex
+        ? { ...workspace.live, verseIndex: workspace.live.verseIndex + added }
+        : workspace.live,
+  };
+};
+
+/** The verses on the card that is live, or null when no verse card is. */
+export const liveGroup = ({ blocks, live }: Workspace): number[] | null => {
+  if (!live || live.kind === 'lyrics') return null;
+
+  return blocks.find(block => block.id === live.blockId)?.groups[live.verseIndex] ?? null;
+};
 
 export const removeBlock = (workspace: Workspace, id: string): Workspace => ({
   blocks: workspace.blocks.filter(block => block.id !== id),
