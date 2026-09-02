@@ -81,8 +81,8 @@ export const SearchBar = () => {
   return (
     <>
       <form onSubmit={submit}>
-      <div className="flex items-center gap-2">
-        <div className="relative min-w-0 flex-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[16rem] flex-1">
           <HiOutlineSearch className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-base text-studio-faint" />
 
           <input
@@ -100,19 +100,26 @@ export const SearchBar = () => {
           type="submit"
           variant="accent"
           size="md"
+          className="shrink-0"
           disabled={loading || !input.trim()}
           icon={loading ? <Loader2 className="size-3.5 animate-spin" /> : <HiPlus className="text-sm" />}
         >
           Add
         </Button>
 
-        <Button size="md" onClick={() => openBrowse(null)} icon={<HiOutlineMenuAlt2 className="text-sm" />}>
+        <Button
+          size="md"
+          className="shrink-0"
+          onClick={() => openBrowse(null)}
+          icon={<HiOutlineMenuAlt2 className="text-sm" />}
+        >
           Browse
         </Button>
 
         {blocks.length > 0 ? (
           <Button
             size="md"
+            className="shrink-0"
             onClick={() => setAllCollapsed(!allCollapsed)}
             icon={
               allCollapsed ? (

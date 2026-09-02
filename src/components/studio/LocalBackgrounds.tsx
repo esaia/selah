@@ -72,10 +72,10 @@ export const LocalBackgrounds = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm">Your own pictures</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="min-w-0 truncate text-sm">Your own pictures</h2>
 
-        <label className="border-studio-border text-studio-text hover:border-studio-faint flex cursor-pointer items-center gap-2 rounded-studio border px-2.5 py-1 text-xs transition hover:text-studio-text">
+        <label className="border-studio-border text-studio-text hover:border-studio-faint flex shrink-0 cursor-pointer items-center gap-2 rounded-studio border px-2.5 py-1 text-xs transition hover:text-studio-text">
           <Upload className="size-3" />
           Add
           <input type="file" accept="image/*" multiple onChange={add} className="hidden" />

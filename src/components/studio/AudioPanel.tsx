@@ -179,25 +179,25 @@ export const AudioPanel = () => {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-studio-divider flex items-center gap-3 border-b p-3">
-        <label className="border-studio-border text-studio-text hover:border-studio-faint flex cursor-pointer items-center gap-2 rounded-studio border px-2.5 py-1.5 text-xs transition hover:text-studio-text">
+      <div className="border-studio-divider flex flex-wrap items-center gap-3 border-b p-3">
+        <label className="border-studio-border text-studio-text hover:border-studio-faint flex shrink-0 cursor-pointer items-center gap-2 rounded-studio border px-2.5 py-1.5 text-xs transition hover:text-studio-text">
           <Upload className="size-3" />
           Add files
           <input type="file" accept="audio/*" multiple onChange={onFiles} className="hidden" />
         </label>
 
-        <div className="flex flex-1 items-center gap-2">
+        <div className="flex min-w-[16rem] flex-1 items-center gap-2">
           <input
             value={title}
             onChange={event => setTitle(event.target.value)}
             placeholder="Title"
-            className="border-studio-border bg-white placeholder:text-studio-faint w-32 rounded-studio border px-2.5 py-1.5 text-xs outline-none"
+            className="border-studio-border bg-white placeholder:text-studio-faint w-20 shrink-0 rounded-studio border px-2.5 py-1.5 text-xs outline-none sm:w-32"
           />
           <input
             value={url}
             onChange={event => setUrl(event.target.value)}
             placeholder="https://… (a track by URL)"
-            className="border-studio-border bg-white placeholder:text-studio-faint flex-1 rounded-studio border px-2.5 py-1.5 text-xs outline-none"
+            className="border-studio-border bg-white placeholder:text-studio-faint min-w-0 flex-1 rounded-studio border px-2.5 py-1.5 text-xs outline-none"
           />
           <button
             type="button"
@@ -209,7 +209,7 @@ export const AudioPanel = () => {
               setTitle('');
             }}
             aria-label="Add the track"
-            className="text-studio-muted hover:text-studio-text"
+            className="text-studio-muted shrink-0 hover:text-studio-text"
           >
             <Plus className="size-4" />
           </button>
@@ -218,10 +218,13 @@ export const AudioPanel = () => {
 
       {error ? <p className="text-studio-danger px-3 py-2 text-xs">{error}</p> : null}
 
-      <div className="grid min-h-0 flex-1 grid-cols-[14rem_1fr]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] sm:grid-cols-[14rem_1fr] sm:grid-rows-1">
         {/* The libraries themselves. A track is filed by dragging it onto one,
             and unfiled by dragging it back onto All tracks. */}
-        <ul className="studio-scroll border-studio-divider overflow-y-auto border-r py-1">
+        <ul
+          className="studio-scroll border-studio-divider max-h-40 overflow-y-auto border-b py-1 sm:max-h-none
+            sm:border-r sm:border-b-0"
+        >
           <li
             className="text-studio-faint flex items-center justify-between gap-2 px-3 py-1.5 text-[11px]
               font-semibold tracking-wider uppercase"

@@ -31,19 +31,24 @@ export const SettingsModal = ({ tab: opened, onClose }: { tab: string; onClose: 
   const [tab, setTab] = useState<SettingsTab>(isTab(opened) ? opened : 'projector');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-3 sm:p-6" onClick={onClose}>
       <div
-        className="flex h-[36rem] w-full max-w-5xl overflow-hidden rounded-studio-lg bg-white shadow-studio-modal"
+        className="flex h-full max-h-[36rem] w-full max-w-5xl flex-col overflow-hidden rounded-studio-lg bg-white
+          shadow-studio-modal sm:flex-row"
         onClick={event => event.stopPropagation()}
       >
-        <nav className="w-48 shrink-0 border-r border-studio-border bg-studio-surface py-3">
+        <nav
+          className="studio-scroll flex w-full shrink-0 gap-1 overflow-x-auto border-b border-studio-border
+            bg-studio-surface px-2 py-2 sm:w-48 sm:flex-col sm:gap-0 sm:border-r sm:border-b-0 sm:px-0 sm:py-3"
+        >
           {TABS.map(name => (
             <button
               key={name}
               type="button"
               onClick={() => setTab(name)}
               className={cn(
-                'w-full px-4 py-2 text-left text-sm transition-colors duration-150',
+                'shrink-0 rounded-studio px-4 py-2 text-left text-sm whitespace-nowrap transition-colors duration-150',
+                'sm:w-full sm:rounded-none',
                 tab === name
                   ? 'bg-white font-medium text-studio-text shadow-studio'
                   : 'text-studio-muted hover:text-studio-text',
@@ -55,14 +60,17 @@ export const SettingsModal = ({ tab: opened, onClose }: { tab: string; onClose: 
         </nav>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-12 shrink-0 items-center justify-between border-b border-studio-border px-5">
-            <h2 className="text-sm font-semibold text-studio-text">{TAB_LABELS[tab]}</h2>
+          <header
+            className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-studio-border px-4
+              sm:px-5"
+          >
+            <h2 className="truncate text-sm font-semibold text-studio-text">{TAB_LABELS[tab]}</h2>
             <IconButton label="Close" onClick={onClose}>
               <HiOutlineX className="text-base" />
             </IconButton>
           </header>
 
-          <div className="studio-scroll min-h-0 flex-1 overflow-y-auto p-5">
+          <div className="studio-scroll min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
             {tab === 'projector' ? <StyleSection /> : null}
             {tab === 'stream' ? <StreamSection /> : null}
             {tab === 'devices' ? <DevicesSection /> : null}
