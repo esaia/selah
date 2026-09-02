@@ -19,21 +19,21 @@ export const MINUTE = 60_000;
 /** How long an output holds the flash. */
 export const FLASH_MS = 1600;
 
-export type TimerKind = 'countdown' | 'countup' | 'clock';
+export type TimerKind = "countdown" | "countup" | "clock";
 
 export const TIMER_KINDS: { value: TimerKind; label: string }[] = [
-  { value: 'countdown', label: 'Count down' },
-  { value: 'countup', label: 'Count up' },
-  { value: 'clock', label: 'Time of day' },
+  { value: "countdown", label: "Count down" },
+  { value: "countup", label: "Count up" },
+  { value: "clock", label: "Time of day" },
 ];
 
-export type MessageColor = 'white' | 'green' | 'red';
+export type MessageColor = "white" | "green" | "red";
 
 /** Message tints. Literals, because an output page has no console theme. */
 export const MESSAGE_COLORS: Record<MessageColor, string> = {
-  white: '#ffffff',
-  green: '#4ade80',
-  red: '#f87171',
+  white: "#ffffff",
+  green: "#4ade80",
+  red: "#f87171",
 };
 
 export interface StageTimer {
@@ -52,6 +52,8 @@ export interface TimerMessage {
   bold: boolean;
   caps: boolean;
   visible: boolean;
+  /** Takes the whole output over, digits and all. */
+  fullScreen: boolean;
 }
 
 export interface TimerState {
@@ -62,7 +64,8 @@ export interface TimerState {
   startedAt: number | null;
   /** What had already run before that resume. */
   elapsedBefore: number;
-  /** Time added or taken off this run by the ±1m buttons. */
+  /** Where a count-up's target has been moved to by the ±1m buttons. A
+   *  countdown moves its playhead instead, so it leaves this at zero. */
   adjustMs: number;
   messages: TimerMessage[];
   blackout: boolean;
@@ -74,29 +77,33 @@ export interface TimerState {
   sentAt: number;
 }
 
-const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+const uid = () =>
+  `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
 export const newTimer = (overrides: Partial<StageTimer> = {}): StageTimer => ({
   id: uid(),
-  name: 'Timer',
-  kind: 'countdown',
+  name: "Timer",
+  kind: "countdown",
   duration: 10 * MINUTE,
   wrapUp: MINUTE,
   ...overrides,
 });
 
-export const newMessage = (overrides: Partial<TimerMessage> = {}): TimerMessage => ({
+export const newMessage = (
+  overrides: Partial<TimerMessage> = {},
+): TimerMessage => ({
   id: uid(),
-  text: '',
-  color: 'white',
+  text: "",
+  color: "white",
   bold: false,
   caps: false,
   visible: false,
+  fullScreen: false,
   ...overrides,
 });
 
 export const emptyTimerState = (): TimerState => {
-  const first = newTimer({ name: 'Timer 1' });
+  const first = newTimer({ name: "Timer 1" });
 
   return {
     timers: [first],
@@ -115,9 +122,11 @@ export const emptyTimerState = (): TimerState => {
   };
 };
 
-const num = (value: unknown, fallback: number): number => (Number.isFinite(Number(value)) ? Number(value) : fallback);
+const num = (value: unknown, fallback: number): number =>
+  Number.isFinite(Number(value)) ? Number(value) : fallback;
 
-const isKind = (value: unknown): value is TimerKind => TIMER_KINDS.some(kind => kind.value === value);
+const isKind = (value: unknown): value is TimerKind =>
+  TIMER_KINDS.some((kind) => kind.value === value);
 
 /**
  * Take anything — a `session_state` row written by an older version, a payload
@@ -128,39 +137,54 @@ const isKind = (value: unknown): value is TimerKind => TIMER_KINDS.some(kind => 
 export const asTimerState = (raw: unknown): TimerState => {
   const base = emptyTimerState();
 
-  if (!raw || typeof raw !== 'object') return base;
+  if (!raw || typeof raw !== "object") return base;
 
   const input = raw as Partial<Record<keyof TimerState, unknown>>;
 
   const timers = (Array.isArray(input.timers) ? input.timers : [])
-    .filter((timer): timer is Record<string, unknown> => Boolean(timer) && typeof timer === 'object' && 'id' in timer)
+    .filter(
+      (timer): timer is Record<string, unknown> =>
+        Boolean(timer) && typeof timer === "object" && "id" in timer,
+    )
     .map((timer): StageTimer => ({
       id: String(timer.id),
-      name: typeof timer.name === 'string' ? timer.name : 'Timer',
-      kind: isKind(timer.kind) ? timer.kind : 'countdown',
+      name: typeof timer.name === "string" ? timer.name : "Timer",
+      kind: isKind(timer.kind) ? timer.kind : "countdown",
       duration: Math.max(0, num(timer.duration, 10 * MINUTE)),
       wrapUp: Math.max(0, num(timer.wrapUp, MINUTE)),
     }));
 
   const list = timers.length ? timers : base.timers;
-  const activeId = list.some(timer => timer.id === input.activeId) ? String(input.activeId) : list[0].id;
+  const activeId = list.some((timer) => timer.id === input.activeId)
+    ? String(input.activeId)
+    : list[0].id;
 
   const messages = (Array.isArray(input.messages) ? input.messages : [])
-    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && 'id' in item)
+    .filter(
+      (item): item is Record<string, unknown> =>
+        Boolean(item) && typeof item === "object" && "id" in item,
+    )
     .map((item): TimerMessage => ({
       id: String(item.id),
-      text: typeof item.text === 'string' ? item.text : '',
-      color: (item.color as MessageColor) in MESSAGE_COLORS ? (item.color as MessageColor) : 'white',
+      text: typeof item.text === "string" ? item.text : "",
+      color:
+        (item.color as MessageColor) in MESSAGE_COLORS
+          ? (item.color as MessageColor)
+          : "white",
       bold: Boolean(item.bold),
       caps: Boolean(item.caps),
       visible: Boolean(item.visible),
+      fullScreen: Boolean(item.fullScreen),
     }));
 
   return {
     timers: list,
     activeId,
     running: Boolean(input.running),
-    startedAt: input.startedAt === null || input.startedAt === undefined ? null : num(input.startedAt, 0),
+    startedAt:
+      input.startedAt === null || input.startedAt === undefined
+        ? null
+        : num(input.startedAt, 0),
     elapsedBefore: Math.max(0, num(input.elapsedBefore, 0)),
     adjustMs: num(input.adjustMs, 0),
     // Always at least one, for the same reason as the timers: a column with
@@ -184,7 +208,10 @@ export const asTimerState = (raw: unknown): TimerState => {
  * way in would mean it sent back something slightly different from what it
  * received — two consoles would push the run around between them forever.
  */
-export const withSkew = (state: TimerState, receivedAt = Date.now()): TimerState => {
+export const withSkew = (
+  state: TimerState,
+  receivedAt = Date.now(),
+): TimerState => {
   if (!state.sentAt || state.startedAt === null) return state;
 
   // A stored row is read long after it was written. That is a stale stamp, not
@@ -196,10 +223,14 @@ export const withSkew = (state: TimerState, receivedAt = Date.now()): TimerState
 };
 
 export const activeTimer = (state: TimerState): StageTimer | null =>
-  state.timers.find(timer => timer.id === state.activeId) ?? null;
+  state.timers.find((timer) => timer.id === state.activeId) ?? null;
 
 export const elapsedOf = (state: TimerState, now = Date.now()): number =>
-  Math.max(0, state.elapsedBefore + (state.running && state.startedAt !== null ? now - state.startedAt : 0));
+  Math.max(
+    0,
+    state.elapsedBefore +
+      (state.running && state.startedAt !== null ? now - state.startedAt : 0),
+  );
 
 /* -- Transport. Pure, so a second console adopting the state agrees with the
       first about what pressing play meant. -------------------------------- */
@@ -236,7 +267,11 @@ export const resetRun = (state: TimerState): TimerState => ({
  * stop because the operator reached for it — which is why the resume stamp is
  * taken again rather than left where it was.
  */
-export const seekRun = (state: TimerState, elapsed: number, now = Date.now()): TimerState => ({
+export const seekRun = (
+  state: TimerState,
+  elapsed: number,
+  now = Date.now(),
+): TimerState => ({
   ...state,
   elapsedBefore: Math.max(0, elapsed),
   startedAt: state.running ? now : null,
@@ -246,14 +281,34 @@ export const seekRun = (state: TimerState, elapsed: number, now = Date.now()): T
 export const totalOf = (state: TimerState): number => {
   const timer = activeTimer(state);
 
-  return !timer || timer.kind === 'clock' ? 0 : Math.max(0, timer.duration + state.adjustMs);
+  return !timer || timer.kind === "clock"
+    ? 0
+    : Math.max(0, timer.duration + state.adjustMs);
 };
 
-/** ±1m. A countdown gains time; a count-up moves its target. */
-export const adjustRun = (state: TimerState, deltaMs: number): TimerState => ({
-  ...state,
-  adjustMs: state.adjustMs + deltaMs,
-});
+/**
+ * ±1m. It moves the playhead, not the length of the run.
+ *
+ * A countdown given a minute at 5:00 of 10:00 should read 6:00 with the same
+ * ten minutes on the scrubber — the operator is buying the speaker a minute,
+ * not redefining the slot — so the minute comes off what has elapsed and the
+ * handle slides back along a track that keeps its length. Elapsed cannot go
+ * below zero, so a countdown tops out at its own duration. A count-up has no
+ * remaining to give, so there the minute still moves the target.
+ */
+export const adjustRun = (
+  state: TimerState,
+  deltaMs: number,
+  now = Date.now(),
+): TimerState => {
+  if (activeTimer(state)?.kind === "countup")
+    return { ...state, adjustMs: state.adjustMs + deltaMs };
+
+  // Through `seekRun`, so a running timer is rebased the way dragging rebases
+  // it: the elapsed time stays a positive number on the wire, which is what
+  // every reader normalises it as.
+  return seekRun(state, Math.max(0, elapsedOf(state, now) - deltaMs), now);
+};
 
 /**
  * Arm a timer. Switching starts it from the top — resuming into a different
@@ -265,13 +320,16 @@ export const armTimer = (state: TimerState, id: string): TimerState =>
 
 /** Next or previous in the running order, stopping at the ends. */
 export const stepTimer = (state: TimerState, direction: number): TimerState => {
-  const index = state.timers.findIndex(timer => timer.id === state.activeId);
-  const next = state.timers[Math.max(0, Math.min(state.timers.length - 1, index + direction))];
+  const index = state.timers.findIndex((timer) => timer.id === state.activeId);
+  const next =
+    state.timers[
+      Math.max(0, Math.min(state.timers.length - 1, index + direction))
+    ];
 
   return next ? armTimer(state, next.id) : state;
 };
 
-const pad = (value: number) => String(value).padStart(2, '0');
+const pad = (value: number) => String(value).padStart(2, "0");
 
 /** `M:SS` under an hour, `H:MM:SS` over it — the way a stage clock is read. */
 export const formatDuration = (ms: number): string => {
@@ -280,7 +338,9 @@ export const formatDuration = (ms: number): string => {
   const minutes = Math.floor((total % 3600) / 60);
   const seconds = total % 60;
 
-  return hours ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
+  return hours
+    ? `${hours}:${pad(minutes)}:${pad(seconds)}`
+    : `${minutes}:${pad(seconds)}`;
 };
 
 export const formatClock = (now = Date.now()): string => {
@@ -295,18 +355,22 @@ export const parseDuration = (input: string): number | null => {
 
   if (!/^\d{1,2}(:\d{1,2}){0,2}$/.test(text)) return null;
 
-  const parts = text.split(':').map(Number);
+  const parts = text.split(":").map(Number);
 
   // A bare number is minutes: typing "10" for ten minutes is the common case.
   const [hours, minutes, seconds] =
-    parts.length === 1 ? [0, parts[0], 0] : parts.length === 2 ? [0, parts[0], parts[1]] : parts;
+    parts.length === 1
+      ? [0, parts[0], 0]
+      : parts.length === 2
+        ? [0, parts[0], parts[1]]
+        : parts;
 
   return ((hours * 60 + minutes) * 60 + seconds) * 1000;
 };
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
-export type Phase = 'normal' | 'warn' | 'over';
+export type Phase = "normal" | "warn" | "over";
 
 export interface TimerReading {
   name: string;
@@ -319,19 +383,22 @@ export interface TimerReading {
 }
 
 /** Everything an output needs to draw one frame. */
-export const timerReading = (state: TimerState, now = Date.now()): TimerReading | null => {
+export const timerReading = (
+  state: TimerState,
+  now = Date.now(),
+): TimerReading | null => {
   const timer = activeTimer(state);
 
   if (!timer) return null;
 
   const base = { name: timer.name, kind: timer.kind };
 
-  if (timer.kind === 'clock') {
+  if (timer.kind === "clock") {
     return {
       ...base,
       text: formatClock(now),
       progress: null,
-      phase: 'normal',
+      phase: "normal",
       overtime: false,
     };
   }
@@ -339,14 +406,18 @@ export const timerReading = (state: TimerState, now = Date.now()): TimerReading 
   const elapsed = elapsedOf(state, now);
   const total = Math.max(0, timer.duration + state.adjustMs);
 
-  if (timer.kind === 'countup') {
+  if (timer.kind === "countup") {
     const overtime = total > 0 && elapsed > total;
 
     return {
       ...base,
       text: formatDuration(elapsed),
       progress: total ? clamp01(elapsed / total) : null,
-      phase: overtime ? 'over' : total && total - elapsed <= timer.wrapUp ? 'warn' : 'normal',
+      phase: overtime
+        ? "over"
+        : total && total - elapsed <= timer.wrapUp
+          ? "warn"
+          : "normal",
       overtime,
     };
   }
@@ -356,18 +427,21 @@ export const timerReading = (state: TimerState, now = Date.now()): TimerReading 
 
   return {
     ...base,
-    text: `${overtime ? '-' : ''}${formatDuration(Math.abs(remaining))}`,
+    text: `${overtime ? "-" : ""}${formatDuration(Math.abs(remaining))}`,
     progress: total ? clamp01(remaining / total) : 0,
-    phase: overtime ? 'over' : remaining <= timer.wrapUp ? 'warn' : 'normal',
+    phase: overtime ? "over" : remaining <= timer.wrapUp ? "warn" : "normal",
     overtime,
   };
 };
 
 /** When this run reaches zero, projected forward from wherever it is now. */
-export const finishesAt = (state: TimerState, now = Date.now()): number | null => {
+export const finishesAt = (
+  state: TimerState,
+  now = Date.now(),
+): number | null => {
   const timer = activeTimer(state);
 
-  if (!timer || timer.kind === 'clock') return null;
+  if (!timer || timer.kind === "clock") return null;
 
   const total = Math.max(0, timer.duration + state.adjustMs);
 
@@ -376,16 +450,16 @@ export const finishesAt = (state: TimerState, now = Date.now()): number | null =
 
 /** The ink a phase is drawn in, on an output and in the console preview. */
 export const PHASE_COLOR: Record<Phase, string> = {
-  normal: '#ffffff',
-  warn: '#fbbf24',
-  over: '#f87171',
+  normal: "#ffffff",
+  warn: "#fbbf24",
+  over: "#f87171",
 };
 
 export const PHASE_BAR: Record<Phase, string> = {
-  normal: '#22c55e',
-  warn: '#fbbf24',
-  over: '#ef4444',
+  normal: "#22c55e",
+  warn: "#fbbf24",
+  over: "#ef4444",
 };
 
 export const visibleMessages = (state: TimerState): TimerMessage[] =>
-  state.messages.filter(message => message.visible && message.text.trim());
+  state.messages.filter((message) => message.visible && message.text.trim());

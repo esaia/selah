@@ -1,9 +1,15 @@
-'use client';
+"use client";
 
-import { useCallback, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
-import { useTimerNow } from '@/components/projector/TimerScreen';
-import { cn } from '@/lib/cn';
+import { useTimerNow } from "@/components/projector/TimerScreen";
+import { cn } from "@/lib/cn";
 import {
   MINUTE,
   PHASE_BAR,
@@ -13,14 +19,26 @@ import {
   seekRun,
   timerReading,
   totalOf,
-} from '@/lib/timer/model';
-import { useStudio } from '@/lib/studio/StudioProvider';
+} from "@/lib/timer/model";
+import { useStudio } from "@/lib/studio/StudioProvider";
 
 /** Tick spacings, coarsest first match that still gives a readable count. */
-const STEPS = [10_000, 30_000, MINUTE, 2 * MINUTE, 5 * MINUTE, 10 * MINUTE, 15 * MINUTE, 30 * MINUTE, 60 * MINUTE];
+const STEPS = [
+  10_000,
+  30_000,
+  MINUTE,
+  2 * MINUTE,
+  5 * MINUTE,
+  10 * MINUTE,
+  15 * MINUTE,
+  30 * MINUTE,
+  60 * MINUTE,
+];
 
-/** The narrowest a labelled tick can be and still be read. */
-const LABEL_ROOM = 58;
+/** The narrowest a labelled tick can be and still be read. Tight on purpose:
+ *  a mark every minute is what makes the track worth glancing at, and the
+ *  labels are 10px tabular figures — `-12:30` is the widest of them. */
+const LABEL_ROOM = 38;
 
 /**
  * The marks to draw, as offsets from the end of the run: a countdown is read
@@ -35,7 +53,7 @@ const ticksFor = (total: number, width: number) => {
   if (!total || !width) return [];
 
   const room = Math.max(1, Math.floor(width / LABEL_ROOM));
-  const step = STEPS.find(candidate => total / candidate <= room) ?? total;
+  const step = STEPS.find((candidate) => total / candidate <= room) ?? total;
 
   const marks: number[] = [];
 
@@ -113,20 +131,23 @@ export const TimerScrubber = () => {
     const elapsed = elapsedAt(event.clientX);
 
     setDragging(null);
-    updateTimer(state => seekRun(state, elapsed));
+    updateTimer((state) => seekRun(state, elapsed));
   };
 
   // A wall clock has no run to scrub, and a timer with no length has no line.
-  if (kind === 'clock' || !total) return null;
+  if (kind === "clock" || !total) return null;
 
   const reading = timerReading(timer, now ?? timer.startedAt ?? 0);
-  const colour = PHASE_BAR[reading?.phase ?? 'normal'];
+  const colour = PHASE_BAR[reading?.phase ?? "normal"];
 
   const elapsed = dragging ?? elapsedOf(timer, now ?? timer.startedAt ?? 0);
   const left = Math.max(0, Math.min(1, elapsed / total)) * 100;
 
-  const up = kind === 'countup';
-  const smooth = dragging === null && !up ? 'transition-[left] duration-200 ease-linear' : '';
+  const up = kind === "countup";
+  const smooth =
+    dragging === null && !up
+      ? "transition-[left] duration-200 ease-linear"
+      : "";
 
   return (
     <div
@@ -137,13 +158,20 @@ export const TimerScrubber = () => {
       aria-valuemax={Math.round(total / 1000)}
       aria-valuenow={Math.round(elapsed / 1000)}
       aria-valuetext={formatDuration(up ? elapsed : total - elapsed)}
-      onKeyDown={event => {
-        const nudge = event.key === 'ArrowRight' ? 10_000 : event.key === 'ArrowLeft' ? -10_000 : 0;
+      onKeyDown={(event) => {
+        const nudge =
+          event.key === "ArrowRight"
+            ? 10_000
+            : event.key === "ArrowLeft"
+              ? -10_000
+              : 0;
 
         if (!nudge) return;
 
         event.preventDefault();
-        updateTimer(state => seekRun(state, Math.min(total, elapsedOf(state) + nudge)));
+        updateTimer((state) =>
+          seekRun(state, Math.min(total, elapsedOf(state) + nudge)),
+        );
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -157,10 +185,16 @@ export const TimerScrubber = () => {
           group-focus-visible:ring-2 group-focus-visible:ring-studio-accent/40"
       >
         {/* How far it has come, in the colour the digits are wearing. */}
-        <span className="absolute inset-y-0 left-0 opacity-25" style={{ width: `${left}%`, backgroundColor: colour }} />
+        <span
+          className="absolute inset-y-0 left-0 opacity-25"
+          style={{ width: `${left}%`, backgroundColor: colour }}
+        />
 
         {ticksFor(total, width)
-          .map(mark => ({ mark, at: up ? mark / total : (total - mark) / total }))
+          .map((mark) => ({
+            mark,
+            at: up ? mark / total : (total - mark) / total,
+          }))
           // The run's own total sits in the left corner; a mark landing on top
           // of it printed one number over the other.
           .filter(({ at }) => at * width >= LABEL_ROOM)
@@ -181,7 +215,10 @@ export const TimerScrubber = () => {
         </span>
 
         <span
-          className={cn('absolute inset-y-0 w-0.5 -translate-x-1/2 rounded-full', smooth)}
+          className={cn(
+            "absolute inset-y-0 w-0.5 -translate-x-1/2 rounded-full",
+            smooth,
+          )}
           style={{ left: `${left}%`, backgroundColor: colour }}
         />
       </div>
@@ -189,9 +226,9 @@ export const TimerScrubber = () => {
       {/* The grip sits proud of the track, so there is something to aim at. */}
       <span
         className={cn(
-          'pointer-events-none absolute top-0 size-3 -translate-x-1/2 rounded-full border-2 border-white shadow-studio',
+          "pointer-events-none absolute top-0 size-3 -translate-x-1/2 rounded-full border-2 border-white shadow-studio",
           smooth,
-          dragging === null ? '' : 'scale-125',
+          dragging === null ? "" : "scale-125",
         )}
         style={{ left: `${left}%`, backgroundColor: colour }}
       />

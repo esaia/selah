@@ -1,8 +1,14 @@
-'use client';
+"use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
-import { cn } from '@/lib/cn';
+import { cn } from "@/lib/cn";
 import {
   FLASH_MS,
   MESSAGE_COLORS,
@@ -12,7 +18,7 @@ import {
   timerReading,
   visibleMessages,
   type TimerState,
-} from '@/lib/timer/model';
+} from "@/lib/timer/model";
 
 /**
  * One frame of the stage timer, drawn the same way everywhere it appears: the
@@ -47,7 +53,7 @@ const subscribeClock = (listener: () => void) => {
 
   ticker ??= setInterval(() => {
     clockSnapshot = Date.now();
-    clockListeners.forEach(notify => notify());
+    clockListeners.forEach((notify) => notify());
   }, TICK_MS);
 
   return () => {
@@ -65,7 +71,8 @@ const subscribeClock = (listener: () => void) => {
 const readClock = () => (clockSnapshot ||= Date.now());
 const noClock = () => null;
 
-export const useTimerNow = (): number | null => useSyncExternalStore(subscribeClock, readClock, noClock);
+export const useTimerNow = (): number | null =>
+  useSyncExternalStore(subscribeClock, readClock, noClock);
 
 /**
  * Roughly how wide the digits are, in ems. Tabular figures are near enough a
@@ -74,7 +81,10 @@ export const useTimerNow = (): number | null => useSyncExternalStore(subscribeCl
  * count does.
  */
 const widthInEms = (text: string) =>
-  [...text].reduce((sum, char) => sum + (char === ':' ? 0.34 : char === '-' ? 0.42 : 0.62), 0);
+  [...text].reduce(
+    (sum, char) => sum + (char === ":" ? 0.34 : char === "-" ? 0.42 : 0.62),
+    0,
+  );
 
 /**
  * Watch one box. Only the box is observed — the sizes are worked out during
@@ -93,7 +103,11 @@ const useBox = () => {
     const measure = () => {
       const { width, height } = node.getBoundingClientRect();
 
-      setBox(current => (current.width === width && current.height === height ? current : { width, height }));
+      setBox((current) =>
+        current.width === width && current.height === height
+          ? current
+          : { width, height },
+      );
     };
 
     measure();
@@ -127,7 +141,10 @@ export const TimerScreen = ({
 
   // A wall clock is the one reading that has nothing sensible to show without
   // the real time, so it says so rather than flashing the epoch.
-  const text = now === null && reading?.kind === 'clock' ? '--:--:--' : (reading?.text ?? '0:00');
+  const text =
+    now === null && reading?.kind === "clock"
+      ? "--:--:--"
+      : (reading?.text ?? "0:00");
 
   // Two boxes, deliberately. Everything around the digits is sized from the
   // *whole* screen and only the digits from what is left over; sizing the
@@ -138,7 +155,9 @@ export const TimerScreen = ({
 
   const unit = frame.height;
   const digitSize =
-    digits.width && digits.height ? Math.floor(Math.min(digits.width / widthInEms(text), digits.height)) : 0;
+    digits.width && digits.height
+      ? Math.floor(Math.min(digits.width / widthInEms(text), digits.height))
+      : 0;
 
   // A flash is an event, not a state: the console bumps `flashAt`, and every
   // screen that sees a *new* value plays it once. Taken during render rather
@@ -152,7 +171,9 @@ export const TimerScreen = ({
     // Only worth playing if it was fired within living memory: a screen opening
     // mid-service reads the stored run, and must not strobe at a flash from ten
     // minutes ago.
-    setFlashingAt(now !== null && now - state.flashAt <= FLASH_MS * 4 ? state.flashAt : 0);
+    setFlashingAt(
+      now !== null && now - state.flashAt <= FLASH_MS * 4 ? state.flashAt : 0,
+    );
   }
 
   useEffect(() => {
@@ -164,11 +185,51 @@ export const TimerScreen = ({
   }, [flashingAt]);
 
   const messages = visibleMessages(state);
+  const takeover = messages.filter((message) => message.fullScreen);
 
-  if (state.blackout) return <div className={cn('size-full bg-black', className)} />;
+  if (state.blackout)
+    return <div className={cn("size-full bg-black", className)} />;
+
+  // A full-screen message is the whole output for as long as it is up: the
+  // person on stage should not have to find it under the digits.
+  if (takeover.length > 0)
+    return (
+      <div
+        ref={frameRef}
+        className={cn(
+          "relative flex size-full flex-col items-center justify-center gap-[3%] px-[6%] text-center",
+          className,
+        )}
+      >
+        {takeover.map((message) => (
+          <p
+            key={message.id}
+            className="leading-tight"
+            style={{
+              fontSize: Math.max(16, unit * (takeover.length > 1 ? 0.14 : 0.2)),
+              color: MESSAGE_COLORS[message.color],
+              fontWeight: message.bold ? 700 : 600,
+              textTransform: message.caps ? "uppercase" : "none",
+              // The same four blinks the digits wear, so Flash still reads.
+              animation: flashingAt
+                ? `timer-flash ${FLASH_MS / 4}ms ease-in-out 4`
+                : undefined,
+            }}
+          >
+            {message.text}
+          </p>
+        ))}
+      </div>
+    );
 
   return (
-    <div ref={frameRef} className={cn('relative flex size-full flex-col justify-center', className)}>
+    <div
+      ref={frameRef}
+      className={cn(
+        "relative flex size-full flex-col justify-center",
+        className,
+      )}
+    >
       {showName && reading?.name ? (
         <div
           className="shrink-0 truncate text-center font-medium tracking-[0.2em] text-white/70 uppercase"
@@ -181,15 +242,20 @@ export const TimerScreen = ({
         </div>
       ) : null}
 
-      <div ref={digitsRef} className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+      <div
+        ref={digitsRef}
+        className="flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+      >
         <span
           className="leading-none font-semibold whitespace-nowrap tabular-nums"
           style={{
             fontSize: digitSize || 1,
-            color: PHASE_COLOR[reading?.phase ?? 'normal'],
-            transition: 'color 300ms linear',
+            color: PHASE_COLOR[reading?.phase ?? "normal"],
+            transition: "color 300ms linear",
             // Four blinks over the flash, on the digits themselves.
-            animation: flashingAt ? `timer-flash ${FLASH_MS / 4}ms ease-in-out 4` : undefined,
+            animation: flashingAt
+              ? `timer-flash ${FLASH_MS / 4}ms ease-in-out 4`
+              : undefined,
           }}
         >
           {text}
@@ -206,7 +272,7 @@ export const TimerScreen = ({
             style={{
               width: `${reading.progress * 100}%`,
               backgroundColor: PHASE_BAR[reading.phase],
-              transition: 'width 250ms linear, background-color 300ms linear',
+              transition: "width 250ms linear, background-color 300ms linear",
             }}
           />
         </div>
@@ -224,14 +290,14 @@ export const TimerScreen = ({
             fontSize: Math.max(14, unit * (messages.length > 1 ? 0.12 : 0.2)),
           }}
         >
-          {messages.map(message => (
+          {messages.map((message) => (
             <p
               key={message.id}
               className="leading-tight"
               style={{
                 color: MESSAGE_COLORS[message.color],
                 fontWeight: message.bold ? 700 : 400,
-                textTransform: message.caps ? 'uppercase' : 'none',
+                textTransform: message.caps ? "uppercase" : "none",
               }}
             >
               {message.text}
@@ -248,7 +314,7 @@ export const TimerScreen = ({
             fontSize: Math.max(10, unit * 0.05),
           }}
         >
-          {now === null ? '--:--:--' : formatClock(now)}
+          {now === null ? "--:--:--" : formatClock(now)}
         </div>
       ) : null}
     </div>
