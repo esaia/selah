@@ -37,7 +37,7 @@ Three surfaces, one session:
 | `/studio` | the operator | yes |
 | `/show/<output_key>` | the machine driving the projector | no |
 | `/lower3rd/<output_key>` | an OBS Browser Source | no |
-| `/timer/<output_key>` | a stage or confidence monitor | no |
+| `/stage/<output_key>` | the stage display: current slide, next slide, clock and run | no |
 
 A session has an unguessable `output_key`. The outputs are addressed by it and
 join the realtime channel named after it — knowing the URL is the credential,

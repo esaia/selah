@@ -107,7 +107,10 @@ const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: b
       timers: current.timers.map(item => (item.id === timer.id ? { ...item, ...fields } : item)),
     }));
 
-  const running = live && state.running;
+  // The transport icon follows the run rather than the highlight — they part
+  // company for a timer armed but not up — and Clear stops the run, so a row
+  // that has gone quiet offers play again.
+  const running = state.activeId === timer.id && state.running;
 
   return (
     <li
@@ -225,7 +228,10 @@ export const TimerList = () => {
     <section className="space-y-2">
       <ul className="space-y-2">
         {timer.timers.map((item, index) => (
-          <Row key={item.id} timer={item} index={index} live={item.id === timer.activeId} />
+          // Live means on a screen, not merely armed: cleared, the running
+          // order goes quiet and nothing in it claims to be up, which is the
+          // whole point of having pressed Clear.
+          <Row key={item.id} timer={item} index={index} live={item.id === timer.activeId && timer.onStage} />
         ))}
       </ul>
 

@@ -1,10 +1,11 @@
 'use client';
 
-import { Ban, ExternalLink, Tv, Zap } from 'lucide-react';
+import { Ban, ExternalLink, Tv, X, Zap } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
 import { useStudio } from '@/lib/studio/StudioProvider';
+import { clearOutputs, onOutputs } from '@/lib/timer/model';
 
 import { TimerDashboard } from './TimerDashboard';
 import { TimerList } from './TimerList';
@@ -59,6 +60,11 @@ const ToggleButton = ({
 export const TimerPanel = () => {
   const { session, timer, updateTimer } = useStudio();
 
+  // Dead unless the timer is actually putting something out, so a stab at it
+  // between services cannot be mistaken for one that did something — and so
+  // the button doubles as a read of whether the stage is on the timer.
+  const live = onOutputs(timer);
+
   return (
     <div className="studio-scroll min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-[1440px] px-4 py-4">
@@ -77,6 +83,27 @@ export const TimerPanel = () => {
               <Tv className="size-3.5" />
               On projector
             </ToggleButton>
+
+            {/* What takes the timer back off the screens. Starting one puts it
+                up; nothing about the run itself takes it down again, because
+                pausing a count is not the same as being finished with it. */}
+            <button
+              type="button"
+              disabled={!live}
+              title={live ? 'Take the timer off the screens' : 'The timer is not on any screen'}
+              onClick={() => updateTimer(clearOutputs)}
+              className={cn(
+                'inline-flex h-8 items-center gap-1.5 rounded-studio border px-2.5 text-xs font-medium',
+                'transition-colors duration-150 focus:outline-none focus-visible:ring-2',
+                'focus-visible:ring-studio-accent/40 md:px-3',
+                live
+                  ? 'border-studio-border bg-white text-studio-text hover:bg-studio-surface'
+                  : 'cursor-not-allowed border-studio-border/60 bg-white text-studio-faint',
+              )}
+            >
+              <X className="size-3.5" />
+              Clear timer
+            </button>
 
             <ToggleButton
               tone="danger"
@@ -101,16 +128,16 @@ export const TimerPanel = () => {
             </button>
 
             <a
-              href={`/timer/${session.outputKey}`}
+              href={`/stage/${session.outputKey}`}
               target="_blank"
               rel="noreferrer"
-              title="Open the timer output"
+              title="Open the stage display"
               className="inline-flex h-8 items-center gap-1.5 rounded-studio border border-studio-border bg-white
                 px-2.5 text-xs font-medium text-studio-text transition-colors duration-150 hover:bg-studio-surface
                 md:px-3"
             >
               <ExternalLink className="size-3.5" />
-              Open timer
+              Open stage
             </a>
           </div>
         </div>

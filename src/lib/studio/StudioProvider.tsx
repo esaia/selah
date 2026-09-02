@@ -23,7 +23,6 @@ import { supabase } from '@/lib/supabase/client';
 import { save } from '@/lib/supabase/save';
 import {
   emptyShowData,
-  groupVerses,
   LANGS,
   type Block,
   type Lang,
@@ -43,6 +42,7 @@ import {
   regroup,
   removeBlock as removeBlockIn,
   setCollapsed,
+  slideOf,
   splitGroup as splitGroupIn,
   stepWithin,
   toggleCollapsed,
@@ -51,7 +51,7 @@ import {
 import { fromRow, projectorStyle, streamLangOf, streamStyle, toRow, type Settings, type SettingsRow } from './settings';
 import { useDebouncedSave } from './useDebouncedSave';
 
-export type Tab = 'bible' | 'audio' | 'lyrics' | 'timer';
+export type Tab = 'bible' | 'audio' | 'lyrics' | 'stage';
 
 export interface StudioSession {
   id: string;
@@ -72,6 +72,7 @@ export interface StudioInitial {
   };
   songs: Song[];
   showData: ShowData;
+  nextShowData: ShowData;
   timer: TimerState;
   plan: string;
 }
@@ -124,6 +125,8 @@ interface StudioValue {
   selectLyric: (song: Song, slideIndex: number) => void;
 
   showData: ShowData;
+  /** What the stage display has been told is coming after it. */
+  nextShowData: ShowData;
 
   timer: TimerState;
   /**
@@ -136,7 +139,7 @@ interface StudioValue {
   setTab: (tab: Tab) => void;
   cardSize: number;
   setCardSize: (size: number) => void;
-  peers: Record<'console' | 'show' | 'lower3rd' | 'timer', number>;
+  peers: Record<'console' | 'show' | 'lower3rd' | 'stage', number>;
 
   loadChapterCount: (query: { book: number; lang: Lang; version?: string }) => Promise<number>;
   loadVerseCount: (query: { book: number; chapter: number; lang: Lang; version?: string }) => Promise<number>;
@@ -169,8 +172,9 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   const [loading, setLoading] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [showData, setShowData] = useState<ShowData>(initial.showData);
+  const [nextShowData, setNextShowData] = useState<ShowData>(initial.nextShowData);
   const [timer, setTimer] = useState<TimerState>(() => asTimerState(initial.timer));
-  const [peers, setPeers] = useState({ console: 0, show: 0, lower3rd: 0, timer: 0 });
+  const [peers, setPeers] = useState({ console: 0, show: 0, lower3rd: 0, stage: 0 });
 
   const { blocks, live } = workspace;
 
@@ -198,6 +202,14 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     showRef.current = showData;
   }, [showData]);
 
+  // The same, for what is coming next. The console's stage preview draws it,
+  // and the look and timer effects re-send it, which is why it is both.
+  const nextRef = useRef<ShowData>(initial.nextShowData);
+
+  useEffect(() => {
+    nextRef.current = nextShowData;
+  }, [nextShowData]);
+
   // The timer travels with the slide, so a new verse or a look change carries
   // the run along with it and an output never has to ask for it.
   const timerRef = useRef<TimerState>(timer);
@@ -215,8 +227,9 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
    * lands. The outputs use it to correct for the clock skew between machines.
    */
   const payloadOf = useCallback(
-    (slide: ShowData, run: TimerState): SlidePayload => ({
+    (slide: ShowData, next: ShowData, run: TimerState): SlidePayload => ({
       showData: slide,
+      next,
       style: wireStyle.stream,
       projector: wireStyle.projector,
       streamLang: wireStyle.streamLang,
@@ -262,16 +275,19 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
    * instant for the outputs already watching.
    */
   const pushShow = useCallback(
-    (payload: ShowData) => {
+    (payload: ShowData, next: ShowData = emptyShowData()) => {
       setShowData(payload);
       showRef.current = payload;
+      setNextShowData(next);
+      nextRef.current = next;
 
-      channelRef.current?.publishSlide(payloadOf(payload, timerRef.current));
+      channelRef.current?.publishSlide(payloadOf(payload, next, timerRef.current));
 
       void save(
         db.from('session_state').upsert({
           session_id: initial.session.id,
           show_data: payload,
+          next_show_data: next,
           projector: wireStyle.projector,
           stream_style: wireStyle.stream,
           stream_lang: wireStyle.streamLang,
@@ -292,12 +308,13 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
     if (!channelRef.current) return;
 
-    channelRef.current.publishSlide(payloadOf(showRef.current, timerRef.current));
+    channelRef.current.publishSlide(payloadOf(showRef.current, nextRef.current, timerRef.current));
 
     void save(
       db.from('session_state').upsert({
         session_id: initial.session.id,
         show_data: showRef.current,
+        next_show_data: nextRef.current,
         projector: wireStyle.projector,
         stream_style: wireStyle.stream,
         stream_lang: wireStyle.streamLang,
@@ -323,7 +340,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       return;
     }
 
-    channelRef.current?.publishSlide(payloadOf(showRef.current, timer));
+    channelRef.current?.publishSlide(payloadOf(showRef.current, nextRef.current, timer));
   }, [payloadOf, timer]);
 
   useDebouncedSave(timer, next => {
@@ -567,14 +584,10 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
   const publish = useCallback(
     (block: Block, groupIndex: number) => {
-      const group = block.groups[groupIndex] ?? [];
-
-      pushShow({
-        ...emptyShowData(),
-        ...Object.fromEntries(
-          LANGS.map(lang => [lang, settings.enabled[lang] ? groupVerses(block, lang, group) : []]),
-        ),
-      } as ShowData);
+      // The card after this one goes with it, for the stage display. Off the
+      // end of the block it comes back empty, which is what the screen should
+      // say — the running order does not read on into the next passage.
+      pushShow(slideOf(block, groupIndex, settings.enabled), slideOf(block, groupIndex + 1, settings.enabled));
 
       setWorkspace(current => ({ ...current, live: { blockId: block.id, verseIndex: groupIndex } }));
     },
@@ -639,7 +652,12 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
       if (!slide) return;
 
-      pushShow({ ...emptyShowData(), lyrics: { title: song.title, text: slide.text } });
+      const after = song.slides[slideIndex + 1];
+
+      pushShow(
+        { ...emptyShowData(), lyrics: { title: song.title, text: slide.text } },
+        after ? { ...emptyShowData(), lyrics: { title: song.title, text: after.text } } : emptyShowData(),
+      );
       setWorkspace(current => ({ ...current, live: { kind: 'lyrics', songId: song.id, slideIndex } }));
     },
     [pushShow],
@@ -831,6 +849,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       publishLyrics,
       selectLyric,
       showData,
+      nextShowData,
       timer,
       updateTimer,
       tab,
@@ -873,6 +892,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       setlist,
       settings,
       showData,
+      nextShowData,
       songs,
       stepLive,
       tab,

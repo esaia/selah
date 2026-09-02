@@ -52,7 +52,7 @@ export const Console = () => {
       // A stage timer is started and stopped with a thumb on the space bar. On
       // its own tab that wins over stepping the slide, which is what the same
       // key does everywhere else in the console.
-      if (event.key === ' ' && tab === 'timer') {
+      if (event.key === ' ' && tab === 'stage') {
         event.preventDefault();
         updateTimer(toggleRun);
         return;
@@ -163,7 +163,7 @@ export const Console = () => {
 
           {tab === 'lyrics' ? <LyricsPanel onSearch={() => setSearching(true)} /> : null}
           {tab === 'audio' ? <AudioPanel /> : null}
-          {tab === 'timer' ? <TimerPanel /> : null}
+          {tab === 'stage' ? <TimerPanel /> : null}
 
           {/* Mounted on every tab, so a bed can be faded or stopped without
               leaving the passage that is on screen. */}

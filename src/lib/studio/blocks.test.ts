@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Block, Live } from '@/lib/types';
 
-import { joinGroup, moveBlockTo, planExtension, planTrim, regroup, splitGroup, stepWithin } from './blocks';
+import { joinGroup, moveBlockTo, planExtension, planTrim, regroup, slideOf, splitGroup, stepWithin } from './blocks';
 
 const block = (overrides: Partial<Block> = {}): Block => ({
   id: 'b1',
@@ -145,5 +145,29 @@ describe('stepWithin', () => {
     expect(stepWithin(block(), live(2), 1)).toBeNull();
     expect(stepWithin(block(), live(0), -1)).toBeNull();
     expect(stepWithin(block(), live(0), 1)).toBe(1);
+  });
+});
+
+describe('slideOf', () => {
+  const verse = (muxli: number) => ({ bv: `verse ${muxli}`, wigni: 45, tavi: 3, muxli });
+
+  const filled = block({
+    groups: [[16, 17], [18]],
+    data: { geo: [verse(16), verse(17), verse(18)], eng: [verse(16), verse(17), verse(18)], rus: [] },
+  });
+
+  const enabled = { geo: true, eng: false, rus: false };
+
+  it('fills the armed languages and leaves the rest empty', () => {
+    const slide = slideOf(filled, 0, enabled);
+
+    expect(slide.geo.map(item => item.muxli)).toEqual([16, 17]);
+    expect(slide.eng).toEqual([]);
+    expect(slide.rus).toEqual([]);
+  });
+
+  it('gives an empty slide past the end of the block, so a caller can ask for the next card', () => {
+    expect(slideOf(filled, 2, enabled)).toEqual({ geo: [], eng: [], rus: [] });
+    expect(slideOf(undefined, 0, enabled)).toEqual({ geo: [], eng: [], rus: [] });
   });
 });

@@ -20,6 +20,7 @@ import {
   seekRun,
   startRun,
   stepTimer,
+  timerIsLive,
   timerReading,
   totalOf,
   visibleMessages,
@@ -285,13 +286,12 @@ describe("clearOutputs", () => {
     expect(onOutputs(cleared)).toBe(false);
   });
 
-  it("leaves the run counting", () => {
-    const running = startRun(showing(), 1_000);
-    const cleared = clearOutputs(running);
+  it("takes the run back to the top with the screens", () => {
+    const cleared = clearOutputs(startRun(showing(), 1_000));
 
-    expect(cleared.running).toBe(true);
-    expect(cleared.startedAt).toBe(running.startedAt);
-    expect(elapsedOf(cleared, 4_000)).toBe(3_000);
+    expect(cleared.running).toBe(false);
+    expect(cleared.startedAt).toBe(null);
+    expect(elapsedOf(cleared, 4_000)).toBe(0);
   });
 
   it("is the same object when nothing is on the outputs", () => {
@@ -338,5 +338,40 @@ describe("the last ten seconds", () => {
     );
 
     expect(timerReading(open, 60_000)?.phase).toBe("normal");
+  });
+});
+
+describe("timerIsLive", () => {
+  it("leaves the stage screen to the slides while nothing has been started", () => {
+    expect(timerIsLive(emptyTimerState())).toBe(false);
+  });
+
+  it("goes up when a timer is started, and stays up through stop and reset", () => {
+    const started = startRun(emptyTimerState(), 1_000);
+
+    expect(timerIsLive(started)).toBe(true);
+    expect(timerIsLive(pauseRun(started, 5_000))).toBe(true);
+    expect(timerIsLive(resetRun(started))).toBe(true);
+  });
+
+  it("reads a run stored before the flag existed as up, so Clear has something to do", () => {
+    const stored = asTimerState({ ...emptyTimerState(), running: true, onStage: undefined });
+
+    expect(timerIsLive(stored)).toBe(true);
+    expect(onOutputs(stored)).toBe(true);
+  });
+
+  it("stops the run it takes down, so the transport does not offer to pause nothing", () => {
+    const cleared = clearOutputs(startRun(emptyTimerState(), 1_000));
+
+    expect(cleared.running).toBe(false);
+    expect(cleared.elapsedBefore).toBe(0);
+    expect(timerIsLive(asTimerState(cleared))).toBe(false);
+  });
+
+  it("comes down only on clear", () => {
+    const started = startRun(emptyTimerState(), 1_000);
+
+    expect(timerIsLive(clearOutputs(pauseRun(started, 5_000)))).toBe(false);
   });
 });

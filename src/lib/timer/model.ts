@@ -79,6 +79,16 @@ export interface TimerState {
   flashAt: number;
   /** Armed onto the projector, where it takes the slide's place. */
   onProjector: boolean;
+  /**
+   * Up on the stage display, where it takes the slides' place.
+   *
+   * A flag rather than something read off the run, because stopping a timer is
+   * not the same as being done with it: an operator pauses to let a speaker
+   * finish a thought and still wants the count in front of them. It goes up
+   * when a timer is started and comes down when Clear is pressed, and nothing
+   * else moves it.
+   */
+  onStage: boolean;
   /** Stamped as the payload goes out, so a reader can correct for clock skew. */
   sentAt: number;
 }
@@ -125,6 +135,7 @@ export const emptyTimerState = (): TimerState => {
     blackout: false,
     flashAt: 0,
     onProjector: false,
+    onStage: false,
     sentAt: 0,
   };
 };
@@ -201,6 +212,12 @@ export const asTimerState = (raw: unknown): TimerState => {
     blackout: Boolean(input.blackout),
     flashAt: Math.max(0, num(input.flashAt, 0)),
     onProjector: Boolean(input.onProjector),
+    // A row written before the stage had a flag of its own says nothing about
+    // it. A run that was going at the time was on the stage screen by the only
+    // rule there was then, so that is what it is read back as — otherwise the
+    // countdown comes up on a reload with a Clear button that thinks there is
+    // nothing to clear.
+    onStage: input.onStage === undefined ? Boolean(input.running) : Boolean(input.onStage),
     sentAt: Math.max(0, num(input.sentAt, 0)),
   };
 };
@@ -243,8 +260,11 @@ export const elapsedOf = (state: TimerState, now = Date.now()): number =>
 /* -- Transport. Pure, so a second console adopting the state agrees with the
       first about what pressing play meant. -------------------------------- */
 
+// Starting is also what puts the timer up: an operator who pressed play meant
+// the stage to see it, and a second arming step would only be one more thing
+// to forget. Taking it down is deliberate — that is what Clear is for.
 export const startRun = (state: TimerState, now = Date.now()): TimerState =>
-  state.running ? state : { ...state, running: true, startedAt: now };
+  state.running ? state : { ...state, running: true, startedAt: now, onStage: true };
 
 export const pauseRun = (state: TimerState, now = Date.now()): TimerState =>
   state.running
@@ -528,21 +548,38 @@ export const visibleMessages = (state: TimerState): TimerMessage[] =>
 
 /** Whether the timer is putting anything in front of the room. */
 export const onOutputs = (state: TimerState): boolean =>
-  state.onProjector || visibleMessages(state).length > 0;
+  state.onProjector || state.onStage || visibleMessages(state).length > 0;
 
 /**
- * Take the timer off the outputs: disarm it from the projector and pull every
- * message down.
+ * Whether the stage screen gives itself over to the run.
  *
- * The run itself is left alone. Clearing answers for what the room can see,
- * and an operator who takes a note down mid-sermon still wants the count they
- * have been keeping — starting it over is what `resetRun` is for.
+ * One flag, moved by two deliberate acts: play puts the timer up, Clear takes
+ * it down. Stop does not, because stopping is a thing an operator does *to* a
+ * running count and not a statement that the stage has finished with it.
+ *
+ * With it down the stage goes back to the slides on its own, and a note the
+ * operator has up is shown there in its own box — the screen never has to be
+ * reloaded to change its mind.
+ */
+export const timerIsLive = (state: TimerState): boolean => state.onStage;
+
+/**
+ * Take the timer off the outputs: off the stage screen, disarmed from the
+ * projector, every note down, and the run itself back to the top.
+ *
+ * The run goes with it because Clear is the end of a segment and not a pause in
+ * one — the operator who pressed it is done with this count, and a transport
+ * still showing Pause over a timer nothing can see is a lie about the state of
+ * the desk. Stopping without giving the screens back is what the transport is
+ * for; giving the screens back without stopping is not a thing anyone asked
+ * for twice.
  */
 export const clearOutputs = (state: TimerState): TimerState =>
-  onOutputs(state)
+  onOutputs(state) || state.running
     ? {
-        ...state,
+        ...resetRun(state),
         onProjector: false,
+        onStage: false,
         messages: state.messages.map((message) =>
           message.visible ? { ...message, visible: false } : message,
         ),

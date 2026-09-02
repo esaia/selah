@@ -44,6 +44,7 @@ export interface Database {
       session_state: Row<{
         session_id: string;
         show_data: Json;
+        next_show_data: Json;
         projector: Json;
         stream_style: Json;
         stream_lang: string;

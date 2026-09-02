@@ -1,4 +1,4 @@
-import type { Block, Live } from '@/lib/types';
+import { LANGS, emptyShowData, groupVerses, type Block, type Lang, type Live, type ShowData } from '@/lib/types';
 
 /**
  * Pure operations on the passage list.
@@ -171,4 +171,28 @@ export const stepWithin = (block: Block | undefined, live: Live, direction: numb
   const next = live.verseIndex + direction;
 
   return next < 0 || next >= (block.groups?.length ?? 0) ? null : next;
+};
+
+/**
+ * One card of a block as an output would receive it: the armed languages
+ * filled in, the rest left empty.
+ *
+ * A card index off either end gives an empty slide rather than nothing, which
+ * is what lets the caller ask for `groupIndex + 1` without a guard — the stage
+ * display's "up next" box is blank at the end of a block, and that is the
+ * honest answer, not an error.
+ */
+export const slideOf = (
+  block: Block | undefined,
+  groupIndex: number,
+  enabled: Record<Lang, boolean>,
+): ShowData => {
+  const group = block?.groups?.[groupIndex];
+
+  if (!block || !group) return emptyShowData();
+
+  return {
+    ...emptyShowData(),
+    ...Object.fromEntries(LANGS.map(lang => [lang, enabled[lang] ? groupVerses(block, lang, group) : []])),
+  } as ShowData;
 };

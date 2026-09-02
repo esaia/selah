@@ -3,12 +3,23 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, Minus, Pause, Play, Plus, RotateCcw, SkipBack, SkipForward } from 'lucide-react';
 
+import { StageScreen } from '@/components/projector/StageScreen';
 import { TimerScreen, useTimerNow } from '@/components/projector/TimerScreen';
 
 import { TimerScrubber } from './TimerScrubber';
 import { cn } from '@/lib/cn';
 import { useStudio } from '@/lib/studio/StudioProvider';
-import { MINUTE, adjustRun, finishesAt, formatClock, resetRun, stepTimer, toggleRun } from '@/lib/timer/model';
+import { projectorStyle } from '@/lib/studio/settings';
+import {
+  MINUTE,
+  adjustRun,
+  finishesAt,
+  formatClock,
+  resetRun,
+  stepTimer,
+  timerIsLive,
+  toggleRun,
+} from '@/lib/timer/model';
 
 const TONES = {
   default: 'bg-[#2a2e37] text-white hover:bg-[#3a3f4a]',
@@ -160,7 +171,7 @@ const AdjustGroup = ({ sign }: { sign: 1 | -1 }) => {
  * in one glance down the column.
  */
 export const TimerDashboard = () => {
-  const { timer, updateTimer } = useStudio();
+  const { nextShowData, settings, showData, timer, updateTimer } = useStudio();
 
   const now = useTimerNow();
   const finish = now === null ? null : finishesAt(timer, now);
@@ -171,15 +182,24 @@ export const TimerDashboard = () => {
        boxed in a panel of their own they read as furniture rather than as the
        instrument. */
     <section className="flex flex-wrap items-stretch gap-4">
-      {/* What the projector draws when the timer is armed onto it, on a plain
-          ground rather than the operator's background: the same component, the
-          same proportions, the same furniture, and no wall clock — the
-          projector leaves that off, so this does too. Not the `/timer` page in
-          an iframe; that would be a second output joining the channel to tell
-          the console what the console already knows. */}
+      {/* What `/stage/[key]` is drawing, face for face: the run while it is up,
+          the slides once it has been cleared, decided by the same predicate the
+          output itself uses. Not the page in an iframe — that would be a second
+          output joining the channel to tell the console what the console
+          already knows. The projector's version of the timer, which leaves the
+          wall clock off, is previewed beside the slide instead. */}
       <div className="w-full shrink-0 overflow-hidden rounded-studio-lg bg-studio-slide sm:w-[300px]">
         <div className="aspect-video w-full">
-          <TimerScreen state={timer} showClock={false} />
+          {timerIsLive(timer) ? (
+            <TimerScreen state={timer} />
+          ) : (
+            <StageScreen
+              showData={showData}
+              next={nextShowData}
+              projector={projectorStyle(settings)}
+              timer={timer}
+            />
+          )}
         </div>
       </div>
 

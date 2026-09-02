@@ -11,7 +11,7 @@ import { emptyShowData, type Block, type Live, type ShowData, type Song } from '
 
 export const metadata = { title: 'Console' };
 
-const TABS: Tab[] = ['bible', 'audio', 'lyrics', 'timer'];
+const TABS: Tab[] = ['bible', 'audio', 'lyrics', 'stage'];
 
 /**
  * The operator's console.
@@ -47,7 +47,7 @@ export default async function StudioPage() {
 
   const [{ data: workspace }, { data: state }, audioTracks, audioCategories] = await Promise.all([
     supabase.from('session_workspace').select('*').eq('session_id', session.data.id).maybeSingle(),
-    supabase.from('session_state').select('show_data, timer').eq('session_id', session.data.id).maybeSingle(),
+    supabase.from('session_state').select('show_data, next_show_data, timer').eq('session_id', session.data.id).maybeSingle(),
     // The operator's own running order, with the order they were added in as
     // the tie-break for rows that have never been dragged.
     supabase.from('audio_tracks').select('*').eq('user_id', user.id).order('position').order('created_at'),
@@ -85,6 +85,7 @@ export default async function StudioPage() {
     // believing nothing is live, and its first style push would tell the
     // projector the same — blanking a screen mid-service.
     showData: (state?.show_data as ShowData) ?? emptyShowData(),
+    nextShowData: (state?.next_show_data as ShowData) ?? emptyShowData(),
     // The run in progress, for the same reason: a console reopened mid-service
     // must pick the timer up where it is, not restart it.
     timer: asTimerState(state?.timer),

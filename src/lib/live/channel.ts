@@ -16,7 +16,7 @@ export interface LiveChannel {
   close: () => void;
 }
 
-const emptyRoles = (): Record<Role, number> => ({ console: 0, show: 0, lower3rd: 0, timer: 0 });
+const emptyRoles = (): Record<Role, number> => ({ console: 0, show: 0, lower3rd: 0, stage: 0 });
 
 /**
  * Join a session's realtime channel.

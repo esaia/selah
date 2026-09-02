@@ -6,7 +6,7 @@ import type { Lang, ProjectorStyle, ShowData, StreamStyle } from '@/lib/types';
  * roles are readers. Presence over these replaces the relay's hand-rolled
  * `{ type: 'presence' }` announce, and drives the Devices panel.
  */
-export type Role = 'console' | 'show' | 'lower3rd' | 'timer';
+export type Role = 'console' | 'show' | 'lower3rd' | 'stage';
 
 export const channelName = (outputKey: string) => `live:${outputKey}`;
 
@@ -20,6 +20,15 @@ export const SIGNAL = 'signal';
  */
 export interface SlidePayload {
   showData: ShowData;
+  /**
+   * The card after the live one, in the same shape — the stage display draws
+   * both with the one renderer. Empty at the end of a block: the running order
+   * is the console's, and it does not read across into the next passage.
+   *
+   * It rides here rather than inside `showData` because `showData` means "what
+   * the room is seeing", and this is precisely the slide the room is not.
+   */
+  next: ShowData;
   style: StreamStyle;
   projector: ProjectorStyle;
   streamLang: Lang;

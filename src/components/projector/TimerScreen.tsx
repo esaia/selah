@@ -1,19 +1,13 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
 
 import { cn } from "@/lib/cn";
+import { useBox } from "@/lib/projector/useBox";
+import { flashAnimation, useFlash } from "@/lib/projector/useFlash";
 import { fitText, refitOnFontLoad } from "@/lib/projector/fitText";
 import {
   FINAL_MS,
-  FLASH_MS,
   MESSAGE_COLORS,
   PHASE_BAR,
   PHASE_COLOR,
@@ -123,80 +117,15 @@ const BAR_HEIGHT = 0.035;
 const DIGITS_MIN = 0.12;
 
 /**
- * Watch one box. Only the box is observed — the sizes are worked out during
- * render — so a digit changing every second does not tear down and rebuild a
- * ResizeObserver every second.
+ * The smallest the name and the wall clock are ever set, so they stay legible
+ * in the console's 300px preview rather than becoming a grey smudge.
  *
- * A callback ref rather than an effect: a full-screen message swaps the frame
- * for a different element, and an effect that ran once at mount would be left
- * watching a node that is no longer on the page — the screen would come back
- * measuring nothing, and size to nothing with it.
+ * It is a floor on the *drawn* size, which means on a small frame it is larger
+ * than the share of the column those pieces were budgeted. Budget what is
+ * actually drawn — see `spent` — or the column adds up to more than the frame
+ * and the screen quietly clips its own foot.
  */
-const useBox = () => {
-  const watching = useRef<ResizeObserver | null>(null);
-  const [box, setBox] = useState({ width: 0, height: 0 });
-
-  const ref = useCallback((node: HTMLDivElement | null) => {
-    watching.current?.disconnect();
-    watching.current = null;
-
-    if (!node) return;
-
-    const measure = () => {
-      const { width, height } = node.getBoundingClientRect();
-
-      setBox((current) =>
-        current.width === width && current.height === height
-          ? current
-          : { width, height },
-      );
-    };
-
-    measure();
-
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    watching.current = observer;
-  }, []);
-
-  return [ref, box] as const;
-};
-
-/**
- * A flash is an event, not a state: the console bumps a stamp, and every screen
- * that sees a *new* value plays it once. Read during render rather than in an
- * effect, so the pulse lands on the same paint as the payload.
- *
- * The run has one stamp and each message has its own, so an operator can blink
- * a single note without strobing the digits.
- */
-const useFlash = (at: number, now: number | null) => {
-  const [seen, setSeen] = useState(at);
-  const [flashingAt, setFlashingAt] = useState(0);
-
-  if (at !== seen) {
-    setSeen(at);
-
-    // Only worth playing if it was fired within living memory: a screen opening
-    // mid-service reads the stored run, and must not strobe at a flash from ten
-    // minutes ago.
-    setFlashingAt(now !== null && now - at <= FLASH_MS * 4 ? at : 0);
-  }
-
-  useEffect(() => {
-    if (!flashingAt) return;
-
-    const id = setTimeout(() => setFlashingAt(0), FLASH_MS);
-
-    return () => clearTimeout(id);
-  }, [flashingAt]);
-
-  return flashingAt > 0;
-};
-
-/** The blinks themselves, four over the flash. */
-const flashAnimation = (lit: boolean) =>
-  lit ? `timer-flash ${FLASH_MS / 4}ms ease-in-out 4` : undefined;
+const MIN_TYPE = 10;
 
 /**
  * What the digits are doing: blinking at a flash the operator sent, or beating
@@ -278,12 +207,19 @@ export const TimerScreen = ({
 
   const hasName = Boolean(showName && reading?.name);
 
+  // The pieces that have a floor are measured before they are budgeted: on a
+  // small frame the floor is what gets drawn, and a budget taken from the
+  // share alone would be short by the difference.
+  const nameSize = hasName ? Math.max(MIN_TYPE, unit * NAME.size) : 0;
+  const clockSize = showClock ? Math.max(MIN_TYPE, unit * CLOCK.size) : 0;
+
   // What the furniture is taking, as a fraction of the frame. The bar is not
   // in it — it lies in the margin below the column, not in the column.
-  const spent =
-    (hasName ? NAME.size + NAME.gap : 0) +
-    (showClock ? CLOCK.size + CLOCK.gap : 0) +
-    (messages.length > 0 ? MESSAGE.gap + MESSAGE.share : 0);
+  const spent = unit
+    ? (hasName ? nameSize / unit + NAME.gap : 0) +
+      (showClock ? clockSize / unit + CLOCK.gap : 0) +
+      (messages.length > 0 ? MESSAGE.gap + MESSAGE.share : 0)
+    : 0;
 
   // The notes' own box: a fixed height, whatever they say. A full-screen one
   // has the frame instead.
@@ -309,7 +245,9 @@ export const TimerScreen = ({
   useLayoutEffect(() => {
     const refit = () =>
       fitText(notesRef.current, notesHeight, {
-        min: 10,
+        // No floor worth the name: a note that cannot be set at a readable
+        // size in the box it has should come down in size, not out of it.
+        min: 4,
         max: Math.max(
           12,
           unit * (takeover.length > 0 ? MESSAGE.takeover : MESSAGE.cap),
@@ -367,9 +305,12 @@ export const TimerScreen = ({
       <div ref={frameRef} className="flex size-full flex-col justify-center">
         {showName && reading?.name ? (
           <div
-            className="shrink-0 truncate text-center font-medium tracking-[0.2em] text-white/70 uppercase"
+            // `leading-none` so the line box is the font size and nothing more:
+            // it is budgeted as its own size above, and normal leading would
+            // spend a fifth again of it that nothing accounted for.
+            className="shrink-0 truncate text-center leading-none font-medium tracking-[0.2em] text-white/70 uppercase"
             style={{
-              fontSize: Math.max(10, unit * NAME.size),
+              fontSize: nameSize,
               marginBottom: unit * NAME.gap,
             }}
           >
@@ -426,10 +367,10 @@ export const TimerScreen = ({
 
         {showClock ? (
           <div
-            className="shrink-0 text-center tabular-nums text-white/40"
+            className="shrink-0 text-center leading-none tabular-nums text-white/40"
             style={{
               marginTop: unit * CLOCK.gap,
-              fontSize: Math.max(10, unit * CLOCK.size),
+              fontSize: clockSize,
             }}
           >
             {now === null ? "--:--:--" : formatClock(now)}
