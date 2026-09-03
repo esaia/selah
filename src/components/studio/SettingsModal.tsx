@@ -33,7 +33,7 @@ export const SettingsModal = ({ tab: opened, onClose }: { tab: string; onClose: 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-3 sm:p-6" onClick={onClose}>
       <div
-        className="flex h-full max-h-[36rem] w-full max-w-5xl flex-col overflow-hidden rounded-studio-lg bg-white
+        className="flex h-full max-h-[44rem] w-full max-w-6xl flex-col overflow-hidden rounded-studio-lg bg-white
           shadow-studio-modal sm:flex-row"
         onClick={event => event.stopPropagation()}
       >
@@ -70,7 +70,9 @@ export const SettingsModal = ({ tab: opened, onClose }: { tab: string; onClose: 
             </IconButton>
           </header>
 
-          <div className="studio-scroll min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+          {/* Extra room on the right: the scrollbar is drawn inside this box, so
+              equal padding leaves the widest controls sitting against it. */}
+          <div className="studio-scroll min-h-0 flex-1 overflow-y-auto p-4 pr-5 sm:p-5 sm:pr-7">
             {tab === 'projector' ? <StyleSection /> : null}
             {tab === 'stream' ? <StreamSection /> : null}
             {tab === 'devices' ? <DevicesSection /> : null}

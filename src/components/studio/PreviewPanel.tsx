@@ -3,12 +3,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { HiOutlinePencil } from 'react-icons/hi';
 
-import { apiBookName } from '@/lib/bible/passage';
 import { cn } from '@/lib/cn';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
+import { fitTo, lookOf } from '@/lib/projector/looks';
 import { DYNAMIC_THEME, LOCAL_THEME, themeSrc } from '@/lib/projector/themes';
 import { loadLocalFile } from '@/lib/media/localMedia';
-import { plain } from '@/lib/studio/text';
 import { projectorStyle, stageLangOf } from '@/lib/studio/settings';
 import {
   DEFAULT_PREVIEW_MODE,
@@ -18,14 +17,13 @@ import {
   type PreviewMode,
 } from '@/lib/studio/previewMode';
 import { timerIsLive } from '@/lib/timer/model';
+import { Slide } from '@/components/projector/Slide';
 import { StageScreen } from '@/components/projector/StageScreen';
 import { TimerScreen } from '@/components/projector/TimerScreen';
 import { useStudio } from '@/lib/studio/StudioProvider';
 
 import { ClearBar } from './ClearBar';
-import type { Align, Lang, ShowData, Verse } from '@/lib/types';
-
-const ALIGN_CLASS: Record<Align, string> = { left: 'text-left', center: 'text-center', right: 'text-right' };
+import type { ShowData } from '@/lib/types';
 
 /** The frame the lower third is authored against; the iframe is scaled from it. */
 const STREAM_W = 1920;
@@ -64,25 +62,15 @@ const modeStore = {
   },
 };
 
-const reference = (items: Verse[], lang: Lang) => {
-  const first = items[0];
-  const last = items[items.length - 1];
-  const name = apiBookName(first.wigni, lang);
-
-  return items.length > 1
-    ? `${name} ${first.tavi}:${first.muxli}-${last.muxli}`
-    : `${name} ${first.tavi}:${first.muxli}`;
-};
-
 /**
  * Mirror of what the projector is showing, docked at the top of the right rail
  * the way a presentation app puts its output preview: always in the same place,
  * never in front of the verse it is previewing.
  *
- * It deliberately does *not* reuse the projector's own markup. That block is
- * sized in absolute pixels against a full screen, and at rail width its padding
- * alone would eat the slide. This renders the same design in `em`, so one fit
- * pass scales the whole thing — text, gaps and reference together.
+ * The projector pane renders the projector's own `<Slide>`, at the operator's
+ * own look: the markup is sized in `em`, so one fit pass against the panel's
+ * height scales the whole thing — text, gaps and reference together — and what
+ * the operator judges here cannot disagree with what the room sees.
  */
 export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void }) => {
   const { settings, showData, nextShowData, session, timer } = useStudio();
@@ -162,24 +150,28 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
 
   const lyrics = onScreen.lyrics?.text ?? '';
   const armed = settings.langOrder.filter(lang => settings.enabled[lang]);
-  const rows = armed.map(lang => ({ lang, items: onScreen[lang] ?? [] }));
-  const hasContent = Boolean(lyrics) || rows.some(row => row.items.length > 0);
+  const hasContent = Boolean(lyrics) || armed.some(lang => (onScreen[lang] ?? []).length > 0);
+
+  const projector = projectorStyle(settings);
+  const look = lookOf(lyrics ? projector.lyricsLook : projector.look, Boolean(lyrics));
 
   // The badge and the clear strip answer for the outputs, not for the panel,
   // so they read the live slide rather than the one the fade is still showing.
   const isLive = Boolean(showData.lyrics?.text) || armed.some(lang => (showData[lang] ?? []).length > 0);
 
-  // Same fit as the projector, in proportion to the panel — the bounds are the
-  // projector's own, expressed as fractions of the screen height, so a slide
-  // that fills the projector fills the preview too.
+  // Same fit as the projector, in proportion to the panel: the look supplies
+  // the bounds as fractions of the screen height, so a slide that fills the
+  // projector fills the preview too.
   useEffect(() => {
     const refit = () => {
       const height = screenRef.current?.clientHeight ?? 0;
-
-      fitText(textRef.current, height * 0.89, {
+      const { available, min, max } = fitTo(look, height, {
         min: 5,
-        max: Math.max(6, Math.round(height / (lyrics ? 4 : 13))),
+        scale: lyrics ? projector.lyricsScale : 'both',
+        size: projector.lyricsSize,
       });
+
+      fitText(textRef.current, available, { min, max });
     };
 
     refit();
@@ -302,7 +294,7 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
             <StageScreen
               showData={showData}
               next={nextShowData}
-              projector={projectorStyle(settings)}
+              projector={projector}
               stageLang={stageLangOf(settings)}
               timer={timer}
             />
@@ -328,7 +320,7 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
           ) : null}
 
           <div
-            className="relative flex h-full w-full items-center justify-center px-[6%]"
+            className="relative flex h-full w-full items-center justify-center"
             style={{
               opacity: !timer.onProjector && visible ? 1 : 0,
               transition: cut ? 'none' : `opacity ${fadeMs}ms ease-in-out`,
@@ -336,30 +328,8 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
           >
             {!hasContent ? (
               <p className="text-xs text-white/40">Nothing is live</p>
-            ) : lyrics ? (
-              <div ref={textRef} className={cn('w-full', settings.lyricsFont)}>
-                <p className={cn('leading-snug font-semibold text-white', ALIGN_CLASS[settings.lyricsAlign])}>
-                  {lyrics.split('\n').join(' ')}
-                </p>
-              </div>
             ) : (
-              <div ref={textRef} className={cn('w-full', settings.font)}>
-                {rows.map(({ lang, items }) =>
-                  items.length > 0 ? (
-                    <div key={lang} className="py-[0.35em]">
-                      <p className={cn('leading-snug font-semibold text-white', ALIGN_CLASS[settings.align])}>
-                        {items.map(item => plain(item.bv)).join(' ')}
-                      </p>
-                      <p
-                        className={cn('text-gray-300/90 italic', ALIGN_CLASS[settings.align])}
-                        style={{ fontSize: '0.72em' }}
-                      >
-                        {reference(items, lang)}
-                      </p>
-                    </div>
-                  ) : null,
-                )}
-              </div>
+              <Slide ref={textRef} showData={onScreen} style={projector} />
             )}
           </div>
         </div>

@@ -71,7 +71,10 @@ export const LocalBackgrounds = () => {
   const selected = settings.theme === LOCAL_THEME ? settings.localImage?.id : null;
 
   return (
-    <div>
+    // Clear of the stock grid above: the two are different libraries, not two
+    // rows of one, and the Add button needs air around it to read as a control
+    // rather than as another tile.
+    <div className="mt-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="min-w-0 truncate text-sm">Your own pictures</h2>
 

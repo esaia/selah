@@ -6,25 +6,18 @@ import { newPeerId, openLiveChannel, type LiveChannel } from '@/lib/live/channel
 import type { SignalTransport, SlidePayload } from '@/lib/live/protocol';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
 import { keepSame } from '@/lib/projector/keepSame';
+import { DEFAULT_LYRIC_LOOK, DEFAULT_TEXT_SIZE, DEFAULT_VERSE_LOOK, fitTo, lookOf } from '@/lib/projector/looks';
 import { DYNAMIC_THEME, LOCAL_THEME, themeSrc } from '@/lib/projector/themes';
 import { asTimerState, withSkew, type TimerState } from '@/lib/timer/model';
-import { emptyShowData, REQUIRED_LANG, type Align, type ProjectorStyle, type ShowData } from '@/lib/types';
+import { emptyShowData, REQUIRED_LANG, type ProjectorStyle, type ShowData } from '@/lib/types';
 
+import { Slide } from './Slide';
 import { TimerScreen } from './TimerScreen';
-import { VerseBlock } from './VerseBlock';
 import { useLocalBackground } from './useLocalBackground';
 
-/** Room for the reference line and a margin the text must not crowd. */
-const VERTICAL_MARGIN = 160;
 const MIN_FONT_SIZE = 12;
 const MAX_FONT_SIZE = 64;
 const LYRICS_MAX_FONT_SIZE = 200;
-
-const ALIGN_CLASS: Record<Align, string> = {
-  left: 'text-left',
-  center: 'text-center',
-  right: 'text-right',
-};
 
 const defaultStyle: ProjectorStyle = {
   theme: '1',
@@ -34,6 +27,10 @@ const defaultStyle: ProjectorStyle = {
   align: 'left',
   lyricsFont: 'font-banner',
   lyricsAlign: 'left',
+  look: DEFAULT_VERSE_LOOK,
+  lyricsLook: DEFAULT_LYRIC_LOOK,
+  lyricsScale: 'both',
+  lyricsSize: DEFAULT_TEXT_SIZE,
   order: [REQUIRED_LANG],
   enabled: { [REQUIRED_LANG]: true },
   transitionMs: 320,
@@ -129,18 +126,25 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
 
   const lyrics = Boolean(onScreen?.lyrics);
 
+  const look = lookOf(lyrics ? style.lyricsLook : style.look, lyrics);
+
   /**
-   * Fit what is on screen. The upper bound stops a two-word verse from filling
-   * the whole projector; the lower bound keeps a long passage legible.
+   * Fit what is on screen, within the bounds the chosen look asks for. The
+   * ceiling stops a two-word verse from filling the whole projector; the floor
+   * keeps a long passage legible.
    */
   const resize = useCallback(() => {
-    fitText(textRef.current, window.innerHeight - VERTICAL_MARGIN, {
+    const { available, min, max } = fitTo(look, window.innerHeight, {
+      cap: lyrics ? LYRICS_MAX_FONT_SIZE : MAX_FONT_SIZE,
       min: MIN_FONT_SIZE,
-      max: lyrics
-        ? Math.min(LYRICS_MAX_FONT_SIZE, Math.round(window.innerHeight / 4))
-        : Math.min(MAX_FONT_SIZE, Math.round(window.innerHeight / 13)),
+      // Only song text is sized by hand; a verse is always fitted, because a
+      // passage the operator did not choose the length of has to fit.
+      scale: lyrics ? style.lyricsScale : 'both',
+      size: style.lyricsSize,
     });
-  }, [lyrics]);
+
+    fitText(textRef.current, available, { min, max });
+  }, [look, lyrics, style.lyricsScale, style.lyricsSize]);
 
   useEffect(() => {
     resize();
@@ -160,9 +164,9 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
   }, [onScreen, resize, style.align, style.font, style.lyricsAlign, style.lyricsFont, style.order]);
 
   return (
-    <div className={`h-dvh w-full bg-black ${lyrics ? style.lyricsFont : style.font}`}>
+    <div className="h-dvh w-full bg-black">
       <div
-        className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-cover bg-center bg-no-repeat px-10"
+        className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-cover bg-center bg-no-repeat"
         style={background ? { backgroundImage: `url(${background})` } : undefined}
       >
         {/* Scrim: projector bulbs wash out white text on a bright photograph. */}
@@ -178,8 +182,7 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
         ) : null}
 
         <div
-          ref={textRef}
-          className={`relative w-full max-w-[2000px] px-[4%] py-2.5 ${ALIGN_CLASS[lyrics ? style.lyricsAlign : style.align]}`}
+          className="relative flex h-full w-full items-center justify-center"
           style={{
             // The timer takes the screen rather than sharing it, but the verse
             // stays mounted underneath so disarming brings it back already
@@ -188,19 +191,7 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
             transition: cut ? 'none' : `opacity ${style.transitionMs / 2}ms ease-in-out`,
           }}
         >
-          {onScreen?.lyrics ? (
-            // A song slide is one block of text: no reference, no language
-            // stack, and the armed languages do not apply to it. The line
-            // breaks the song was written with are ignored — at projector size
-            // they wrap anyway, and honouring both gives a ragged block.
-            <div className="w-full">
-              <p className="show-text">{onScreen.lyrics.text.split('\n').join(' ')}</p>
-            </div>
-          ) : (
-            style.order.map(lang =>
-              style.enabled?.[lang] ? <VerseBlock key={lang} lang={lang} showData={onScreen} /> : null,
-            )
-          )}
+          <Slide ref={textRef} showData={onScreen} style={style} className="max-w-[2000px]" />
         </div>
       </div>
     </div>

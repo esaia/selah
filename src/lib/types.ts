@@ -12,6 +12,7 @@ export {
 export type { Lang, LangSpec } from '@/lib/bible/languages';
 
 import type { Lang } from '@/lib/bible/languages';
+import type { ScaleMode } from '@/lib/projector/looks';
 
 /**
  * A verse exactly as the scripture API returns it. The Georgian field names are
@@ -59,6 +60,13 @@ export interface ProjectorStyle {
   align: Align;
   lyricsFont: string;
   lyricsAlign: Align;
+  /** Which layout the slide is drawn in; see `lib/projector/looks.ts`. */
+  look: string;
+  lyricsLook: string;
+  /** How song text is sized: scaled to fit, or held at `lyricsSize`. */
+  lyricsScale: ScaleMode;
+  /** That size, as a percentage of the screen height. */
+  lyricsSize: number;
   order: Lang[];
   enabled: Partial<Record<Lang, boolean>>;
   transitionMs: number;

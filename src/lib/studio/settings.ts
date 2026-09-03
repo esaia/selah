@@ -1,4 +1,12 @@
 import { defaultVersionOf, isLang, MAX_LANGS, REQUIRED_LANG, type Lang } from '@/lib/bible/languages';
+import {
+  asScaleMode,
+  clampTextSize,
+  DEFAULT_LYRIC_LOOK,
+  DEFAULT_TEXT_SIZE,
+  DEFAULT_VERSE_LOOK,
+  type ScaleMode,
+} from '@/lib/projector/looks';
 import { clampTransition, DEFAULT_TRANSITION_MS } from '@/lib/projector/transition';
 import type { Database } from '@/lib/supabase/types';
 import type { Align, LocalFileMeta, ProjectorStyle, StreamStyle } from '@/lib/types';
@@ -23,6 +31,10 @@ export interface Settings {
   align: Align;
   lyricsFont: string;
   lyricsAlign: Align;
+  projectorLook: string;
+  projectorLyricsLook: string;
+  lyricsScale: ScaleMode;
+  lyricsSize: number;
   transitionMs: number;
   langOrder: Lang[];
   lowerThirdPosition: 'top' | 'bottom';
@@ -78,6 +90,15 @@ export const fromRow = (row: SettingsRow): Settings => {
     align: asAlign(row.align),
     lyricsFont: row.lyrics_font || row.font || 'font-banner',
     lyricsAlign: asAlign(row.lyrics_align ?? row.align),
+    projectorLook: row.projector_look || DEFAULT_VERSE_LOOK,
+    // 'steady' was a layout before song text got its own scaling control; it
+    // said "hold the size still", which is now a mode rather than a look.
+    projectorLyricsLook:
+      !row.projector_lyrics_look || row.projector_lyrics_look === 'steady'
+        ? DEFAULT_LYRIC_LOOK
+        : row.projector_lyrics_look,
+    lyricsScale: row.projector_lyrics_look === 'steady' ? 'none' : asScaleMode(row.lyrics_scale),
+    lyricsSize: clampTextSize(row.lyrics_size ?? DEFAULT_TEXT_SIZE),
     transitionMs: clampTransition(row.transition_ms ?? DEFAULT_TRANSITION_MS),
     langOrder,
     lowerThirdPosition: row.lower_third_position === 'top' ? 'top' : 'bottom',
@@ -101,6 +122,10 @@ export const toRow = (settings: Settings) => ({
   align: settings.align,
   lyrics_font: settings.lyricsFont,
   lyrics_align: settings.lyricsAlign,
+  projector_look: settings.projectorLook,
+  projector_lyrics_look: settings.projectorLyricsLook,
+  lyrics_scale: settings.lyricsScale,
+  lyrics_size: settings.lyricsSize,
   transition_ms: settings.transitionMs,
   lang_order: settings.langOrder,
   lower_third_position: settings.lowerThirdPosition,
@@ -120,6 +145,10 @@ export const projectorStyle = (settings: Settings): ProjectorStyle => ({
   align: settings.align,
   lyricsFont: settings.lyricsFont,
   lyricsAlign: settings.lyricsAlign,
+  look: settings.projectorLook,
+  lyricsLook: settings.projectorLyricsLook,
+  lyricsScale: settings.lyricsScale,
+  lyricsSize: settings.lyricsSize,
   order: settings.langOrder,
   enabled: settings.enabled,
   transitionMs: settings.transitionMs,

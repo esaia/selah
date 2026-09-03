@@ -421,13 +421,232 @@ body {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   /show — the projector output.
+
+   One markup, several looks, exactly as the lower third works: a look is a
+   block below that re-points the knobs on `.show-slide`, never its own layout.
+   Everything is in `em` so the single `fitText` pass the caller runs on the
+   slide scales the text, the gaps, the plate and the reference together — the
+   same markup has to come out right on a 4K projector, in a preview the width
+   of the right rail, and in a tile in the settings dialog.
+   --------------------------------------------------------------------------- */
+
+.show-slide {
+  position: relative;
+  width: 100%;
+  padding: 0 4%;
+
+  /* Per-look knobs. */
+  --show-fg: #ffffff;
+  --show-ref: rgba(255, 255, 255, 0.82);
+  --show-ref-size: 0.72em;
+  --show-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  --show-gap: 0.5em;
+}
+
+/* Column, so a look can lift the reference above the verse with `order` rather
+   than the component having to render two different trees. */
+.show-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.show-block + .show-block {
+  margin-top: var(--show-gap);
+}
+
 /* Without this the projector block inherits the browser's 1.5, which at
    projector size opens a gap wider than the caps are tall. Tighter lines also
    let fitText spend the reclaimed height on a larger font. */
-@utility show-text {
-  color: white;
+.show-text {
+  color: var(--show-fg);
   line-height: 1.2;
-  padding: 0.5rem 4rem;
+  padding: 0.14em 0;
+  text-shadow: var(--show-shadow);
+}
+
+.show-refline {
+  margin-top: 0.22em;
+}
+
+.show-ref {
+  display: inline-block;
+  font-size: var(--show-ref-size);
+  font-style: italic;
+  color: var(--show-ref);
+  text-shadow: var(--show-shadow);
+}
+
+/* Reference in the corner: small, hard right, and clear of the verse whatever
+   the slide's own alignment is — the verse gets the width, the reference gets
+   out of the way. */
+.show-slide--corner {
+  --show-ref-size: 0.46em;
+  --show-ref: rgba(255, 255, 255, 0.7);
+}
+
+.show-slide--corner .show-refline {
+  margin-top: 0.5em;
+  text-align: right;
+}
+
+/* Reference as a heading, centred and ruled off from the verse — over it, or
+   under it for a screen whose top edge is behind the band. The rule is on the
+   line, not the words, so it runs the full measure. */
+.show-slide--heading,
+.show-slide--headingbelow {
+  --show-ref-size: 0.6em;
+}
+
+.show-slide--heading .show-refline,
+.show-slide--headingbelow .show-refline {
+  text-align: center;
+}
+
+.show-slide--heading .show-refline {
+  order: -1;
+  margin: 0 0 0.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.show-slide--headingbelow .show-refline {
+  margin: 0.5em 0 0;
+  padding-top: 0.3em;
+  border-top: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.show-slide--heading .show-ref,
+.show-slide--headingbelow .show-ref {
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* An overline: the reference small and tracked out above the verse, taking the
+   slide's own alignment. Quiet enough to read as a label rather than a line. */
+.show-slide--overline {
+  --show-ref-size: 0.4em;
+  --show-ref: rgba(255, 255, 255, 0.72);
+}
+
+.show-slide--overline .show-refline {
+  order: -1;
+  margin: 0 0 0.55em;
+}
+
+.show-slide--overline .show-ref {
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* On a plate: the block carries its own darkened panel, for a background too
+   busy or too bright for a shadow to save. Shared by verses and lyrics — one
+   look under one name, which is why the block and not the slide is the plate.
+   The shadow goes: text on its own plate does not need one, and at projector
+   size it only fattens the letters. */
+.show-slide--plate {
+  --show-shadow: none;
+  --show-gap: 0.4em;
+}
+
+.show-slide--plate .show-block {
+  padding: 0.6em 0.8em;
+  border-radius: 0.22em;
+  background: rgba(6, 8, 12, 0.62);
+}
+
+/* Ruled off: the reference under a short rule as wide as the words, set in
+   small caps rather than italics. */
+.show-slide--rule {
+  --show-ref-size: 0.42em;
+}
+
+.show-slide--rule .show-refline {
+  margin-top: 0.5em;
+}
+
+.show-slide--rule .show-ref {
+  padding-top: 0.34em;
+  border-top: 0.08em solid rgba(255, 255, 255, 0.55);
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* The reference in a pill above the verse — the loudest of the looks, and the
+   one that survives a photograph with something going on behind the words. */
+.show-slide--chip {
+  --show-ref-size: 0.44em;
+  --show-ref: #ffffff;
+}
+
+.show-slide--chip .show-refline {
+  order: -1;
+  margin: 0 0 0.6em;
+}
+
+.show-slide--chip .show-ref {
+  padding: 0.24em 0.8em;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* Lyrics off centre, leaving half the picture clear: low for a screen mounted
+   high, high for one the band stands in front of. The slide is a flex child of
+   the stage, so it moves by giving up its own centring; the fit already knows
+   it has less height to play with. */
+.show-slide--lower {
+  align-self: flex-end;
+  padding-bottom: 6%;
+}
+
+.show-slide--upper {
+  align-self: flex-start;
+  padding-top: 6%;
+}
+
+/* A narrower measure, for a song that reads better as a column than as a band
+   running the full width of the screen. */
+.show-slide--column {
+  padding-left: 16%;
+  padding-right: 16%;
+}
+
+/* ---------------------------------------------------------------------------
+   The projector look picker's tiles.
+
+   Same trick as the lower third's `.l3-preview`, with one difference: two of
+   the song looks differ only in how large the words come out, so a tile that
+   did not run the real fit could not tell them apart. Each tile is therefore a
+   small screen — a fixed frame the slide is fitted against, scaled down to
+   whatever width the tile happens to be — rather than the slide at some
+   arbitrary font size.
+   --------------------------------------------------------------------------- */
+
+.show-preview {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  background-color: #12151a;
+  background-size: cover;
+  background-position: center;
+}
+
+.show-preview-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: top left;
 }
 /* ---------------------------------------------------------------------------
    /lower3rd — the OBS Browser Source output.

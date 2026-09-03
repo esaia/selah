@@ -5,12 +5,20 @@ import { MdFormatAlignCenter, MdFormatAlignLeft, MdFormatAlignRight } from 'reac
 
 import { Select } from '@/components/ui/Select';
 import { cn } from '@/lib/cn';
+import {
+  asScaleMode,
+  clampTextSize,
+  MAX_TEXT_SIZE,
+  MIN_TEXT_SIZE,
+  SCALE_MODES,
+} from '@/lib/projector/looks';
 import { MAX_TRANSITION_MS, MIN_TRANSITION_MS } from '@/lib/projector/transition';
 import { DYNAMIC_THEME, THEMES } from '@/lib/projector/themes';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import type { Align } from '@/lib/types';
 
 import { LocalBackgrounds } from './LocalBackgrounds';
+import { ProjectorLookPicker } from './ProjectorLookPicker';
 
 const ALIGNMENTS = [
   { value: 'left' as Align, label: 'Align left', Icon: MdFormatAlignLeft },
@@ -154,6 +162,49 @@ export const StyleSection = () => {
           >
             Use
           </button>
+        </div>
+      </Field>
+
+      <ProjectorLookPicker />
+
+      <Field
+        label="Song text size"
+        hint="Songs are scaled to fit the screen by default. Pin the size instead if the words
+          growing and shrinking between slides is distracting."
+      >
+        <div className="flex items-center gap-1.5">
+          <Select
+            className="min-w-0 flex-1"
+            value={settings.lyricsScale}
+            onChange={value => update({ lyricsScale: asScaleMode(value) })}
+            options={SCALE_MODES}
+          />
+
+          {/* Meaningless while the fit is free to pick any size, so it says so
+              rather than sitting there inviting a drag that changes nothing. */}
+          <div className="flex shrink-0 items-center gap-2">
+            <input
+              type="range"
+              min={MIN_TEXT_SIZE}
+              max={MAX_TEXT_SIZE}
+              step={1}
+              value={settings.lyricsSize}
+              disabled={settings.lyricsScale === 'both'}
+              aria-label="Song text size, as a share of the screen height"
+              onChange={event => update({ lyricsSize: clampTextSize(Number(event.target.value)) })}
+              style={
+                {
+                  '--range-fill': `${((settings.lyricsSize - MIN_TEXT_SIZE) / (MAX_TEXT_SIZE - MIN_TEXT_SIZE)) * 100}%`,
+                } as CSSProperties
+              }
+              className="studio-range h-1.5 w-28 cursor-pointer appearance-none rounded-full bg-studio-border
+                disabled:cursor-not-allowed disabled:opacity-40"
+            />
+
+            <span className="w-8 shrink-0 text-right text-xs text-studio-muted tabular-nums">
+              {settings.lyricsScale === 'both' ? 'Auto' : `${settings.lyricsSize}%`}
+            </span>
+          </div>
         </div>
       </Field>
 
