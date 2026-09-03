@@ -40,15 +40,21 @@ const groundOf = (element: HTMLElement) => {
  * browser takes its picture — photographing the row gave an empty rectangle.
  * The copy is squared off as well: the snapshot keeps the whole box, so a
  * rounded row leaves transparent corners in it that the browser paints black.
+ *
+ * A row may nominate the part of itself worth carrying with `data-ghost`. An
+ * expanded passage is a screenful of verse cards, and a screenful under the
+ * pointer hides the list it is being dropped into; its title alone says which
+ * row is in the air.
  */
 const ghostOf = (event: DragEvent<HTMLElement>) => {
   const row = event.currentTarget;
-  const box = row.getBoundingClientRect();
-  const copy = row.cloneNode(true) as HTMLElement;
+  const face = row.querySelector<HTMLElement>('[data-ghost]') ?? row;
+  const box = face.getBoundingClientRect();
+  const copy = face.cloneNode(true) as HTMLElement;
 
   // What the operator typed but never committed to an attribute: a clone
   // carries the markup, not the live value of a field.
-  const typed = row.querySelectorAll('input, textarea');
+  const typed = face.querySelectorAll('input, textarea');
 
   copy.querySelectorAll('input, textarea').forEach((field, at) => {
     const from = typed[at];
@@ -68,7 +74,7 @@ const ghostOf = (event: DragEvent<HTMLElement>) => {
     height: `${box.height}px`,
     margin: '0',
     borderRadius: '0px',
-    background: groundOf(row),
+    background: groundOf(face),
     boxShadow: '0 10px 24px -8px rgb(17 19 24 / 0.35)',
     outline: '1px solid rgb(17 19 24 / 0.08)',
     pointerEvents: 'none',
@@ -76,11 +82,16 @@ const ghostOf = (event: DragEvent<HTMLElement>) => {
 
   document.body.append(copy);
 
-  // Held at the point it was picked up rather than pinned to a corner.
+  // Held at the point it was picked up rather than pinned to a corner — and
+  // kept inside the picture, which for a nominated face is smaller than the row
+  // the pointer went down on.
+  const grip = (at: number, edge: number, span: number) =>
+    Math.min(Math.max(at - edge, 0), span);
+
   event.dataTransfer.setDragImage(
     copy,
-    event.clientX - box.left,
-    event.clientY - box.top,
+    grip(event.clientX, box.left, box.width),
+    grip(event.clientY, box.top, box.height),
   );
 
   requestAnimationFrame(() => copy.remove());

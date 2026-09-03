@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
   HiOutlineArrowDown,
   HiOutlineArrowUp,
@@ -84,8 +84,6 @@ export const PassageBlock = ({
     moveBlock,
   } = useStudio();
 
-  const headerRef = useRef<HTMLElement>(null);
-
   // Folded either because the operator collapsed this passage, or because a
   // drag is in progress — during a drag every block folds so the whole running
   // order fits on screen and the drop target is easy to hit.
@@ -115,7 +113,9 @@ export const PassageBlock = ({
         isDragging && 'opacity-40',
       )}
     >
-      <header ref={headerRef} className="flex items-start justify-between gap-4">
+      {/* The picture the drag carries: the title, not the screenful of verse
+          cards underneath it. See `ghostOf`. */}
+      <header data-ghost className="flex items-start justify-between gap-4">
         <div className="group/header flex min-w-0 items-start gap-1.5">
           {reorderable ? (
             <SortHandle index={index} className="mt-1 w-4" {...sortable.handle(block.id)} />
