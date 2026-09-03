@@ -89,7 +89,7 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
   return (
     <div className="flex h-full min-h-0 flex-col bg-white">
       <div className="studio-scroll min-h-0 flex-1 overflow-y-auto">
-        <Section title="Browsing in" hint="The language and translation printed on the verse cards below.">
+        <Section title="Browsing in" hint="The language you read on the cards below.">
           <div className="space-y-2">
             <Select
               value={settings.adminLang}
@@ -111,8 +111,8 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
           title="Projector"
           hint={
             many
-              ? 'Armed languages are fetched with each passage and shown together on screen. Stage marks the one language the stage display reads.'
-              : 'The language fetched with each passage and shown on screen. Add a second to put two on the same slide.'
+              ? 'These go on the big screen, one under the other. Stage is the one the stage screen shows.'
+              : 'This goes on the big screen. Add more to show two or three at once.'
           }
         >
           {/* The gaps between the rows belong to the list, and a release in
@@ -220,7 +220,7 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
           ) : null}
         </Section>
 
-        <Section title="Stream" hint="What the OBS lower third is carrying right now.">
+        <Section title="Stream" hint="What OBS is showing right now.">
           {/* The row is named for the thing the switch acts on, not for the
               state it happens to be in — "Connected" beside a switch reads as
               though the switch is what connects it. The state is the line
@@ -253,7 +253,7 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
               radio button beside its own name is a question with one answer. */}
           {many ? (
             <>
-              <p className="mt-3 text-xs text-studio-muted">Language on stream</p>
+              <p className="mt-3 text-xs text-studio-muted">Language in OBS</p>
 
               <div className="mt-1.5 space-y-1">
                 {settings.langOrder.map(lang => (

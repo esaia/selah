@@ -151,7 +151,10 @@ export const Console = () => {
                 )}
               </div>
 
-              <div className="flex shrink-0 items-center justify-end gap-3 border-t border-studio-border bg-white px-4 py-2">
+              {/* h-9, the same as the audio rail's fade bar beside it — the
+                  two foot the same screen and a three-pixel step between them
+                  reads as a mistake. */}
+              <div className="flex h-9 shrink-0 items-center justify-end gap-3 border-t border-studio-border bg-white px-4">
                 <label className="flex items-center gap-3 text-xs text-studio-muted">
                   Card size
                   <input
