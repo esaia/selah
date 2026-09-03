@@ -46,12 +46,19 @@ export const Setlist = ({ onEdit }: { onEdit: (song: Song) => void }) => {
     songs,
     setlist,
     activeSongId,
+    songScope,
     setActiveSongId,
     placeInSetlist,
     orderSetlist,
     removeFromSetlist,
     clearSetlist,
   } = useStudio();
+
+  // Open, and open *from here*. The same song sits in both lists, and two rows
+  // lit at once says the operator is in two places — the playlist is a running
+  // order being worked through, the library is a shelf being searched, and
+  // which of the two they are in is the whole difference between the views.
+  const opened = songScope === 'setlist' ? activeSongId : null;
 
   // The slot a drop would use, while a drag is over the list.
   const [dropIndex, setDropIndex] = useState<number | null>(null);
@@ -72,7 +79,7 @@ export const Setlist = ({ onEdit }: { onEdit: (song: Song) => void }) => {
 
     if (songId) {
       placeInSetlist(songId, index);
-      setActiveSongId(songId);
+      setActiveSongId(songId, 'setlist');
     }
   };
 
@@ -142,7 +149,7 @@ export const Setlist = ({ onEdit }: { onEdit: (song: Song) => void }) => {
               }}
               className={cn(
                 'group group/set flex items-center gap-1 border-b border-studio-divider last:border-b-0',
-                song.id === activeSongId ? 'bg-studio-accent/10' : 'hover:bg-studio-surface',
+                song.id === opened ? 'bg-studio-accent/10' : 'hover:bg-studio-surface',
                 sortable.lifted === song.id && LIFTED_SLOT,
                 dropIndex === index && 'border-t-2 border-t-studio-accent',
                 dropIndex === index + 1 && 'border-b-2 border-b-studio-accent',
@@ -152,13 +159,13 @@ export const Setlist = ({ onEdit }: { onEdit: (song: Song) => void }) => {
 
               <button
                 type="button"
-                onClick={() => setActiveSongId(song.id)}
+                onClick={() => setActiveSongId(song.id, 'setlist')}
                 className="min-w-0 flex-1 py-2 pr-1 text-left focus:outline-none"
               >
                 <span
                   className={cn(
                     'block truncate text-xs',
-                    song.id === activeSongId ? 'font-semibold text-studio-text' : 'text-studio-muted',
+                    song.id === opened ? 'font-semibold text-studio-text' : 'text-studio-muted',
                   )}
                 >
                   {song.title}

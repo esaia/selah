@@ -342,6 +342,26 @@ export const TimerLength = ({ timer, onClose }: { timer: StageTimer; onClose: ()
               onCommit={finalAt => patch({ finalAt })}
             />
           </Field>
+
+          {/* Spelled out rather than labelled "Auto-clear", because what it
+              does is exactly what a button on the transport does and the
+              operator knows that button by its words. It sits under the
+              figures: it is about the end of the run those figures describe. */}
+          <label className="flex cursor-pointer items-start gap-2 pt-1 text-xs text-studio-text">
+            <input
+              type="checkbox"
+              checked={timer.autoClear}
+              onChange={event => patch({ autoClear: event.target.checked })}
+              className="mt-px size-3.5 cursor-pointer accent-studio-accent"
+            />
+
+            <span>
+              Clear when it finishes
+              <span className="mt-0.5 block text-[11px] text-studio-faint">
+                At zero it comes off the stage and the projector by itself, as Clear timer does.
+              </span>
+            </span>
+          </label>
         </>
       )}
     </Panel>

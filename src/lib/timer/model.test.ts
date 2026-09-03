@@ -9,6 +9,7 @@ import {
   clearOutputs,
   elapsedOf,
   emptyTimerState,
+  finishAction,
   finishesAt,
   formatDuration,
   newMessage,
@@ -284,6 +285,42 @@ describe("asTimerState", () => {
     expect(emptyTimerState().messages).toHaveLength(1);
     expect(asTimerState({ messages: [] }).messages).toHaveLength(1);
     expect(visibleMessages(emptyTimerState())).toHaveLength(0);
+  });
+});
+
+describe("finishAction", () => {
+  const pair = (fields: Partial<TimerState["timers"][number]> = {}): TimerState => {
+    const base = state();
+    const first = { ...base.timers[0], ...fields };
+
+    return {
+      ...base,
+      timers: [first, newTimer({ id: "second", linked: true })],
+      activeId: first.id,
+    };
+  };
+
+  it("does nothing for an item that neither clears itself nor is followed", () => {
+    expect(finishAction(state())).toBeNull();
+  });
+
+  it("clears an item set to clear itself", () => {
+    const base = state();
+
+    expect(
+      finishAction({ ...base, timers: [{ ...base.timers[0], autoClear: true }] }),
+    ).toEqual({ kind: "clear" });
+  });
+
+  it("hands over rather than clearing when something follows", () => {
+    const action = finishAction(pair({ autoClear: true }));
+
+    expect(action).toEqual({ kind: "start", timer: expect.objectContaining({ id: "second" }) });
+  });
+
+  it("reads back as off for a row written before the field existed", () => {
+    expect(asTimerState({ timers: [{ id: "a" }] }).timers[0].autoClear).toBe(false);
+    expect(asTimerState({ timers: [{ id: "a", autoClear: true }] }).timers[0].autoClear).toBe(true);
   });
 });
 

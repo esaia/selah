@@ -131,10 +131,20 @@ export const useSortable = <T>(
   idOf: (item: T) => string,
   /** The order the drag left, and the row that was carried to make it. */
   commit: (ids: string[], moved: string) => void,
-  /** Rows with no rail of their own are carried by the whole row. */
-  options: { byHandle?: boolean } = {},
+  options: {
+    /** Rows with no rail of their own are carried by the whole row. */
+    byHandle?: boolean;
+    /**
+     * How the list is laid out. A column of rows gives way on the pointer
+     * crossing a row's middle from above or below; a grid of cards has two
+     * neighbours on the same line as well, and there the middle that matters is
+     * the left-to-right one.
+     */
+    layout?: 'column' | 'grid';
+  } = {},
 ): Sortable<T> => {
   const byHandle = options.byHandle ?? true;
+  const grid = options.layout === 'grid';
 
   const [held, setHeld] = useState<string | null>(null);
   const [lifted, setLifted] = useState<string | null>(null);
@@ -213,11 +223,19 @@ export const useSortable = <T>(
         // The row only gives way once the pointer is past its middle, and only
         // in the direction of travel. Swapping on the first pixel of overlap
         // put two rows in a loop, each handing the slot back to the other.
+        //
+        // "Past its middle" is along the reading order: down a column, and
+        // across a card the pointer is level with in a grid. Judged by the
+        // pointer being inside the card's own band rather than by counting
+        // columns, so it holds however the grid has wrapped at this width.
         const box = event.currentTarget.getBoundingClientRect();
-        const middle = box.top + box.height / 2;
+        const level = grid && event.clientY > box.top && event.clientY < box.bottom;
 
-        if (index < from ? event.clientY > middle : event.clientY < middle)
-          return;
+        const before = level
+          ? event.clientX < box.left + box.width / 2
+          : event.clientY < box.top + box.height / 2;
+
+        if (index < from ? !before : before) return;
 
         const next = [...ids];
         const [moved] = next.splice(from, 1);

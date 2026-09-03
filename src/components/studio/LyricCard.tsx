@@ -5,8 +5,11 @@ import { HiOutlinePencil } from 'react-icons/hi';
 
 import { IconButton } from '@/components/ui/IconButton';
 import { cn } from '@/lib/cn';
+import { colorOf } from '@/lib/lyrics/groups';
 import { fitText } from '@/lib/projector/fitText';
 import type { Align, SongSlide } from '@/lib/types';
+
+import { GroupPicker } from './GroupPicker';
 
 const ALIGN_CLASS: Record<Align, string> = { left: 'text-left', center: 'text-center', right: 'text-right' };
 
@@ -22,6 +25,7 @@ export const LyricCard = ({
   size = 190,
   onGoLive,
   onEdit,
+  onGroup,
 }: {
   slide: SongSlide;
   index: number;
@@ -31,6 +35,7 @@ export const LyricCard = ({
   size?: number;
   onGoLive: () => void;
   onEdit?: () => void;
+  onGroup?: (group: string) => void;
 }) => {
   const bodyRef = useRef<HTMLSpanElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
@@ -46,9 +51,27 @@ export const LyricCard = ({
 
   return (
     <div>
-      <div className="group mb-1 flex h-[18px] items-center justify-between px-0.5">
-        <span className={cn('text-xs font-semibold', isLive ? 'text-studio-live' : 'text-studio-muted')}>
-          {index + 1}
+      <div className="group mb-1 flex h-5 items-center justify-between gap-1 px-0.5">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className={cn('text-xs font-semibold', isLive ? 'text-studio-live' : 'text-studio-muted')}>
+            {index + 1}
+          </span>
+
+          {/* What part of the song this is, where the song says. It is how
+              "from the bridge" becomes something the operator can point at
+              rather than read four cards to find — and where it is set, because
+              the card is where the operator notices it is wrong. */}
+          {onGroup ? (
+            <GroupPicker compact className="min-w-0" value={slide.group ?? ''} onPick={onGroup} />
+          ) : slide.group ? (
+            <span
+              className="flex h-4 items-center truncate rounded-full px-1.5 text-[9px] font-semibold
+                tracking-wide text-white uppercase"
+              style={{ backgroundColor: colorOf(slide.group) }}
+            >
+              {slide.group}
+            </span>
+          ) : null}
         </span>
 
         {onEdit ? (

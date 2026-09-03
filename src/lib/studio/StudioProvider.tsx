@@ -22,13 +22,21 @@ import {
   asCardRun,
   DEFAULT_HOLD_MS,
   fireCard,
-  isSaved,
+  isSaved as hasRealId,
   remainingOf,
   withSkew as withCardSkew,
   type CardRun,
   type NameCard,
 } from '@/lib/lower3rd/card';
-import { armTimer, asTimerState, finishesAt, linkedNext, startRun, type TimerState } from '@/lib/timer/model';
+import {
+  armTimer,
+  asTimerState,
+  clearOutputs,
+  finishAction,
+  finishesAt,
+  startRun,
+  type TimerState,
+} from '@/lib/timer/model';
 import { supabase } from '@/lib/supabase/client';
 import { save } from '@/lib/supabase/save';
 import {
@@ -42,6 +50,7 @@ import {
   type LocalFileMeta,
   type ShowData,
   type Song,
+  type SongSlide,
 } from '@/lib/types';
 
 import {
@@ -89,6 +98,7 @@ export interface StudioInitial {
     live: Live;
     setlist: string[];
     activeSongId: string | null;
+    songScope: SongScope;
     tab: Tab;
     cardSize: number;
   };
@@ -101,6 +111,9 @@ export interface StudioInitial {
   timer: TimerState;
   plan: string;
 }
+
+/** Which list a song was opened from, and so what the workspace shows. */
+export type SongScope = 'setlist' | 'library';
 
 interface StudioValue {
   session: StudioSession;
@@ -149,11 +162,19 @@ interface StudioValue {
 
   songs: Song[];
   activeSongId: string | null;
-  setActiveSongId: (id: string | null) => void;
+  /**
+   * Open a song. `from` says which list it was picked out of, because that is
+   * what the workspace shows: a song picked off the playlist is one item of a
+   * running order the operator is working through, and one picked out of the
+   * library is the only thing they asked to see.
+   */
+  setActiveSongId: (id: string | null, from?: SongScope) => void;
+  songScope: SongScope;
   setlist: string[];
   importSongs: (songs: Song[]) => Promise<void>;
   /** Writes the song and hands back the row, whose id is the database's, not the draft's. */
   saveSong: (song: Song) => Promise<Song | undefined>;
+  reorderSlides: (song: Song, ids: string[]) => Promise<void>;
   removeSong: (id: string) => Promise<void>;
   clearSongs: () => Promise<void>;
   placeInSetlist: (songId: string, index: number) => void;
@@ -206,7 +227,13 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   });
   const [songs, setSongs] = useState<Song[]>(initial.songs);
   const [setlist, setSetlist] = useState<string[]>(initial.workspace.setlist);
-  const [activeSongId, setActiveSongId] = useState<string | null>(initial.workspace.activeSongId);
+  const [activeSongId, setActiveSong] = useState<string | null>(initial.workspace.activeSongId);
+  const [songScope, setSongScope] = useState<SongScope>(initial.workspace.songScope);
+
+  const setActiveSongId = useCallback<StudioValue['setActiveSongId']>((id, from = 'library') => {
+    setActiveSong(id);
+    setSongScope(from);
+  }, []);
   const [tab, setTab] = useState<Tab>(initial.workspace.tab);
   const [cardSize, setCardSize] = useState(initial.workspace.cardSize);
   const [loading, setLoading] = useState(false);
@@ -418,29 +445,37 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   });
 
   /**
-   * Linked timers: an item that follows the one above it starts itself the
-   * moment that one runs out.
+   * What happens when the armed run reaches zero: the item below it starts
+   * itself, or the timer takes itself off the screens. Which of the two —
+   * or neither — is `finishAction`, and this is the alarm that carries it out.
    *
    * Waited out rather than watched. The run already says when it will end, so
    * this is one timeout for the whole segment instead of a tick that has to be
    * running on every tab — and every edit to the run (a pause, a drag, ±1m)
    * re-runs the effect and moves the alarm with it.
    *
-   * The console alone does this. It is the desk pressing play a little late,
-   * and an output that started timers of its own would be a second one.
+   * The console alone does this. It is the desk acting a little late, and an
+   * output that started or cleared timers of its own would be a second one.
    */
   useEffect(() => {
     if (!timer.running) return;
 
-    const next = linkedNext(timer);
-    const ends = next ? finishesAt(timer) : null;
+    const action = finishAction(timer);
+    const ends = action ? finishesAt(timer) : null;
 
-    if (!next || ends === null) return;
+    if (!action || ends === null) return;
 
-    const wait = setTimeout(
-      () => setTimer(current => (current.running ? startRun(armTimer(current, next.id)) : current)),
-      Math.max(0, ends - Date.now()),
-    );
+    const wait = setTimeout(() => {
+      setTimer(current =>
+        // Stopped or cleared in the meantime: the alarm was set for a run that
+        // is no longer going, and acting on it now would restart the desk.
+        !current.running
+          ? current
+          : action.kind === 'start'
+            ? startRun(armTimer(current, action.timer.id))
+            : clearOutputs(current),
+      );
+    }, Math.max(0, ends - Date.now()));
 
     return () => clearTimeout(wait);
   }, [timer]);
@@ -509,7 +544,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     async card => {
       // A card written in the console has a placeholder id until it is saved;
       // leaving it off lets Postgres mint the real one.
-      const saved = isSaved(card.id) ? { id: card.id } : {};
+      const saved = hasRealId(card.id) ? { id: card.id } : {};
 
       const { data, error } = await db
         .from('name_cards')
@@ -568,7 +603,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     void save(db.from('settings').update(toRow(next)).eq('user_id', initial.settings.user_id), 'your settings');
   });
 
-  useDebouncedSave({ workspace, setlist, activeSongId, tab, cardSize }, state => {
+  useDebouncedSave({ workspace, setlist, activeSongId, songScope, tab, cardSize }, state => {
     void save(
       db.from('session_workspace').upsert({
         session_id: initial.session.id,
@@ -576,6 +611,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
         live: state.workspace.live,
         setlist: state.setlist,
         active_song_id: state.activeSongId,
+        song_scope: state.songScope,
         tab: state.tab,
         card_size: state.cardSize,
       }),
@@ -648,16 +684,31 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
   // ------------------------------------------------------------ passages
 
-  /** Every language that has to be fetched: the armed ones plus the one being browsed. */
+  /**
+   * Every language that has to be fetched: the armed ones plus the one being
+   * browsed, each with the translation it is read in.
+   *
+   * A block holds one array per language, so a language can only carry one
+   * translation at a time — there is no reading the KJV off the cards while
+   * the WEB goes on the wall. When the language being browsed is also armed,
+   * the armed row's choice is the one that counts: it is the translation the
+   * room sees, and the cards are how the operator checks what the room sees.
+   * `adminVersion` only decides for a language that is not on the projector at
+   * all.
+   *
+   * Getting this backwards is what made the projector's own dropdown look
+   * broken: picking a translation there changed nothing, because the browsing
+   * language quietly overrode it.
+   */
   const targets = useMemo((): Target[] => {
     const langs = new Set<Lang>(settings.langOrder.filter(lang => settings.enabled[lang]));
     langs.add(settings.adminLang);
 
     return [...langs].map(lang => ({
       lang,
-      version: lang === settings.adminLang ? settings.adminVersion : settings.versions[lang],
+      version: settings.enabled[lang] ? settings.versions[lang] : settings.adminVersion,
     }));
-  }, [settings.adminLang, settings.adminVersion, settings.enabled, settings.langOrder, settings.versions]);
+  }, [settings.adminVersion, settings.enabled, settings.langOrder, settings.versions, settings.adminLang]);
 
   const addPassage = useCallback<StudioValue['addPassage']>(
     async ({ book, chapter, from = null, to = null }) => {
@@ -699,9 +750,18 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [client, settings.adminLang, targets],
   );
 
-  /** Refetch one block into a new shape — used by extending and trimming. */
+  /**
+   * Refetch one block into a new shape — used by extending and trimming.
+   *
+   * The pointer moves in the same update as the shape, because `verseIndex` is
+   * an index into `groups`: prepending shifts every card along by one, and a
+   * render that had the new groups but the old index would be pointing at the
+   * verse before the live one. That render pushes, so the preview and both
+   * outputs crossfaded to a neighbouring verse and back for a change that put
+   * nothing new on screen.
+   */
   const reloadBlock = useCallback(
-    async (block: Block, verses: number[], groups: number[][]) => {
+    async (block: Block, verses: number[], groups: number[][], moveLive: (live: Live) => Live = live => live) => {
       setLoading(true);
 
       try {
@@ -715,6 +775,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
         setWorkspace(current => ({
           ...current,
+          live: moveLive(current.live),
           blocks: current.blocks.map(item =>
             item.id === block.id
               ? {
@@ -746,8 +807,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
       if (!plan) return;
 
-      await reloadBlock(block, plan.verses, plan.groups);
-      setWorkspace(current => ({ ...current, live: plan.live }));
+      await reloadBlock(block, plan.verses, plan.groups, () => plan.live);
     },
     [blocks, live, reloadBlock],
   );
@@ -767,17 +827,10 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
         return;
       }
 
-      await reloadBlock(block, plan.verses, plan.groups);
-
       // Anything from the cut point on is gone, so a live pointer there clears.
-      setWorkspace(current => ({
-        ...current,
-        live:
-          current.live && current.live.kind !== 'lyrics' && current.live.blockId === id &&
-          current.live.verseIndex >= groupIndex
-            ? null
-            : current.live,
-      }));
+      await reloadBlock(block, plan.verses, plan.groups, live =>
+        live && live.kind !== 'lyrics' && live.blockId === id && live.verseIndex >= groupIndex ? null : live,
+      );
     },
     [blocks, reloadBlock],
   );
@@ -1060,13 +1113,62 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [db, initial.settings.user_id],
   );
 
+  /**
+   * A song's slides in a new order, dragged on the cards themselves.
+   *
+   * Applied here first and written afterwards. The drag hands its order over on
+   * release and forgets it — it is the list's order now, not the drag's — so
+   * waiting for the round trip meant the cards fell back into the order they
+   * were dragged out of and rearranged again a moment later, in front of the
+   * operator, which reads as the words moving by themselves.
+   *
+   * The live pointer is an index into the list, so moving a card has to move
+   * the pointer with the slide it names — exactly as a block operation does —
+   * or the projector would keep the index and show whatever slid into it. The
+   * slide is republished rather than merely repointed: its words have not
+   * changed, but the one *after* it may have, and the stage display draws that.
+   */
+  const reorderSlides = useCallback<StudioValue['reorderSlides']>(
+    async (song, ids) => {
+      const byId = new Map(song.slides.map(slide => [slide.id, slide]));
+      const slides = ids.map(id => byId.get(id)).filter((slide): slide is SongSlide => Boolean(slide));
+
+      // A drag that arrived at a list this one does not recognise — a slide
+      // deleted on another console mid-drag — is dropped rather than applied
+      // half-way.
+      if (slides.length !== song.slides.length) return;
+
+      const moved: Song = { ...song, slides };
+      const onScreen =
+        live?.kind === 'lyrics' && live.songId === song.id ? song.slides[live.slideIndex]?.id : null;
+
+      setSongs(current => current.map(item => (item.id === song.id ? moved : item)));
+
+      if (onScreen) {
+        const at = slides.findIndex(slide => slide.id === onScreen);
+
+        if (at >= 0) publishLyrics(moved, at);
+      }
+
+      try {
+        await saveSong(moved);
+      } catch {
+        // The order on screen is one nothing agreed to keep, so it goes back to
+        // the one the database still holds rather than sitting there looking
+        // saved.
+        setSongs(current => current.map(item => (item.id === song.id ? song : item)));
+      }
+    },
+    [live, publishLyrics, saveSong],
+  );
+
   const removeSong = useCallback<StudioValue['removeSong']>(
     async id => {
       await db.from('songs').delete().eq('id', id);
 
       setSongs(current => current.filter(song => song.id !== id));
       setSetlist(current => current.filter(songId => songId !== id));
-      setActiveSongId(current => (current === id ? null : current));
+      setActiveSong(current => (current === id ? null : current));
       setWorkspace(current => ({
         ...current,
         live: current.live?.kind === 'lyrics' && current.live.songId === id ? null : current.live,
@@ -1135,16 +1237,18 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       songs,
       activeSongId,
       setActiveSongId,
+      songScope,
       setlist,
       importSongs,
       saveSong,
+      reorderSlides,
       removeSong,
       clearSongs: async () => {
         await db.from('songs').delete().eq('user_id', initial.settings.user_id);
 
         setSongs([]);
         setSetlist([]);
-        setActiveSongId(null);
+        setActiveSong(null);
         setWorkspace(current => ({ ...current, live: current.live?.kind === 'lyrics' ? null : current.live }));
       },
       placeInSetlist,
@@ -1167,6 +1271,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     }),
     [
       activeSongId,
+      setActiveSongId,
+      songScope,
       addPassage,
       blocks,
       cardSize,
@@ -1200,6 +1306,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       removeLang,
       removeSong,
       saveSong,
+      reorderSlides,
       selectLyric,
       selectVerse,
       setLocalBackground,

@@ -1,4 +1,4 @@
-import { defaultVersionOf, isLang, MAX_LANGS, REQUIRED_LANG, type Lang } from '@/lib/bible/languages';
+import { defaultVersionOf, isLang, MAX_LANGS, REQUIRED_LANG, specOf, type Lang } from '@/lib/bible/languages';
 import {
   asScaleMode,
   clampTextSize,
@@ -73,6 +73,18 @@ const asFlags = (value: unknown, order: Lang[]): Partial<Record<Lang, boolean>> 
   );
 };
 
+/**
+ * A translation the library actually holds, or the language's default.
+ *
+ * A settings row outlives the catalogue that was current when it was written.
+ * A translation dropped since — a licence not held, a language not mirrored —
+ * would otherwise sit in the row looking perfectly valid and 404 every verse
+ * the operator asked for, which is a blank screen with no explanation rather
+ * than a translation quietly reverting.
+ */
+const asVersion = (lang: Lang, value: unknown): string =>
+  typeof value === 'string' && specOf(lang).versions.includes(value) ? value : defaultVersionOf(lang);
+
 export const fromRow = (row: SettingsRow): Settings => {
   const versions = (row.versions ?? {}) as Partial<Record<Lang, string>>;
   const langOrder = asOrder(row.lang_order);
@@ -80,9 +92,9 @@ export const fromRow = (row: SettingsRow): Settings => {
 
   return {
     adminLang,
-    adminVersion: row.admin_version || defaultVersionOf(adminLang),
+    adminVersion: asVersion(adminLang, row.admin_version),
     enabled: asFlags(row.enabled, langOrder),
-    versions: Object.fromEntries(langOrder.map(lang => [lang, versions[lang] || defaultVersionOf(lang)])),
+    versions: Object.fromEntries(langOrder.map(lang => [lang, asVersion(lang, versions[lang])])),
     theme: row.theme || '1',
     dynamicImage: row.dynamic_image || '',
     localImage: (row.local_image as LocalFileMeta | null) ?? null,

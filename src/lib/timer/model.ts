@@ -85,6 +85,16 @@ export interface StageTimer {
   linked: boolean;
   kind: TimerKind;
   duration: number;
+  /**
+   * Takes itself off the screens when it runs out.
+   *
+   * For the segment that ends by itself — a countdown to the start of the
+   * service, a pre-roll — where the operator's next move would have been to
+   * press Clear anyway. It does exactly what that button does, at the moment
+   * the count reaches zero, rather than leaving a run sitting at 0:00 in front
+   * of the room.
+   */
+  autoClear: boolean;
   /** With this much left the digits turn amber. */
   wrapUp: number;
   /**
@@ -162,6 +172,7 @@ export const newTimer = (overrides: Partial<StageTimer> = {}): StageTimer => ({
   linked: false,
   kind: "countdown",
   duration: 10 * MINUTE,
+  autoClear: false,
   wrapUp: MINUTE,
   finalAt: FINAL_MS,
   ...overrides,
@@ -255,6 +266,7 @@ export const asTimerState = (raw: unknown): TimerState => {
       linked: Boolean(timer.linked),
       kind: isKind(timer.kind) ? timer.kind : "countdown",
       duration: Math.max(0, num(timer.duration, 10 * MINUTE)),
+      autoClear: Boolean(timer.autoClear),
       wrapUp: Math.max(0, num(timer.wrapUp, MINUTE)),
       finalAt: Math.max(0, num(timer.finalAt, FINAL_MS)),
     }));
@@ -759,6 +771,32 @@ export const linkedNext = (state: TimerState): StageTimer | null => {
   const next = at === -1 ? null : (state.timers[at + 1] ?? null);
 
   return next?.linked ? next : null;
+};
+
+/**
+ * What the console does when the armed run reaches zero.
+ *
+ * Both of the things that can happen there are one operator action deferred, so
+ * they are decided in one place and by the same rule: a timer below that has
+ * asked to follow this one wins, because starting the next segment *is* the
+ * handover and clearing the screens first would blink them for nothing. With
+ * nothing following, an item set to clear itself does what the Clear button
+ * does. Anything else waits for the desk.
+ *
+ * A run that never reaches zero — a clock, or a length of nothing — answers
+ * null, which is what `finishesAt` says about it too.
+ */
+export type FinishAction =
+  | { kind: "start"; timer: StageTimer }
+  | { kind: "clear" }
+  | null;
+
+export const finishAction = (state: TimerState): FinishAction => {
+  const next = linkedNext(state);
+
+  if (next) return { kind: "start", timer: next };
+
+  return activeTimer(state)?.autoClear ? { kind: "clear" } : null;
 };
 
 /** The ink a phase is drawn in, on an output and in the console preview. */

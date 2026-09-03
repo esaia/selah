@@ -66,6 +66,73 @@ const SummaryRow = ({
 );
 
 /**
+ * Where one of the armed languages goes.
+ *
+ * The projector carries the set; the stage monitor and the OBS lower third
+ * carry one language each. Both picks live on the row that arms them —
+ * nothing can be chosen here that the room is not shown — but as columns
+ * rather than as chips: named once at the head of the list, they cost each row
+ * a radio instead of two spelled-out words, and reading down a column answers
+ * "what is on the stage screen" at a glance.
+ */
+const DESTS = [
+  { key: 'stage' as const, label: 'Stage', group: 'stage-language', name: 'the stage display' },
+  { key: 'lower3rd' as const, label: 'Lower3rd', group: 'stream-language', name: 'the lower third in OBS' },
+];
+
+/** The column head. Every width here is repeated on the rows below it. */
+const DestHeader = () => (
+  <div className="mb-2 flex items-center gap-1 text-[9px] font-semibold text-studio-faint uppercase">
+    <span className="w-4" aria-hidden />
+    <span className="flex-1" aria-hidden />
+    {DESTS.map(({ key, label }) => (
+      <span key={key} className="w-11 text-center">
+        {label}
+      </span>
+    ))}
+    <span className="w-9 text-center">On</span>
+    <span className="w-5" aria-hidden />
+  </div>
+);
+
+const DestRadio = ({
+  lang,
+  armed,
+  dest,
+  chosen,
+  onPick,
+}: {
+  lang: Lang;
+  armed: boolean;
+  dest: (typeof DESTS)[number];
+  chosen: Lang;
+  onPick: () => void;
+}) => (
+  // The dot is 14px in a column of 44: the label carries the whole cell so the
+  // near-miss lands on the pick rather than on nothing.
+  <label
+    title={`Show ${LANG_LABELS[lang]} on ${dest.name}`}
+    className={cn(
+      'flex h-7 w-11 items-center justify-center rounded-studio transition-colors duration-150',
+      armed ? 'cursor-pointer hover:bg-studio-surface' : 'cursor-not-allowed',
+    )}
+  >
+    <input
+      type="radio"
+      name={dest.group}
+      checked={chosen === lang}
+      disabled={!armed}
+      onChange={onPick}
+      className={cn(
+        'size-3.5 accent-studio-accent',
+        armed ? 'cursor-pointer' : 'cursor-not-allowed opacity-40',
+      )}
+    />
+    <span className="sr-only">{`Show ${LANG_LABELS[lang]} on ${dest.name}`}</span>
+  </label>
+);
+
+/**
  * The live rail: what is being browsed, and what the projector is armed with.
  *
  * Setup that is not touched mid-service — backgrounds, typefaces, the stream —
@@ -74,6 +141,13 @@ const SummaryRow = ({
 export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) => {
   const { settings, update, setLangOrder, addLang, removeLang, peers } = useStudio();
 
+  // The translation the cards are printed in. An armed language reads in
+  // whatever the projector is carrying; only an unarmed one has a browsing
+  // translation of its own.
+  const browsing = settings.enabled[settings.adminLang]
+    ? (settings.versions[settings.adminLang] ?? settings.adminVersion)
+    : settings.adminVersion;
+
   const theme = THEMES.find(entry => entry.id === settings.theme);
 
   // The stacking order on the projector, dragged by the number each row is read
@@ -81,8 +155,8 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
   const sortable = useSortable(settings.langOrder, lang => lang, ids => setLangOrder(ids as Lang[]));
 
   // One language is a list of one: nothing to stack, nothing to choose between.
-  // The chip, the grip and the stream's radios all say something about a
-  // choice, so with a single row there is nothing for them to say.
+  // The chips and the grip all say something about a choice, so with a
+  // single row there is nothing for them to say.
   const many = settings.langOrder.length > 1;
   const spare = LANGS.filter(lang => !settings.langOrder.includes(lang));
 
@@ -98,9 +172,22 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
               className="w-full"
             />
 
+            {/* One control, shown twice.
+                
+                A block holds one array per language, so an armed language has
+                exactly one translation — the one on the projector. This is
+                that same setting when the language being browsed is armed, and
+                the row below moves with it. Two dropdowns over one value is
+                better than a second dropdown that silently loses. */}
             <Select
-              value={settings.adminVersion}
-              onChange={value => update({ adminVersion: value })}
+              value={browsing}
+              onChange={value =>
+                update(
+                  settings.enabled[settings.adminLang]
+                    ? { versions: { ...settings.versions, [settings.adminLang]: value } }
+                    : { adminVersion: value },
+                )
+              }
               options={versionsOf(settings.adminLang)}
               className="w-full"
             />
@@ -111,10 +198,12 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
           title="Projector"
           hint={
             many
-              ? 'These go on the big screen, one under the other. Stage is the one the stage screen shows.'
+              ? 'These go on the big screen, one under the other. Stage and Lower3rd each carry one of them.'
               : 'This goes on the big screen. Add more to show two or three at once.'
           }
         >
+          {many ? <DestHeader /> : null}
+
           {/* The gaps between the rows belong to the list, and a release in
               one of them is still a release on the order the drag arrived at. */}
           <ul className="space-y-3" {...sortable.list()}>
@@ -129,46 +218,32 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
                   sortable.lifted === lang && LIFTED_SLOT,
                 )}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   {many ? <SortHandle index={index} className="w-4" {...sortable.handle(lang)} /> : null}
 
                   <span
                     className={cn(
-                      'flex-1 text-sm font-medium',
+                      'min-w-0 flex-1 truncate text-sm font-medium',
                       settings.enabled[lang] ? 'text-studio-text' : 'text-studio-faint',
                     )}
                   >
                     {LANG_LABELS[lang]}
                   </span>
 
-                  {/* The stage monitor shows one language, not the armed set:
-                      the person standing up is reading it rather than glancing
-                      at it. It is picked on the row it belongs to, beside the
-                      switch that arms it — nothing can be chosen here that the
-                      room is not shown. A named chip rather than a bare radio:
-                      one dot in a column of switches says nothing about what it
-                      decides. */}
-                  {many ? (
-                    <button
-                      type="button"
-                      aria-pressed={stageLangOf(settings) === lang}
-                      disabled={!settings.enabled[lang]}
-                      title={`Read ${LANG_LABELS[lang]} on the stage display`}
-                      onClick={() => update({ stageLang: lang })}
-                      className={cn(
-                        `rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase
-                          transition-colors duration-150 focus:outline-none
-                          focus-visible:ring-2 focus-visible:ring-studio-accent/40`,
-                        !settings.enabled[lang]
-                          ? 'cursor-not-allowed border-transparent text-studio-faint/50'
-                          : stageLangOf(settings) === lang
-                            ? 'border-studio-accent bg-studio-accent text-white'
-                            : 'border-studio-border text-studio-faint hover:bg-studio-surface hover:text-studio-muted',
-                      )}
-                    >
-                      Stage
-                    </button>
-                  ) : null}
+                  {many
+                    ? DESTS.map(dest => (
+                        <DestRadio
+                          key={dest.key}
+                          dest={dest}
+                          lang={lang}
+                          armed={Boolean(settings.enabled[lang])}
+                          chosen={dest.key === 'stage' ? stageLangOf(settings) : streamLangOf(settings)}
+                          onPick={() =>
+                            update(dest.key === 'stage' ? { stageLang: lang } : { streamLang: lang })
+                          }
+                        />
+                      ))
+                    : null}
 
                   <Toggle
                     checked={Boolean(settings.enabled[lang])}
@@ -179,14 +254,14 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
                   {/* English stays: it is what every output falls back to when
                       a pick goes away, so there is always one language left. */}
                   {lang === REQUIRED_LANG ? (
-                    <span className="w-4" />
+                    <span className="w-5" />
                   ) : (
                     <button
                       type="button"
                       title={`Take ${LANG_LABELS[lang]} off the projector`}
                       onClick={() => removeLang(lang)}
-                      className="rounded-studio p-0.5 text-studio-faint transition-colors duration-150
-                        hover:bg-studio-surface hover:text-studio-text focus:outline-none
+                      className="flex w-5 justify-center rounded-studio py-0.5 text-studio-faint transition-colors
+                        duration-150 hover:bg-studio-surface hover:text-studio-text focus:outline-none
                         focus-visible:ring-2 focus-visible:ring-studio-accent/40"
                     >
                       <X className="size-3.5" />
@@ -248,37 +323,6 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
               label="Show slides on the lower third"
             />
           </div>
-
-          {/* With one language there is nothing to pick between, and a lone
-              radio button beside its own name is a question with one answer. */}
-          {many ? (
-            <>
-              <p className="mt-3 text-xs text-studio-muted">Language in OBS</p>
-
-              <div className="mt-1.5 space-y-1">
-                {settings.langOrder.map(lang => (
-                  <label
-                    key={lang}
-                    className={cn(
-                      'flex items-center gap-2 text-sm',
-                      settings.enabled[lang] ? 'text-studio-text' : 'text-studio-faint',
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="stream-language"
-                      checked={settings.streamLang === lang}
-                      disabled={!settings.enabled[lang]}
-                      onChange={() => update({ streamLang: lang })}
-                      className="accent-studio-accent"
-                    />
-                    {LANG_LABELS[lang]}
-                    {settings.enabled[lang] ? '' : ' · not armed'}
-                  </label>
-                ))}
-              </div>
-            </>
-          ) : null}
         </Section>
       </div>
 

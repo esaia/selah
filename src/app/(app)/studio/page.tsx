@@ -89,6 +89,10 @@ export default async function StudioPage() {
       live: (workspace?.live as Live) ?? null,
       setlist: (workspace?.setlist as string[]) ?? [],
       activeSongId: workspace?.active_song_id ?? null,
+      // A row written before the console remembered this says nothing about it,
+      // and the library is the honest default: it shows the one song the
+      // operator last had open either way.
+      songScope: workspace?.song_scope === 'setlist' ? 'setlist' : 'library',
       tab: TABS.includes(workspace?.tab as Tab) ? (workspace?.tab as Tab) : 'bible',
       cardSize: workspace?.card_size ?? 190,
     },

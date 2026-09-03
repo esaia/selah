@@ -59,6 +59,7 @@ export interface Database {
         live: Json | null;
         setlist: Json;
         active_song_id: string | null;
+        song_scope: string;
         tab: string;
         card_size: number;
         updated_at: string;

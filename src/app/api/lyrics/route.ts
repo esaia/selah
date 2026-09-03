@@ -1,44 +1,44 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-const LYRICS = process.env.LYRICS_API_URL || 'https://api.lyrics.ovh';
+import { fetchLyrics, isSource, keyIsSound } from '@/lib/lyrics/providers';
 
 /**
- * The words for one track the operator picked out of `/api/lyrics/search`.
+ * The words for one candidate the operator picked out of `/api/lyrics/search`.
  *
- * Both names are passed through as the catalogue spelled them — the service
- * matches on the pair, so a helpfully "tidied" artist is a miss. A miss is
- * common and not an error worth dressing up: plenty of tracks the catalogue
- * knows have no lyrics on file, and the honest answer is a 404 the panel can
- * say out loud.
+ * The pair that comes back is the source and its own key for the song, passed
+ * through untouched: every source addresses its songs differently, and asking
+ * one of them for a title and an artist is how a search misses. The key is
+ * checked against the host that issued it before anything is fetched — it has
+ * been through the browser, so it is an address this server is being asked to
+ * open rather than one it chose.
+ *
+ * A miss is common and not an error worth dressing up: plenty of what these
+ * catalogues list has no words on file, and the honest answer is a 404 the
+ * panel can say out loud.
  *
  * Nothing is cached. Unlike scripture, a lyric sheet is fetched once per song a
  * church ever adds, and the song itself lands in `songs` straight after.
  */
 export const GET = async (request: NextRequest) => {
-  const artist = request.nextUrl.searchParams.get('artist')?.trim() ?? '';
-  const title = request.nextUrl.searchParams.get('title')?.trim() ?? '';
+  const source = request.nextUrl.searchParams.get('source') ?? '';
+  const key = request.nextUrl.searchParams.get('key')?.trim() ?? '';
 
-  if (!artist || !title) {
-    return NextResponse.json({ error: 'an artist and a title are required' }, { status: 400 });
+  if (!isSource(source) || !key) {
+    return NextResponse.json({ error: 'a source and a song are required' }, { status: 400 });
   }
 
-  const missing = NextResponse.json({ error: 'no lyrics found for that song' }, { status: 404 });
+  if (!keyIsSound(source, key)) {
+    return NextResponse.json({ error: 'that song does not belong to that source' }, { status: 400 });
+  }
+
+  const missing = NextResponse.json({ error: `${source} has no words for that one` }, { status: 404 });
 
   let lyrics: string;
 
   try {
-    const upstream = await fetch(
-      `${LYRICS}/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`,
-      { signal: AbortSignal.timeout(10000) },
-    );
-
-    if (upstream.status === 404) return missing;
-
-    if (!upstream.ok) throw new Error(`upstream ${upstream.status}`);
-
-    lyrics = ((await upstream.json()) as { lyrics?: string }).lyrics ?? '';
+    lyrics = await fetchLyrics(source, key);
   } catch {
-    return NextResponse.json({ error: 'the lyrics service is unreachable' }, { status: 502 });
+    return NextResponse.json({ error: `${source} could not be reached` }, { status: 502 });
   }
 
   if (!lyrics.trim()) return missing;

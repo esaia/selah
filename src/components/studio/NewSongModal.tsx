@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Music } from 'lucide-react';
 import {
   HiOutlineArrowLeft,
   HiOutlineDocumentText,
@@ -15,12 +16,14 @@ import { slidesFrom } from '@/lib/lyrics/text';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import type { Song } from '@/lib/types';
 
-/** One candidate from the catalogue, as `/api/lyrics/search` hands it over. */
+/** One candidate, as `/api/lyrics/search` hands it over. */
 interface Result {
   id: string;
+  source: string;
+  key: string;
   title: string;
   artist: string;
-  cover: string;
+  image: string;
 }
 
 /** Long enough that a first keystroke does not fire a request nobody wanted. */
@@ -170,8 +173,10 @@ export const NewSongModal = ({ onClose, onDraft }: { onClose: () => void; onDraf
     setError('');
 
     try {
+      // The source and its own key, passed back exactly as it issued them:
+      // asking Hymnary for an artist and a title is how a hymn goes missing.
       const body = (await jsonOf(
-        `/api/lyrics?artist=${encodeURIComponent(result.artist)}&title=${encodeURIComponent(result.title)}`,
+        `/api/lyrics?source=${encodeURIComponent(result.source)}&key=${encodeURIComponent(result.key)}`,
       )) as { lyrics: string };
 
       const seed = seedId();
@@ -251,12 +256,42 @@ export const NewSongModal = ({ onClose, onDraft }: { onClose: () => void; onDraf
                   taking !== null && taking !== result.id ? 'opacity-40' : null,
                 )}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={result.cover} alt="" className="size-9 shrink-0 rounded-[4px] bg-studio-surface object-cover" />
+                {/* Sleeve art where the source has it, a note where it does
+                    not — a tab site and a hymnal carry no artwork, and an empty
+                    square reads as a picture that failed to load. The note sits
+                    under the image rather than beside it, so a cover that turns
+                    out to be a dead link falls back to it as well. */}
+                <span
+                  className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden
+                    rounded-[4px] bg-studio-surface text-studio-faint"
+                >
+                  <Music className="size-4" />
+
+                  {result.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={result.image}
+                      alt=""
+                      loading="lazy"
+                      className="absolute inset-0 size-full object-cover"
+                    />
+                  ) : null}
+                </span>
 
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm text-studio-text">{result.title}</span>
                   <span className="block truncate text-xs text-studio-faint">{result.artist}</span>
+                </span>
+
+                {/* Which catalogue it came out of. It is the one thing that
+                    tells two identical-looking rows apart — the same hymn is
+                    filed in three of these — and it is how the operator learns
+                    which source is worth reading first for what they sing. */}
+                <span
+                  className="shrink-0 rounded-full border border-studio-border px-2 py-0.5 text-[10px]
+                    font-medium text-studio-faint"
+                >
+                  {result.source}
                 </span>
 
                 {taking === result.id ? (
@@ -278,8 +313,7 @@ export const NewSongModal = ({ onClose, onDraft }: { onClose: () => void; onDraf
 
             {results?.length === 0 ? (
               <p className="px-2 py-8 text-center text-sm text-studio-faint">
-                Nothing by that name. The catalogue only knows released music — a song your church wrote is one you
-                type in yourself.
+                Nothing by that name in any of the four. A song your church wrote is one you type in yourself.
               </p>
             ) : null}
           </div>

@@ -19,10 +19,10 @@ import { parseDroppedFiles } from '@/lib/lyrics/propresenter';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import type { Song } from '@/lib/types';
 
-import { LyricCard } from './LyricCard';
 import { NewSongModal } from './NewSongModal';
 import { Setlist, songDragProps } from './Setlist';
 import { SlideEditor } from './SlideEditor';
+import { SlideGrid } from './SlideGrid';
 import { useSearchHint } from './SongSearch';
 import { SongEditor } from './SongEditor';
 
@@ -39,7 +39,6 @@ const BUILT_IN_LIBRARY = '/lyrics/library.json';
  */
 export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
   const {
-    settings,
     songs,
     activeSongId,
     setActiveSongId,
@@ -49,9 +48,7 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
     clearSongs,
     setlist,
     placeInSetlist,
-    live,
-    selectLyric,
-    cardSize,
+    songScope,
   } = useStudio();
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -60,12 +57,26 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
   const [busy, setBusy] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [confirmingRemove, setConfirmingRemove] = useState<Song | null>(null);
-  const [editingSlide, setEditingSlide] = useState<number | null>(null);
+  const [editingSlide, setEditingSlide] = useState<{ song: Song; index: number } | null>(null);
   const [editing, setEditing] = useState<Song | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const active = songs.find(song => song.id === activeSongId) ?? songs[0] ?? null;
+
+  // Everything on the playlist when the song came off it, and that song alone
+  // otherwise. A playlist the active song is not on has nothing to say about
+  // it, so that falls back to the song by itself.
+  const ordered = setlist
+    .map(id => songs.find(song => song.id === id))
+    .filter((song): song is Song => Boolean(song));
+
+  // The library lights a row only when the library is where the song was
+  // opened from; the playlist does the same for its own. One song, one lit row.
+  const opened = songScope === 'library' ? active?.id : null;
+
+  const shown =
+    active && songScope === 'setlist' && ordered.some(song => song.id === active.id) ? ordered : active ? [active] : [];
 
   const handleFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = [...(event.target.files ?? [])];
@@ -116,7 +127,10 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-3 lg:flex-row">
+    // The right-hand padding belongs to the slide column, not to this box: the
+    // column is what scrolls, and a gutter outside it left the scrollbar
+    // floating in a strip of white with the rail on the far side of it.
+    <div className="flex min-h-0 flex-1 flex-col gap-4 py-3 pl-4 lg:flex-row">
       <div className="flex w-full shrink-0 flex-col gap-2 lg:w-60">
         <input
           ref={fileRef}
@@ -188,7 +202,7 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
               title="Drag onto the playlist"
               className={cn(
                 'group/song flex cursor-grab items-center gap-1 border-b border-studio-divider last:border-b-0',
-                song.id === active?.id ? 'bg-studio-accent/10' : 'hover:bg-studio-surface',
+                song.id === opened ? 'bg-studio-accent/10' : 'hover:bg-studio-surface',
               )}
             >
               <button
@@ -199,7 +213,7 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
                 <span
                   className={cn(
                     'block truncate text-xs',
-                    song.id === active?.id ? 'font-semibold text-studio-text' : 'text-studio-muted',
+                    song.id === opened ? 'font-semibold text-studio-text' : 'text-studio-muted',
                   )}
                 >
                   {song.title}
@@ -274,22 +288,26 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
 
       {editing ? <SongEditor song={editing} onClose={() => setEditing(null)} /> : null}
 
-      {editingSlide !== null && active ? (
+      {/* The song is carried alongside the index: with a whole playlist laid
+          out, "slide 4" alone no longer says which song's slide 4. */}
+      {editingSlide ? (
         <SlideEditor
-          key={`${active.id}-${editingSlide}`}
-          slide={active.slides[editingSlide]}
-          index={editingSlide}
+          key={`${editingSlide.song.id}-${editingSlide.index}`}
+          slide={editingSlide.song.slides[editingSlide.index]}
+          index={editingSlide.index}
           onClose={() => setEditingSlide(null)}
           onSave={text =>
             void saveSong({
-              ...active,
-              slides: active.slides.map((item, position) => (position === editingSlide ? { ...item, text } : item)),
+              ...editingSlide.song,
+              slides: editingSlide.song.slides.map((item, position) =>
+                position === editingSlide.index ? { ...item, text } : item,
+              ),
             })
           }
         />
       ) : null}
 
-      <div className="studio-scroll min-w-0 px-1 pb-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+      <div className="studio-scroll min-w-0 pr-4 pl-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         {error ? (
           <p className="mb-3 rounded-studio border border-studio-danger/30 bg-red-50 px-3 py-2 text-xs text-studio-danger">
             {error}
@@ -306,28 +324,28 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
             </p>
           </div>
         ) : (
-          <>
-            <h2 className="mb-3 text-sm font-semibold text-studio-text">{active.title}</h2>
+          /* A song picked off the playlist is one item of a running order, so
+             the whole order is laid out and the one that was asked for is
+             scrolled to — the next song is then a scroll away rather than
+             another trip to the rail. A song picked out of the library is the
+             only thing the operator asked to see, and it is all they get. */
+          <div className="space-y-6">
+            {shown.map(song => (
+              <SlideGrid
+                key={song.id}
+                song={song}
+                heading={shown.length > 1}
+                scrollTo={shown.length > 1 && song.id === active.id}
+                onEditSlide={index => setEditingSlide({ song, index })}
+              />
+            ))}
 
-            <div
-              className="grid gap-x-4 gap-y-3"
-              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${cardSize}px, 1fr))` }}
-            >
-              {active.slides.map((slide, index) => (
-                <LyricCard
-                  key={slide.id}
-                  slide={slide}
-                  index={index}
-                  size={cardSize}
-                  font={settings.lyricsFont}
-                  align={settings.lyricsAlign}
-                  isLive={live?.kind === 'lyrics' && live.songId === active.id && live.slideIndex === index}
-                  onGoLive={() => selectLyric(active, index)}
-                  onEdit={() => setEditingSlide(index)}
-                />
-              ))}
-            </div>
-          </>
+            {/* Room under the last song, so every song in the order can be
+                taken to the top of the panel — the last one included. Without
+                it the list stops where its cards stop, and picking the last
+                song moves nothing: it is already as far down as it goes. */}
+            <div aria-hidden className="h-[70vh]" />
+          </div>
         )}
       </div>
     </div>

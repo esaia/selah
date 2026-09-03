@@ -128,6 +128,12 @@ export type Live =
 export interface SongSlide {
   id: string;
   text: string;
+  /**
+   * What part of the song this is — "Chorus", "Verse 2" — in the operator's
+   * own words. Optional, because a song typed in at speed on a Sunday morning
+   * has none and does not need any; `lib/lyrics/groups.ts` gives it its colour.
+   */
+  group?: string;
 }
 
 export interface Song {
