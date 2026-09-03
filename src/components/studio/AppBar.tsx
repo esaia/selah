@@ -1,7 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import { BookOpen, Check, Copy, ExternalLink, Menu, Mic2, Monitor, MonitorPlay, Music, Settings } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  BookOpen,
+  Check,
+  Copy,
+  ExternalLink,
+  Menu,
+  Mic2,
+  Monitor,
+  MonitorPlay,
+  Music,
+  Settings,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
@@ -14,8 +25,18 @@ const TABS: { id: Tab; label: string; Icon: typeof BookOpen }[] = [
   { id: 'stage', label: 'Stage', Icon: MonitorPlay },
 ];
 
-/** A link an operator carries to another machine, with a one-click copy. */
-const OutputLink = ({ label, href, connected }: { label: string; href: string; connected: number }) => {
+/** One output an operator carries to another machine, with a one-click copy. */
+const OutputRow = ({
+  label,
+  hint,
+  href,
+  connected,
+}: {
+  label: string;
+  hint: string;
+  href: string;
+  connected: number;
+}) => {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -25,22 +46,27 @@ const OutputLink = ({ label, href, connected }: { label: string; href: string; c
   };
 
   return (
-    <span
-      className="inline-flex h-8 items-center gap-1.5 rounded-studio border border-studio-border bg-white px-2.5
-        text-xs font-medium text-studio-text"
-    >
+    <div className="flex items-center gap-2 rounded-studio px-2 py-2 transition-colors duration-150 hover:bg-studio-surface">
       <span
-        title={connected ? `${connected} connected` : 'Nothing connected'}
         className={cn('size-1.5 shrink-0 rounded-full', connected ? 'bg-studio-go' : 'bg-studio-border')}
+        aria-hidden
       />
-      <span className="hidden lg:inline">{label}</span>
+
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-studio-text">{label}</span>
+        <span className="block truncate text-xs text-studio-faint">
+          {connected ? `${connected} connected` : hint}
+        </span>
+      </span>
 
       <button
         type="button"
         onClick={copy}
         title={`Copy the ${label} link`}
         aria-label={`Copy the ${label} link`}
-        className="text-studio-faint transition-colors duration-150 hover:text-studio-text"
+        className="inline-flex size-7 shrink-0 items-center justify-center rounded-studio text-studio-faint
+          transition-colors duration-150 hover:bg-white hover:text-studio-text focus:outline-none
+          focus-visible:ring-2 focus-visible:ring-studio-accent/40"
       >
         {copied ? <Check className="size-3.5 text-studio-go" /> : <Copy className="size-3.5" />}
       </button>
@@ -49,18 +75,100 @@ const OutputLink = ({ label, href, connected }: { label: string; href: string; c
         href={href}
         target="_blank"
         rel="noreferrer"
-        title={`Open ${label}`}
-        aria-label={`Open ${label}`}
-        className="text-studio-faint transition-colors duration-150 hover:text-studio-text"
+        title={`Open ${label} in a new tab`}
+        aria-label={`Open ${label} in a new tab`}
+        className="inline-flex size-7 shrink-0 items-center justify-center rounded-studio text-studio-faint
+          transition-colors duration-150 hover:bg-white hover:text-studio-text focus:outline-none
+          focus-visible:ring-2 focus-visible:ring-studio-accent/40"
       >
         <ExternalLink className="size-3.5" />
       </a>
-    </span>
+    </div>
+  );
+};
+
+/** The three outputs behind one button, so the bar keeps its room. */
+const PresentMenu = () => {
+  const { session, peers } = useStudio();
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  const total = peers.show + peers.lower3rd + peers.stage;
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleMouseDown = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <Button
+        icon={<MonitorPlay className="size-3.5" />}
+        onClick={() => setOpen(value => !value)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        title="Present — screen, stream and stage links"
+        className={cn(open && 'bg-studio-surface')}
+      >
+        Present
+        <span
+          className={cn('size-1.5 shrink-0 rounded-full', total ? 'bg-studio-go' : 'bg-studio-border')}
+          title={total ? `${total} connected` : 'Nothing connected'}
+        />
+      </Button>
+
+      {open ? (
+        <div
+          role="menu"
+          aria-label="Present"
+          className="absolute right-0 z-30 mt-1.5 w-72 rounded-studio border border-studio-border bg-white p-1.5
+            shadow-studio"
+        >
+          <p className="px-2 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wide text-studio-faint">
+            Present to
+          </p>
+
+          <OutputRow
+            label="Screen"
+            hint="The projector in the room"
+            href={`/show/${session.outputKey}`}
+            connected={peers.show}
+          />
+          <OutputRow
+            label="Stream"
+            hint="Lower third for the broadcast"
+            href={`/lower3rd/${session.outputKey}`}
+            connected={peers.lower3rd}
+          />
+          <OutputRow
+            label="Stage"
+            hint="The monitor facing the platform"
+            href={`/stage/${session.outputKey}`}
+            connected={peers.stage}
+          />
+        </div>
+      ) : null}
+    </div>
   );
 };
 
 export const AppBar = ({ onSettings, onOpenNav }: { onSettings: () => void; onOpenNav: () => void }) => {
-  const { session, peers, tab, setTab } = useStudio();
+  const { tab, setTab } = useStudio();
 
   return (
     <header
@@ -108,9 +216,7 @@ export const AppBar = ({ onSettings, onOpenNav }: { onSettings: () => void; onOp
       </nav>
 
       <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
-        <OutputLink label="Screen" href={`/show/${session.outputKey}`} connected={peers.show} />
-        <OutputLink label="Stream" href={`/lower3rd/${session.outputKey}`} connected={peers.lower3rd} />
-        <OutputLink label="Stage" href={`/stage/${session.outputKey}`} connected={peers.stage} />
+        <PresentMenu />
 
         <Button icon={<Settings className="size-3.5" />} onClick={onSettings} title="Settings — background, type, OBS">
           <span className="hidden md:inline">Settings</span>
