@@ -36,6 +36,7 @@ export const Console = () => {
   const [settingsTab, setSettingsTab] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [browsing, setBrowsing] = useState(false);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -45,9 +46,16 @@ export const Console = () => {
         target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)),
       );
 
+      // Find, meaning "find me something to put up" — which is a different
+      // thing on each tab: the songs on the lyrics tab, and the books on the
+      // Bible tab, where the operator wants the whole list and not the box
+      // they are already typing in.
       if (event.key === 'f' && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
-        setSearching(true);
+
+        if (tab === 'bible') setBrowsing(true);
+        else setSearching(true);
+
         return;
       }
 
@@ -123,7 +131,7 @@ export const Console = () => {
           {tab === 'bible' ? (
             <>
               <div className="shrink-0 border-b border-studio-border bg-white px-4 py-3">
-                <SearchBar />
+                <SearchBar browsing={browsing} onBrowse={setBrowsing} />
               </div>
 
               <div className="studio-scroll min-h-0 flex-1 overflow-y-auto">

@@ -15,22 +15,34 @@ import { findBook, parseReference, type BookEntry } from '@/lib/bible/passage';
 import { useStudio } from '@/lib/studio/StudioProvider';
 
 import { BrowseModal } from './BrowseModal';
+import { useSearchHint } from './SongSearch';
 
 /**
  * The console's one text box. Typing a reference and pressing enter imports the
  * passage and puts its first verse on the projector — the whole path from
  * thought to screen in one gesture.
+ *
+ * Whether the browser is open is the console's business, not this bar's: the
+ * find shortcut opens it from anywhere on the Bible tab, the same key that
+ * opens the song library on the tab next door.
  */
-export const SearchBar = () => {
+export const SearchBar = ({
+  browsing,
+  onBrowse,
+}: {
+  browsing: boolean;
+  onBrowse: (open: boolean) => void;
+}) => {
   const { settings, addPassage, goLive, loading, blocks, setAllCollapsed } = useStudio();
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
-  const [browsing, setBrowsing] = useState(false);
   const [jumpTo, setJumpTo] = useState<BookEntry | null>(null);
+
+  const hint = useSearchHint();
 
   const openBrowse = (book: BookEntry | null) => {
     setJumpTo(book);
-    setBrowsing(true);
+    onBrowse(true);
   };
 
   const submit = async (event: FormEvent) => {
@@ -110,6 +122,7 @@ export const SearchBar = () => {
         <Button
           size="md"
           className="shrink-0"
+          title={`Browse the books · ${hint}`}
           onClick={() => openBrowse(null)}
           icon={<HiOutlineMenuAlt2 className="text-sm" />}
         >
@@ -141,7 +154,7 @@ export const SearchBar = () => {
         <BrowseModal
           initialBook={jumpTo}
           onClose={() => {
-            setBrowsing(false);
+            onBrowse(false);
             setJumpTo(null);
           }}
         />
