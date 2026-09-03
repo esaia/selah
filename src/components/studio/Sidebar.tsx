@@ -1,7 +1,7 @@
 'use client';
 
-import { ChevronRight, GripVertical, MonitorPlay, Video } from 'lucide-react';
-import { Fragment, useState, type DragEvent, type ReactNode } from 'react';
+import { ChevronRight, MonitorPlay, Video } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 import { Select } from '@/components/ui/Select';
 import { Toggle } from '@/components/ui/Toggle';
@@ -11,6 +11,9 @@ import { THEMES } from '@/lib/projector/themes';
 import { stageLangOf } from '@/lib/studio/settings';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import { LANG_LABELS, LANGS, type Lang } from '@/lib/types';
+
+import { SortHandle } from './SortHandle';
+import { useSortable } from './sortable';
 
 const Section = ({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) => (
   <section className="border-b border-studio-divider px-4 py-4 last:border-b-0">
@@ -72,56 +75,11 @@ const SummaryRow = ({
 export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) => {
   const { settings, update, setLangOrder, peers } = useStudio();
 
-  // Dragging is armed by the grip alone. Without that the whole row is
-  // draggable, which makes the translation select impossible to use and lets a
-  // stray drag reorder the projector mid-service.
-  const [armed, setArmed] = useState(false);
-  const [dragging, setDragging] = useState<Lang | null>(null);
-
-  /** Where the row would land: a slot *between* rows, 0..langOrder.length. */
-  const [dropAt, setDropAt] = useState<number | null>(null);
-
   const theme = THEMES.find(entry => entry.id === settings.theme);
 
-  const endDrag = () => {
-    setArmed(false);
-    setDragging(null);
-    setDropAt(null);
-  };
-
-  /** Above the midpoint drops before the row, below it drops after. */
-  const trackSlot = (event: DragEvent<HTMLLIElement>, index: number) => {
-    event.preventDefault();
-
-    const box = event.currentTarget.getBoundingClientRect();
-
-    setDropAt(event.clientY < box.top + box.height / 2 ? index : index + 1);
-  };
-
-  const drop = () => {
-    if (!dragging || dropAt === null) return endDrag();
-
-    const from = settings.langOrder.indexOf(dragging);
-    const order = settings.langOrder.filter(lang => lang !== dragging);
-
-    // Removing the row first shifts every later slot down by one.
-    order.splice(from < dropAt ? dropAt - 1 : dropAt, 0, dragging);
-
-    setLangOrder(order);
-    endDrag();
-  };
-
-  /**
-   * The line that says exactly where the row will land. A plain function, not a
-   * component, so React is not handed a new component type on every render.
-   */
-  const marker = (at: number) => (
-    <li aria-hidden key={`slot-${at}`} className="relative h-0">
-      {dropAt === at && dragging ? (
-        <span className="absolute -top-1.5 right-0 left-0 h-0.5 rounded-full bg-studio-accent" />
-      ) : null}
-    </li>
-  );
+  // The stacking order on the projector, dragged by the number each row is read
+  // by. Committed on release, not on every row the pointer crosses.
+  const sortable = useSortable(settings.langOrder, lang => lang, ids => setLangOrder(ids as Lang[]));
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-white">
@@ -148,92 +106,74 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
         </Section>
 
         <Section title="Projector" hint="Armed languages are fetched with each passage and shown together on screen. Stage marks the one language the stage display reads.">
-          <ul className="space-y-3" onDragLeave={() => setDropAt(null)}>
-            {settings.langOrder.map((lang, index) => (
-              <Fragment key={lang}>
-                {marker(index)}
+          {/* The gaps between the rows belong to the list, and a release in
+              one of them is still a release on the order the drag arrived at. */}
+          <ul className="space-y-3" {...sortable.list()}>
+            {sortable.items.map((lang, index) => (
+              <li
+                key={lang}
+                {...sortable.row(lang)}
+                className={cn(
+                  'group rounded-studio transition-opacity duration-150',
+                  // The browser snapshots the ghost before this paints, so the
+                  // fade lands on the slot the row is holding open.
+                  sortable.lifted === lang && 'opacity-40',
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <SortHandle index={index} className="w-4" {...sortable.handle(lang)} />
 
-                <li
-                  draggable={armed}
-                  onDragStart={event => {
-                    setDragging(lang);
-                    event.dataTransfer.effectAllowed = 'move';
-                    // Drag the header, not the whole row: a ghost carrying the
-                    // translation dropdown obscures the list it is moving through.
-                    const header = event.currentTarget.firstElementChild;
-                    if (header) event.dataTransfer.setDragImage(header, 12, 12);
-                  }}
-                  onDragEnd={endDrag}
-                  onDragOver={event => trackSlot(event, index)}
-                  onDrop={drop}
-                  className={cn('rounded-studio transition-opacity duration-150', dragging === lang && 'opacity-40')}
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      aria-hidden
-                      title="Drag to reorder"
-                      onPointerDown={() => setArmed(true)}
-                      onPointerUp={() => setArmed(false)}
-                      className="cursor-grab rounded text-studio-faint transition-colors duration-150
-                        hover:text-studio-muted active:cursor-grabbing"
-                    >
-                      <GripVertical className="size-4" />
-                    </span>
+                  <span
+                    className={cn(
+                      'flex-1 text-sm font-medium',
+                      settings.enabled[lang] ? 'text-studio-text' : 'text-studio-faint',
+                    )}
+                  >
+                    {LANG_LABELS[lang]}
+                  </span>
 
-                    <span
-                      className={cn(
-                        'flex-1 text-sm font-medium',
-                        settings.enabled[lang] ? 'text-studio-text' : 'text-studio-faint',
-                      )}
-                    >
-                      {LANG_LABELS[lang]}
-                    </span>
+                  {/* The stage monitor shows one language, not the armed set:
+                      the person standing up is reading it rather than glancing
+                      at it. It is picked on the row it belongs to, beside the
+                      switch that arms it — nothing can be chosen here that the
+                      room is not shown. A named chip rather than a bare radio:
+                      one dot in a column of switches says nothing about what it
+                      decides. */}
+                  <button
+                    type="button"
+                    aria-pressed={stageLangOf(settings) === lang}
+                    disabled={!settings.enabled[lang]}
+                    title={`Read ${LANG_LABELS[lang]} on the stage display`}
+                    onClick={() => update({ stageLang: lang })}
+                    className={cn(
+                      `rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase
+                        transition-colors duration-150 focus:outline-none
+                        focus-visible:ring-2 focus-visible:ring-studio-accent/40`,
+                      !settings.enabled[lang]
+                        ? 'cursor-not-allowed border-transparent text-studio-faint/50'
+                        : stageLangOf(settings) === lang
+                          ? 'border-studio-accent bg-studio-accent text-white'
+                          : 'border-studio-border text-studio-faint hover:bg-studio-surface hover:text-studio-muted',
+                    )}
+                  >
+                    Stage
+                  </button>
 
-                    {/* The stage monitor shows one language, not the armed
-                        set: the person standing up is reading it rather than
-                        glancing at it. It is picked on the row it belongs to,
-                        beside the switch that arms it — nothing can be chosen
-                        here that the room is not shown. A named chip rather
-                        than a bare radio: one dot in a column of switches says
-                        nothing about what it decides. */}
-                    <button
-                      type="button"
-                      aria-pressed={stageLangOf(settings) === lang}
-                      disabled={!settings.enabled[lang]}
-                      title={`Read ${LANG_LABELS[lang]} on the stage display`}
-                      onClick={() => update({ stageLang: lang })}
-                      className={cn(
-                        `rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase
-                          transition-colors duration-150 focus:outline-none
-                          focus-visible:ring-2 focus-visible:ring-studio-accent/40`,
-                        !settings.enabled[lang]
-                          ? 'cursor-not-allowed border-transparent text-studio-faint/50'
-                          : stageLangOf(settings) === lang
-                            ? 'border-studio-accent bg-studio-accent text-white'
-                            : 'border-studio-border text-studio-faint hover:bg-studio-surface hover:text-studio-muted',
-                      )}
-                    >
-                      Stage
-                    </button>
-
-                    <Toggle
-                      checked={settings.enabled[lang]}
-                      onChange={checked => update({ enabled: { ...settings.enabled, [lang]: checked } })}
-                      label={`Show ${LANG_LABELS[lang]} on the projector`}
-                    />
-                  </div>
-
-                  <Select
-                    value={settings.versions[lang]}
-                    onChange={value => update({ versions: { ...settings.versions, [lang]: value } })}
-                    options={versionsByLang[lang].map(version => ({ value: version.value, label: version.label }))}
-                    className="mt-1.5 w-full"
+                  <Toggle
+                    checked={settings.enabled[lang]}
+                    onChange={checked => update({ enabled: { ...settings.enabled, [lang]: checked } })}
+                    label={`Show ${LANG_LABELS[lang]} on the projector`}
                   />
-                </li>
-              </Fragment>
-            ))}
+                </div>
 
-            {marker(settings.langOrder.length)}
+                <Select
+                  value={settings.versions[lang]}
+                  onChange={value => update({ versions: { ...settings.versions, [lang]: value } })}
+                  options={versionsByLang[lang].map(version => ({ value: version.value, label: version.label }))}
+                  className="mt-1.5 w-full"
+                />
+              </li>
+            ))}
           </ul>
         </Section>
 

@@ -8,7 +8,7 @@ import { useAudio, type Track } from '@/lib/studio/AudioProvider';
 import { useStudio } from '@/lib/studio/StudioProvider';
 
 import { DROP_ZONE } from './dropZone';
-import { END, useTrackReorder } from './trackDrag';
+import { useTrackReorder } from './trackDrag';
 
 /** Three bars, animated only on the track actually playing. */
 const Equalizer = () => (
@@ -125,7 +125,9 @@ export const AudioPlaylist = () => {
 
   // Reordering is scoped to the list being looked at: a library keeps its own
   // running order, and All tracks keeps its own.
-  const reorder = useTrackReorder((id, beforeId) => void moveTrack(id, beforeId, open === ALL ? null : open));
+  const reorder = useTrackReorder(shown, (id, beforeId) =>
+    void moveTrack(id, beforeId, open === ALL ? null : open),
+  );
   const span = runtime(shown);
 
   // Dropped straight onto the rail, a file is meant for the library the
@@ -205,7 +207,7 @@ export const AudioPlaylist = () => {
         </span>
       </div>
 
-      <div className="studio-scroll min-h-0 flex-1 overflow-y-auto">
+      <div className="studio-scroll min-h-0 flex-1 overflow-y-auto" {...reorder.list()}>
         {shown.length === 0 ? (
           <p className="px-3 py-6 text-center text-[11px] leading-relaxed text-studio-faint">
             {dragging ? (
@@ -227,16 +229,15 @@ export const AudioPlaylist = () => {
             )}
           </p>
         ) : (
-          shown.map((track, index) => {
+          reorder.items.map(track => {
             const isCurrent = current?.id === track.id;
             const length = clock(track.durationMs);
             const unavailable = missing.has(track.id);
-            const last = index === shown.length - 1;
 
             return (
               <div
                 key={track.id}
-                {...reorder.row(track.id, shown[index + 1]?.id ?? null)}
+                {...reorder.row(track.id)}
                 className={cn(
                   'flex cursor-grab items-center gap-1 border-b border-studio-divider px-1.5 py-1.5 last:border-b-0',
                   // Stopping a track takes its highlight off the row; fading it
@@ -244,9 +245,6 @@ export const AudioPlaylist = () => {
                   'transition-colors duration-200 active:cursor-grabbing',
                   isCurrent ? 'bg-studio-accent/10' : 'hover:bg-studio-surface',
                   reorder.lifted === track.id && 'opacity-40',
-                  // Where the row being carried would land.
-                  reorder.before === track.id && 'border-t-2 border-t-studio-accent',
-                  last && reorder.before === END && 'border-b-2 border-b-studio-accent',
                 )}
               >
                 <button

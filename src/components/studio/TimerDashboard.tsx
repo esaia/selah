@@ -204,7 +204,10 @@ export const TimerDashboard = () => {
         </div>
       </div>
 
-      <div className="flex min-w-[300px] flex-1 flex-col justify-between gap-2">
+      {/* Centred beside the screen rather than spread down it: stretched to the
+          preview's height, the three rows drifted apart into bands of nothing
+          and the transport stopped reading as one instrument. */}
+      <div className="flex min-w-[300px] flex-1 flex-col justify-center gap-2.5">
         <TimerScrubber />
 
         {/* Spread rather than bunched: the two amounts sit under the ends of

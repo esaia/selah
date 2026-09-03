@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type DragEvent, type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import {
   HiOutlineArrowDown,
   HiOutlineArrowUp,
@@ -10,13 +10,15 @@ import {
   HiOutlineChevronUp,
   HiOutlineTrash,
 } from 'react-icons/hi';
-import { MdDragIndicator } from 'react-icons/md';
 
 import { IconButton } from '@/components/ui/IconButton';
 import { bookName } from '@/lib/bible/passage';
 import { cn } from '@/lib/cn';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import { groupVerses, LANG_LABELS, type Block } from '@/lib/types';
+
+import { SortHandle } from './SortHandle';
+import type { Sortable } from './sortable';
 
 import { VerseCard } from './VerseCard';
 
@@ -39,16 +41,6 @@ const ExtendTile = ({ label, icon, onClick }: { label: string; icon: ReactNode; 
   </div>
 );
 
-/**
- * Which half of the block the pointer is over — read from the event, not from
- * state, so a fast drop still lands where it was aimed.
- */
-const sideOf = (event: DragEvent<HTMLElement>) => {
-  const box = event.currentTarget.getBoundingClientRect();
-
-  return event.clientY < box.top + box.height / 2 ? 'before' : 'after';
-};
-
 /** Compact label: 15:1-3,7 rather than a bare first-to-last span. */
 const verseRange = (numbers: number[]) => {
   if (numbers.length === 0) return '';
@@ -70,11 +62,13 @@ export const PassageBlock = ({
   index,
   isFirst,
   isLast,
+  sortable,
 }: {
   block: Block;
   index: number;
   isFirst: boolean;
   isLast: boolean;
+  sortable: Sortable<Block>;
 }) => {
   const {
     settings,
@@ -88,18 +82,14 @@ export const PassageBlock = ({
     splitGroup,
     toggleBlockCollapsed,
     moveBlock,
-    moveBlockTo,
-    draggingId,
-    setDraggingId,
   } = useStudio();
 
-  const [dropSide, setDropSide] = useState<'before' | 'after' | null>(null);
   const headerRef = useRef<HTMLElement>(null);
 
   // Folded either because the operator collapsed this passage, or because a
   // drag is in progress — during a drag every block folds so the whole running
   // order fits on screen and the drop target is easy to hit.
-  const collapsed = Boolean(draggingId) || Boolean(block.collapsed);
+  const collapsed = Boolean(sortable.lifted) || Boolean(block.collapsed);
 
   const lang = block.adminLang;
   const groups = block.groups ?? [];
@@ -114,74 +104,21 @@ export const PassageBlock = ({
   // Nothing to reorder when it is the only passage.
   const reorderable = !(isFirst && isLast);
 
-  const isDragging = draggingId === block.id;
-  const isDropTarget = Boolean(draggingId) && !isDragging;
-
-  const handleDragOver = (event: DragEvent<HTMLElement>) => {
-    if (!isDropTarget) return;
-
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-
-    setDropSide(sideOf(event));
-  };
-
-  const handleDrop = (event: DragEvent<HTMLElement>) => {
-    if (!isDropTarget || !draggingId) return;
-
-    event.preventDefault();
-    moveBlockTo(draggingId, sideOf(event) === 'after' ? index + 1 : index);
-    setDropSide(null);
-    setDraggingId(null);
-  };
+  const isDragging = sortable.lifted === block.id;
 
   return (
     <section
-      onDragOver={handleDragOver}
-      onDragLeave={() => setDropSide(null)}
-      onDrop={handleDrop}
+      {...sortable.row(block.id)}
       className={cn(
-        'relative border-b border-studio-divider px-4 transition-[padding] duration-200 ease-out last:border-b-0',
+        'group relative border-b border-studio-divider px-4 transition-[padding] duration-200 ease-out last:border-b-0',
         collapsed ? 'py-2' : 'py-5',
         isDragging && 'opacity-40',
       )}
     >
-      {dropSide ? (
-        <span
-          aria-hidden="true"
-          className={cn(
-            'absolute inset-x-0 h-0.5 rounded-full bg-studio-accent',
-            dropSide === 'before' ? 'top-0' : 'bottom-0',
-          )}
-        />
-      ) : null}
-
       <header ref={headerRef} className="flex items-start justify-between gap-4">
         <div className="group/header flex min-w-0 items-start gap-1.5">
           {reorderable ? (
-            <span
-              draggable
-              onDragStart={event => {
-                event.dataTransfer.effectAllowed = 'move';
-                // Firefox refuses to start a drag without payload.
-                event.dataTransfer.setData('text/plain', block.id);
-
-                // Snapshot the header explicitly, so collapsing the verse grid
-                // below cannot affect what is dragged.
-                if (headerRef.current) event.dataTransfer.setDragImage(headerRef.current, 16, 16);
-
-                setDraggingId(block.id);
-              }}
-              onDragEnd={() => {
-                setDraggingId(null);
-                setDropSide(null);
-              }}
-              title="Drag to reorder"
-              className="mt-1 cursor-grab text-studio-faint transition-colors duration-150
-                hover:text-studio-muted active:cursor-grabbing"
-            >
-              <MdDragIndicator className="text-lg" />
-            </span>
+            <SortHandle index={index} className="mt-1 w-4" {...sortable.handle(block.id)} />
           ) : null}
 
           <button

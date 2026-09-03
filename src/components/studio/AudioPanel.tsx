@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn';
 import { useAudio, type Track } from '@/lib/studio/AudioProvider';
 
 import { DROP_ZONE } from './dropZone';
-import { END, useTrackReorder } from './trackDrag';
+import { useTrackReorder } from './trackDrag';
 
 /** Every track, as opposed to one of the operator's libraries. */
 const ALL = '__all__';
@@ -154,7 +154,9 @@ export const AudioPanel = () => {
 
   // Reordering is scoped to the list being looked at: a library keeps its own
   // running order, and All tracks keeps its own.
-  const reorder = useTrackReorder((id, beforeId) => void moveTrack(id, beforeId, open === ALL ? null : open));
+  const reorder = useTrackReorder(shown, (id, beforeId) =>
+    void moveTrack(id, beforeId, open === ALL ? null : open),
+  );
 
   const file = (event: DragEvent, categoryId: string | null) => {
     const id = event.dataTransfer.getData('text/plain');
@@ -303,6 +305,7 @@ export const AudioPanel = () => {
             that is open. */}
         <ul
           onDragOver={event => {
+            if (reorder.lifted) return reorder.list().onDragOver(event);
             if (![...event.dataTransfer.types].includes('Files')) return;
 
             event.preventDefault();
@@ -312,6 +315,8 @@ export const AudioPanel = () => {
             if (event.currentTarget === event.target) setFilesOver(false);
           }}
           onDrop={event => {
+            if (reorder.lifted) return reorder.list().onDrop(event);
+
             event.preventDefault();
             setFilesOver(false);
 
@@ -323,16 +328,15 @@ export const AudioPanel = () => {
             {open === ALL ? 'All tracks' : (categories.find(category => category.id === open)?.name ?? 'All tracks')}
           </li>
 
-          {shown.map((track: Track, index: number) => {
+          {reorder.items.map((track: Track) => {
             const unavailable = missing.has(track.id);
             const isCurrent = current?.id === track.id;
             const length = clock(track.durationMs);
-            const last = index === shown.length - 1;
 
             return (
               <li
                 key={track.id}
-                {...reorder.row(track.id, shown[index + 1]?.id ?? null)}
+                {...reorder.row(track.id)}
                 className={cn(
                   'group relative mx-1 flex cursor-grab items-center gap-2.5 rounded-studio px-2 py-1.5',
                   'transition-colors duration-150 active:cursor-grabbing',
@@ -340,19 +344,6 @@ export const AudioPanel = () => {
                   reorder.lifted === track.id && 'opacity-40',
                 )}
               >
-                {/* Where the row being carried would land. Drawn over the row
-                    rather than as a border on it, so the line keeps its square
-                    ends instead of taking the row's rounded corners. */}
-                {reorder.before === track.id || (last && reorder.before === END) ? (
-                  <span
-                    aria-hidden
-                    className={cn(
-                      'pointer-events-none absolute -inset-x-1 h-0.5 bg-studio-accent',
-                      reorder.before === track.id ? '-top-px' : '-bottom-px',
-                    )}
-                  />
-                ) : null}
-
                 <button
                   type="button"
                   onClick={() => play(track, open === ALL ? null : open)}

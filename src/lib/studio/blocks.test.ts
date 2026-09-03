@@ -2,7 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import type { Block, Live } from '@/lib/types';
 
-import { joinGroup, moveBlockTo, planExtension, planTrim, regroup, slideOf, splitGroup, stepWithin } from './blocks';
+import {
+  joinGroup,
+  moveBlockTo,
+  orderBlocks,
+  planExtension,
+  planTrim,
+  regroup,
+  slideOf,
+  splitGroup,
+  stepWithin,
+} from './blocks';
 
 const block = (overrides: Partial<Block> = {}): Block => ({
   id: 'b1',
@@ -126,6 +136,23 @@ describe('moveBlockTo', () => {
 
   it('clamps past the end', () => {
     expect(ids(moveBlockTo({ blocks: three, live: null }, 'a', 9).blocks)).toEqual(['b', 'c', 'a']);
+  });
+});
+
+describe('orderBlocks', () => {
+  const three = [block({ id: 'a' }), block({ id: 'b' }), block({ id: 'c' })];
+  const ids = (blocks: Block[]) => blocks.map(item => item.id);
+
+  it('takes the order the drag arrived at', () => {
+    expect(ids(orderBlocks({ blocks: three, live: null }, ['c', 'a', 'b']).blocks)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('keeps a block the drag never saw, at the end', () => {
+    expect(ids(orderBlocks({ blocks: three, live: null }, ['c', 'a']).blocks)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('ignores an id the workspace no longer has', () => {
+    expect(ids(orderBlocks({ blocks: three, live: null }, ['c', 'gone', 'a', 'b']).blocks)).toEqual(['c', 'a', 'b']);
   });
 });
 

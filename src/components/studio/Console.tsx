@@ -13,6 +13,7 @@ import { AudioPanel } from './AudioPanel';
 import { LyricsPanel } from './LyricsPanel';
 import { SongSearch } from './SongSearch';
 import { PassageBlock } from './PassageBlock';
+import { useSortable } from './sortable';
 import { RightRail } from './RightRail';
 import { SearchBar } from './SearchBar';
 import { SettingsModal } from './SettingsModal';
@@ -27,7 +28,11 @@ import { TimerPanel } from './TimerPanel';
  * during a service the operator's hand is not on the mouse.
  */
 export const Console = () => {
-  const { blocks, stepLive, cardSize, setCardSize, tab, loading, updateTimer } = useStudio();
+  const { blocks, stepLive, cardSize, setCardSize, tab, loading, updateTimer, orderBlocks } = useStudio();
+
+  // The running order of passages. Every block folds while one is in the air —
+  // see `PassageBlock` — so the whole order fits on screen as it is rearranged.
+  const sortable = useSortable(blocks, block => block.id, orderBlocks);
   const [settingsTab, setSettingsTab] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -131,15 +136,18 @@ export const Console = () => {
                     </p>
                   </div>
                 ) : (
-                  blocks.map((block, index) => (
-                  <PassageBlock
-                    key={block.id}
-                    block={block}
-                    index={index}
-                    isFirst={index === 0}
-                    isLast={index === blocks.length - 1}
-                  />
-                ))
+                  <div {...sortable.list()}>
+                    {sortable.items.map((block, index) => (
+                      <PassageBlock
+                        key={block.id}
+                        block={block}
+                        index={index}
+                        isFirst={index === 0}
+                        isLast={index === blocks.length - 1}
+                        sortable={sortable}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
 

@@ -135,6 +135,23 @@ export const moveBlockTo = (workspace: Workspace, id: string, insertIndex: numbe
   return { ...workspace, blocks };
 };
 
+/**
+ * The whole running order at once, as a drag leaves it. Ids the drag never saw
+ * — a passage searched on another console while one was in the air — keep their
+ * place at the end rather than dropping out of the workspace.
+ */
+export const orderBlocks = (workspace: Workspace, ids: string[]): Workspace => {
+  const known = new Set(ids);
+
+  return {
+    ...workspace,
+    blocks: [
+      ...ids.map(id => workspace.blocks.find(block => block.id === id)).filter((block): block is Block => Boolean(block)),
+      ...workspace.blocks.filter(block => !known.has(block.id)),
+    ],
+  };
+};
+
 export const moveBlock = (workspace: Workspace, id: string, direction: number): Workspace => {
   const index = workspace.blocks.findIndex(block => block.id === id);
   const target = index + direction;

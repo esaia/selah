@@ -1,12 +1,7 @@
 "use client";
 
-import { Expand, GripVertical, Plus, Trash2, Zap } from "lucide-react";
-import {
-  useState,
-  type CSSProperties,
-  type DragEvent,
-  type ReactNode,
-} from "react";
+import { Expand, Plus, Trash2, Zap } from "lucide-react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
@@ -18,6 +13,9 @@ import {
   type MessageColor,
   type TimerMessage,
 } from "@/lib/timer/model";
+
+import { SortHandle } from "./SortHandle";
+import { useSortable, type Sortable } from "./sortable";
 
 /** The one-character style buttons under each message. */
 const Chip = ({
@@ -52,28 +50,16 @@ const Chip = ({
   </button>
 );
 
-/** Which half of a card the pointer is over, so a drop knows where to land. */
-const sideOf = (event: DragEvent<HTMLElement>) => {
-  const box = event.currentTarget.getBoundingClientRect();
-
-  return event.clientY - box.top < box.height / 2 ? "before" : "after";
-};
-
 const Card = ({
   message,
   index,
-  lifted,
-  onLift,
-  onDrop,
+  sortable,
 }: {
   message: TimerMessage;
   index: number;
-  lifted: string | null;
-  onLift: (id: string | null) => void;
-  onDrop: (to: number) => void;
+  sortable: Sortable<TimerMessage>;
 }) => {
   const { updateTimer } = useStudio();
-  const [side, setSide] = useState<"before" | "after" | null>(null);
 
   const patch = (fields: Partial<TimerMessage>) =>
     updateTimer((current) => ({
@@ -83,68 +69,30 @@ const Card = ({
       ),
     }));
 
-  const carried = lifted === message.id;
-  const target = Boolean(lifted) && !carried;
-
   return (
     <li
-      onDragOver={(event) => {
-        if (!target) return;
-
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "move";
-        setSide(sideOf(event));
-      }}
-      onDragLeave={() => setSide(null)}
-      onDrop={(event) => {
-        if (!target) return;
-
-        event.preventDefault();
-        setSide(null);
-        onDrop(sideOf(event) === "after" ? index + 1 : index);
-      }}
+      {...sortable.row(message.id)}
       className={cn(
         // The console's ordinary radius, not the larger one: `rounded-studio-lg`
         // is for surfaces that float — a modal, a menu — and a card sitting in
         // a list reads as a pill at that corner.
-        "relative rounded-studio border transition-colors duration-150",
+        "group relative rounded-studio border transition-colors duration-150",
         // A message on the screen is tinted rather than repainted: same border
         // width, same padding, so nothing under it moves when it goes up.
         message.visible
           ? "border-studio-accent bg-studio-accent/[0.06]"
           : "border-studio-border bg-white focus-within:border-studio-accent/50",
-        carried && "opacity-40",
+        // The browser snapshots the ghost before this paints, so the fade lands
+        // on the slot the card is holding open rather than on the one in the air.
+        sortable.lifted === message.id && "opacity-40",
       )}
     >
-      {side ? (
-        <span
-          aria-hidden="true"
-          className={cn(
-            "absolute inset-x-0 z-10 h-0.5 rounded-full bg-studio-accent",
-            side === "before" ? "-top-1" : "-bottom-1",
-          )}
-        />
-      ) : null}
-
       <div className="flex items-stretch">
-        <span
-          draggable
-          onDragStart={(event) => {
-            event.dataTransfer.effectAllowed = "move";
-            // Firefox refuses to start a drag without a payload.
-            event.dataTransfer.setData("text/plain", message.id);
-            onLift(message.id);
-          }}
-          onDragEnd={() => {
-            onLift(null);
-            setSide(null);
-          }}
-          title="Drag to reorder"
-          className="flex w-5 shrink-0 cursor-grab items-center justify-center rounded-l-studio text-studio-faint
-            transition-colors duration-150 hover:text-studio-muted active:cursor-grabbing"
-        >
-          <GripVertical className="size-3.5" />
-        </span>
+        <SortHandle
+          index={index}
+          className="w-6 rounded-l-studio"
+          {...sortable.handle(message.id)}
+        />
 
         <textarea
           rows={2}
@@ -288,38 +236,39 @@ const Card = ({
  */
 export const TimerMessages = () => {
   const { timer, updateTimer } = useStudio();
-  const [lifted, setLifted] = useState<string | null>(null);
 
-  // Moved by id rather than by the index it was lifted from: the list can have
-  // been rewritten by another console while the card was in the air.
-  const moveTo = (to: number) =>
-    updateTimer((current) => {
-      const from = current.messages.findIndex((item) => item.id === lifted);
+  // Reordered by id rather than by the slots the cards were dragged through:
+  // the list can have been rewritten by another console while one was in the air.
+  const sortable = useSortable(
+    timer.messages,
+    (message) => message.id,
+    (ids) =>
+      updateTimer((current) => {
+        const known = new Set(ids);
 
-      if (from < 0) return current;
-
-      const messages = [...current.messages];
-      const [moved] = messages.splice(from, 1);
-
-      messages.splice(from < to ? to - 1 : to, 0, moved);
-
-      return { ...current, messages };
-    });
+        return {
+          ...current,
+          messages: [
+            ...ids
+              .map((id) => current.messages.find((item) => item.id === id))
+              .filter((item): item is TimerMessage => Boolean(item)),
+            ...current.messages.filter((item) => !known.has(item.id)),
+          ],
+        };
+      }),
+  );
 
   return (
     <section className="space-y-2">
-      <ul className="space-y-2">
-        {timer.messages.map((message, index) => (
+      {/* The gaps between the cards belong to the list, and a release in one of
+          them is still a release on the order the drag arrived at. */}
+      <ul className="space-y-2" {...sortable.list()}>
+        {sortable.items.map((message, index) => (
           <Card
             key={message.id}
             message={message}
             index={index}
-            lifted={lifted}
-            onLift={setLifted}
-            onDrop={(to) => {
-              moveTo(to);
-              setLifted(null);
-            }}
+            sortable={sortable}
           />
         ))}
       </ul>

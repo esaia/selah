@@ -37,6 +37,7 @@ import {
   liveGroup,
   moveBlock as moveBlockIn,
   moveBlockTo as moveBlockToIn,
+  orderBlocks as orderBlocksIn,
   planExtension,
   planTrim,
   regroup,
@@ -107,8 +108,8 @@ interface StudioValue {
   removeBlock: (id: string) => void;
   moveBlock: (id: string, direction: number) => void;
   moveBlockTo: (id: string, insertIndex: number) => void;
-  draggingId: string | null;
-  setDraggingId: (id: string | null) => void;
+  /** The whole running order at once, as a drag leaves it. */
+  orderBlocks: (ids: string[]) => void;
   toggleBlockCollapsed: (id: string) => void;
   setAllCollapsed: (collapsed: boolean) => void;
   clearBlocks: () => void;
@@ -128,6 +129,8 @@ interface StudioValue {
   removeSong: (id: string) => Promise<void>;
   clearSongs: () => Promise<void>;
   placeInSetlist: (songId: string, index: number) => void;
+  /** The whole running order at once, as a drag leaves it. */
+  orderSetlist: (songIds: string[]) => void;
   removeFromSetlist: (songId: string) => void;
   clearSetlist: () => void;
   publishLyrics: (song: Song, slideIndex: number) => void;
@@ -179,7 +182,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   const [tab, setTab] = useState<Tab>(initial.workspace.tab);
   const [cardSize, setCardSize] = useState(initial.workspace.cardSize);
   const [loading, setLoading] = useState(false);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
   const [showData, setShowData] = useState<ShowData>(initial.showData);
   const [nextShowData, setNextShowData] = useState<ShowData>(initial.nextShowData);
   const [timer, setTimer] = useState<TimerState>(() => asTimerState(initial.timer));
@@ -840,6 +842,12 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     });
   }, []);
 
+  // Ids the caller has not seen — a song added on another console mid-drag —
+  // keep their place at the end rather than dropping out of the order.
+  const orderSetlist = useCallback<StudioValue['orderSetlist']>(songIds => {
+    setSetlist(current => [...songIds.filter(id => current.includes(id)), ...current.filter(id => !songIds.includes(id))]);
+  }, []);
+
   const value = useMemo<StudioValue>(
     () => ({
       session: initial.session,
@@ -859,8 +867,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       removeBlock: id => setWorkspace(current => removeBlockIn(current, id)),
       moveBlock: (id, direction) => setWorkspace(current => moveBlockIn(current, id, direction)),
       moveBlockTo: (id, insertIndex) => setWorkspace(current => moveBlockToIn(current, id, insertIndex)),
-      draggingId,
-      setDraggingId,
+      orderBlocks: ids => setWorkspace(current => orderBlocksIn(current, ids)),
       toggleBlockCollapsed: id => setWorkspace(current => toggleCollapsed(current, id)),
       setAllCollapsed: collapsed => setWorkspace(current => setCollapsed(current, collapsed)),
       clearBlocks: () => setWorkspace({ blocks: [], live: null }),
@@ -885,6 +892,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
         setWorkspace(current => ({ ...current, live: current.live?.kind === 'lyrics' ? null : current.live }));
       },
       placeInSetlist,
+      orderSetlist,
       removeFromSetlist: songId => setSetlist(current => current.filter(id => id !== songId)),
       clearSetlist: () => setSetlist([]),
       publishLyrics,
@@ -909,7 +917,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       clearProjector,
       client,
       db,
-      draggingId,
       initial.settings.user_id,
       extendBlock,
       goLive,
@@ -920,6 +927,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       loading,
       peers,
       placeInSetlist,
+      orderSetlist,
       publishLyrics,
       refreshBlocks,
       regroupCards,

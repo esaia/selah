@@ -9,7 +9,9 @@ import { Select } from '@/components/ui/Select';
 import { cn } from '@/lib/cn';
 import { useStudio } from '@/lib/studio/StudioProvider';
 
+import { SortHandle } from './SortHandle';
 import { TimerEditor } from './TimerEditor';
+import { useSortable, type Sortable } from './sortable';
 import {
   LABEL_COLORS,
   TIMER_KINDS,
@@ -62,7 +64,17 @@ const Number = ({
   </button>
 );
 
-const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: boolean }) => {
+const Row = ({
+  timer,
+  index,
+  live,
+  sortable,
+}: {
+  timer: StageTimer;
+  index: number;
+  live: boolean;
+  sortable: Sortable<StageTimer>;
+}) => {
   const { timer: state, updateTimer } = useStudio();
 
   const [editing, setEditing] = useState(false);
@@ -84,10 +96,14 @@ const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: b
 
   return (
     <li
+      {...sortable.row(timer.id)}
       onClick={() => updateTimer(current => armTimer(current, timer.id))}
       className={cn(
-        'flex cursor-pointer flex-wrap items-center gap-2 rounded-studio border px-3 py-2.5',
+        'group flex cursor-pointer flex-wrap items-center gap-2 rounded-studio border px-3 py-2.5',
         'transition-colors duration-150',
+        // The browser snapshots the ghost before this paints, so the fade lands
+        // on the slot the row is holding open rather than on the one in the air.
+        sortable.lifted === timer.id && 'opacity-40',
         live
           ? 'border-studio-accent bg-studio-accent/10'
           : played
@@ -97,10 +113,11 @@ const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: b
     >
       {/* The place in the order, until this is the row that was last given —
           then the tick takes the slot, which is the mark the stage's agenda
-          wears for the same timer. */}
-      <span className="w-4 shrink-0 text-xs font-medium text-studio-faint" title={played ? 'Last played' : undefined}>
+          wears for the same timer. Either way it is also the grip: the running
+          order is dragged by the number it is read by. */}
+      <SortHandle index={index} className="w-4" {...sortable.handle(timer.id)}>
         {played ? <Check className="size-3.5 text-studio-go" /> : index + 1}
-      </span>
+      </SortHandle>
 
       {/* Read on the row, typed in the panel — the same rule as the title. A
           field here meant the running order was half a form: three boxes to tab
@@ -128,14 +145,14 @@ const Row = ({ timer, index, live }: { timer: StageTimer; index: number; live: b
           {timer.name || 'Untitled'}
         </span>
 
-        {/* Faint until it is aimed at, so a running order at rest reads as
-            titles and times rather than a column of pencils — but never gone,
-            because a control that has to be discovered by sweeping a pointer
-            over the list is one an operator does not know is there. */}
+        {/* Absent until the row is under the pointer, faint even then, and
+            full strength only when it is the pencil itself being aimed at — a
+            running order at rest reads as titles and times rather than a
+            column of pencils. */}
         <span
           className={cn(
             'shrink-0 transition-opacity duration-150 hover:opacity-100 focus-within:opacity-100',
-            editing ? 'opacity-100' : 'opacity-35',
+            editing ? 'opacity-100' : 'opacity-0 group-hover:opacity-35',
           )}
         >
           <IconButton
@@ -307,17 +324,42 @@ const Join = ({ timer, linked }: { timer: StageTimer; linked: boolean }) => {
 export const TimerList = () => {
   const { timer, updateTimer } = useStudio();
 
+  // Reordered by id rather than by the slots the rows were dragged through: the
+  // running order can have been rewritten by another console mid-drag.
+  const sortable = useSortable(timer.timers, item => item.id, ids =>
+    updateTimer(current => {
+      const known = new Set(ids);
+
+      return {
+        ...current,
+        timers: [
+          ...ids.map(id => current.timers.find(item => item.id === id)).filter((item): item is StageTimer =>
+            Boolean(item),
+          ),
+          ...current.timers.filter(item => !known.has(item.id)),
+        ],
+      };
+    }),
+  );
+
   return (
     <section className="space-y-2">
-      <ul className="space-y-2">
-        {timer.timers.map((item, index) => (
+      {/* The gaps between the rows belong to the list, and a release in one of
+          them is still a release on the order the drag arrived at. */}
+      <ul className="space-y-2" {...sortable.list()}>
+        {sortable.items.map((item, index) => (
           <Fragment key={item.id}>
             {index > 0 ? <Join timer={item} linked={item.linked} /> : null}
 
             {/* Live means on a screen, not merely armed: cleared, the running
                 order goes quiet and nothing in it claims to be up, which is the
                 whole point of having pressed Clear. */}
-            <Row timer={item} index={index} live={item.id === timer.activeId && timer.onStage} />
+            <Row
+              timer={item}
+              index={index}
+              live={item.id === timer.activeId && timer.onStage}
+              sortable={sortable}
+            />
           </Fragment>
         ))}
       </ul>

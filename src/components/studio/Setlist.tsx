@@ -2,12 +2,14 @@
 
 import { useState, type DragEvent } from 'react';
 import { HiOutlinePencil, HiOutlineX } from 'react-icons/hi';
-import { MdDragIndicator } from 'react-icons/md';
 
 import { IconButton } from '@/components/ui/IconButton';
 import { cn } from '@/lib/cn';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import type { Song } from '@/lib/types';
+
+import { SortHandle } from './SortHandle';
+import { useSortable } from './sortable';
 
 const DRAG_TYPE = 'application/x-studio-song';
 
@@ -40,13 +42,27 @@ const readDragged = (event: DragEvent<HTMLElement>) =>
  * re-imported bundle updates the songs without disturbing the running order.
  */
 export const Setlist = ({ onEdit }: { onEdit: (song: Song) => void }) => {
-  const { songs, setlist, activeSongId, setActiveSongId, placeInSetlist, removeFromSetlist, clearSetlist } =
-    useStudio();
+  const {
+    songs,
+    setlist,
+    activeSongId,
+    setActiveSongId,
+    placeInSetlist,
+    orderSetlist,
+    removeFromSetlist,
+    clearSetlist,
+  } = useStudio();
 
   // The slot a drop would use, while a drag is over the list.
   const [dropIndex, setDropIndex] = useState<number | null>(null);
 
   const items = setlist.map(id => songs.find(song => song.id === id)).filter((song): song is Song => Boolean(song));
+
+  // Reordering within the list rearranges under the pointer and is written on
+  // release. A song arriving from the library is a different thing and still
+  // lands on the slot the line marks — the two never see each other's drags,
+  // since the sortable answers only while it has a row of its own in the air.
+  const sortable = useSortable(items, song => song.id, orderSetlist);
 
   const handleDrop = (index: number) => (event: DragEvent<HTMLElement>) => {
     const songId = readDragged(event);
@@ -85,9 +101,17 @@ export const Setlist = ({ onEdit }: { onEdit: (song: Song) => void }) => {
       </div>
 
       <div
-        onDragOver={allowDrop(items.length)}
+        onDragOver={event => {
+          if (sortable.lifted) return sortable.list().onDragOver(event);
+
+          allowDrop(items.length)(event);
+        }}
         onDragLeave={() => setDropIndex(null)}
-        onDrop={handleDrop(items.length)}
+        onDrop={event => {
+          if (sortable.lifted) return sortable.list().onDrop(event);
+
+          handleDrop(items.length)(event);
+        }}
         className={cn(
           'studio-scroll max-h-56 min-h-[96px] overflow-y-auto rounded-studio border lg:max-h-none lg:flex-1',
           dropIndex !== null ? 'border-studio-accent bg-studio-accent/5' : 'border-dashed border-studio-border',
@@ -98,26 +122,33 @@ export const Setlist = ({ onEdit }: { onEdit: (song: Song) => void }) => {
             Drag songs here to build this Sunday&rsquo;s order of service.
           </p>
         ) : (
-          items.map((song, index) => (
+          sortable.items.map((song, index) => (
             <div
               key={song.id}
-              {...songDragProps(song.id)}
+              {...sortable.row(song.id)}
               onDragOver={event => {
+                sortable.row(song.id).onDragOver(event);
+
+                if (sortable.lifted) return;
+
                 event.stopPropagation();
                 allowDrop(sideOf(event) === 'before' ? index : index + 1)(event);
               }}
               onDrop={event => {
+                if (sortable.lifted) return sortable.row(song.id).onDrop(event);
+
                 event.stopPropagation();
                 handleDrop(sideOf(event) === 'before' ? index : index + 1)(event);
               }}
               className={cn(
-                'group/set flex cursor-grab items-center gap-1 border-b border-studio-divider last:border-b-0',
+                'group group/set flex items-center gap-1 border-b border-studio-divider last:border-b-0',
                 song.id === activeSongId ? 'bg-studio-accent/10' : 'hover:bg-studio-surface',
+                sortable.lifted === song.id && 'opacity-40',
                 dropIndex === index && 'border-t-2 border-t-studio-accent',
                 dropIndex === index + 1 && 'border-b-2 border-b-studio-accent',
               )}
             >
-              <MdDragIndicator className="ml-1 shrink-0 text-sm text-studio-faint" />
+              <SortHandle index={index} className="ml-1 w-4" {...sortable.handle(song.id)} />
 
               <button
                 type="button"
@@ -130,7 +161,7 @@ export const Setlist = ({ onEdit }: { onEdit: (song: Song) => void }) => {
                     song.id === activeSongId ? 'font-semibold text-studio-text' : 'text-studio-muted',
                   )}
                 >
-                  {index + 1}. {song.title}
+                  {song.title}
                 </span>
               </button>
 
