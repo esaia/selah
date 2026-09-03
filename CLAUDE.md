@@ -40,6 +40,11 @@ domain vocabulary. This file is the working agreement on top of it.
   `block.groups`, so prepending, joining or trimming has to move it. That logic
   lives in `lib/studio/blocks.ts`, is pure, and is tested — put new cases there
   rather than in the provider.
+- **A name card is not a slide.** It rides beside `showData` in the payload,
+  goes to `/lower3rd` alone, and is laid over whatever that output is already
+  showing — the projector and the stage never see one. Its hold travels as
+  `firedAt` + `holdMs` and is counted down by each reader, never over the wire.
+  `lib/lower3rd/card.ts` is pure and tested; put new cases there.
 - **Media is never uploaded.** Backgrounds and music stay in IndexedDB; the
   database holds metadata only. Do not "simplify" this into Supabase Storage
   without asking — it is a deliberate cost decision.

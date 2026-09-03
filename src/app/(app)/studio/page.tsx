@@ -11,7 +11,7 @@ import { emptyShowData, type Block, type Live, type ShowData, type Song } from '
 
 export const metadata = { title: 'Console' };
 
-const TABS: Tab[] = ['bible', 'audio', 'lyrics', 'stage'];
+const TABS: Tab[] = ['bible', 'audio', 'lyrics', 'lower3rd', 'stage'];
 
 /**
  * The operator's console.
@@ -32,11 +32,18 @@ export default async function StudioPage() {
 
   if (!user) redirect('/login?next=/studio');
 
-  const [settings, session, subscription, songs] = await Promise.all([
+  const [settings, session, subscription, songs, nameCards] = await Promise.all([
     supabase.from('settings').select('*').eq('user_id', user.id).single(),
     supabase.from('sessions').select('id, name, output_key').eq('user_id', user.id).order('created_at').limit(1).single(),
     supabase.from('subscriptions').select('plan').eq('user_id', user.id).maybeSingle(),
     supabase.from('songs').select('id, title, slides, source').eq('user_id', user.id).order('title'),
+    // Saved speakers, in the order the operator dragged them.
+    supabase
+      .from('name_cards')
+      .select('id, title, subtitle, template, position')
+      .eq('user_id', user.id)
+      .order('position')
+      .order('created_at'),
   ]);
 
   // The signup trigger creates all of these; a missing row means the account
@@ -47,7 +54,11 @@ export default async function StudioPage() {
 
   const [{ data: workspace }, { data: state }, audioTracks, audioCategories] = await Promise.all([
     supabase.from('session_workspace').select('*').eq('session_id', session.data.id).maybeSingle(),
-    supabase.from('session_state').select('show_data, next_show_data, timer').eq('session_id', session.data.id).maybeSingle(),
+    supabase
+      .from('session_state')
+      .select('show_data, next_show_data, timer, card')
+      .eq('session_id', session.data.id)
+      .maybeSingle(),
     // The operator's own running order, with the order they were added in as
     // the tie-break for rows that have never been dragged.
     supabase.from('audio_tracks').select('*').eq('user_id', user.id).order('position').order('created_at'),
@@ -89,6 +100,11 @@ export default async function StudioPage() {
     // The run in progress, for the same reason: a console reopened mid-service
     // must pick the timer up where it is, not restart it.
     timer: asTimerState(state?.timer),
+    // And the name card, if one was up when the console was closed. Read raw
+    // and validated inside the provider, which is where the hold arithmetic
+    // and the clock correction live.
+    cards: (nameCards.data ?? []) as StudioInitial['cards'],
+    card: state?.card ?? null,
     songs: (songs.data ?? []).map(row => ({
       id: row.id,
       title: row.title,

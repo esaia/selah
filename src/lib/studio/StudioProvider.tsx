@@ -18,6 +18,16 @@ import type { SignalTransport, SlidePayload } from '@/lib/live/protocol';
 import { loadLocalFile } from '@/lib/media/localMedia';
 import { serveAssets } from '@/lib/media/peerAssets';
 import { LOCAL_THEME } from '@/lib/projector/themes';
+import {
+  asCardRun,
+  DEFAULT_HOLD_MS,
+  fireCard,
+  isSaved,
+  remainingOf,
+  withSkew as withCardSkew,
+  type CardRun,
+  type NameCard,
+} from '@/lib/lower3rd/card';
 import { armTimer, asTimerState, finishesAt, linkedNext, startRun, type TimerState } from '@/lib/timer/model';
 import { supabase } from '@/lib/supabase/client';
 import { save } from '@/lib/supabase/save';
@@ -63,7 +73,7 @@ import {
 } from './settings';
 import { useDebouncedSave } from './useDebouncedSave';
 
-export type Tab = 'bible' | 'audio' | 'lyrics' | 'stage';
+export type Tab = 'bible' | 'audio' | 'lyrics' | 'lower3rd' | 'stage';
 
 export interface StudioSession {
   id: string;
@@ -83,6 +93,9 @@ export interface StudioInitial {
     cardSize: number;
   };
   songs: Song[];
+  /** The people the operator has saved, and who is on the stream right now. */
+  cards: NameCard[];
+  card: unknown;
   showData: ShowData;
   nextShowData: ShowData;
   timer: TimerState;
@@ -123,6 +136,16 @@ interface StudioValue {
   selectVerse: (blockId: string, verseIndex: number) => void;
   stepLive: (direction: number) => void;
   clearProjector: () => void;
+
+  /** Saved name cards, who is on the stream, and how long a card holds. */
+  cards: NameCard[];
+  cardRun: CardRun | null;
+  cardHoldMs: number;
+  setCardHoldMs: (ms: number) => void;
+  showCard: (card: NameCard, holdMs?: number) => void;
+  clearCard: () => void;
+  saveCard: (card: NameCard) => Promise<void>;
+  removeCard: (id: string) => Promise<void>;
 
   songs: Song[];
   activeSongId: string | null;
@@ -192,6 +215,14 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   const [timer, setTimer] = useState<TimerState>(() => asTimerState(initial.timer));
   const [peers, setPeers] = useState({ console: 0, show: 0, lower3rd: 0, stage: 0 });
 
+  // The people the operator has saved, and which of them is on the stream.
+  // `cardRun` is deliberately not part of `workspace`: a name card is laid
+  // over the live slide rather than being one, so it must not travel with the
+  // block list or clear when the projector clears.
+  const [cards, setCards] = useState<NameCard[]>(initial.cards);
+  const [cardRun, setCardRun] = useState<CardRun | null>(() => withCardSkew(asCardRun(initial.card)));
+  const [cardHoldMs, setCardHoldMs] = useState(DEFAULT_HOLD_MS);
+
   const { blocks, live } = workspace;
 
   // ------------------------------------------------------------ live channel
@@ -240,6 +271,14 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     timerRef.current = timer;
   }, [timer]);
 
+  // The name card on the stream, held in a ref for the same reason: every push
+  // carries it, and none of them should be a dependency of the others.
+  const cardRef = useRef<CardRun | null>(cardRun);
+
+  useEffect(() => {
+    cardRef.current = cardRun;
+  }, [cardRun]);
+
   /**
    * One payload, built in one place.
    *
@@ -257,6 +296,10 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       streamLang: wireStyle.streamLang,
       stageLang: wireStyle.stageLang,
       timer: { ...run, sentAt: Date.now() },
+      // Whoever is on the stream overlay right now. Read from a ref for the
+      // same reason the timer is: a slide change must carry the card along
+      // unchanged rather than take it down.
+      card: cardRef.current && { ...cardRef.current, sentAt: Date.now() },
     }),
     [wireStyle],
   );
@@ -401,6 +444,113 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
     return () => clearTimeout(wait);
   }, [timer]);
+
+  // ------------------------------------------------------------ name cards
+
+  /**
+   * A card's own push.
+   *
+   * It publishes the slide unchanged and lets the card ride along in the
+   * payload, which is what keeps the projector and the stage untouched: they
+   * receive the same verse they already had, and only the stream overlay finds
+   * something new to draw.
+   */
+  const publishCard = useCallback(
+    (run: CardRun | null) => {
+      setCardRun(run);
+      cardRef.current = run;
+
+      channelRef.current?.publishSlide(payloadOf(showRef.current, nextRef.current, timerRef.current));
+
+      void save(
+        db.from('session_state').update({ card: run }).eq('session_id', initial.session.id),
+        'the name card',
+      );
+    },
+    [db, initial.session.id, payloadOf],
+  );
+
+  const showCard = useCallback<StudioValue['showCard']>(
+    (card, holdMs = cardHoldMs) => publishCard(fireCard(card, holdMs)),
+    [cardHoldMs, publishCard],
+  );
+
+  const clearCard = useCallback(() => publishCard(null), [publishCard]);
+
+  /**
+   * Taking a finished card down.
+   *
+   * The overlays already stop drawing one whose hold has run out — they count
+   * from their own clocks, which is the whole point of sending `firedAt`
+   * instead of a countdown. This is only the console catching up with them, so
+   * the panel stops calling the card live and the stored row does not keep a
+   * card that is long gone. Waited out rather than polled, for the same reason
+   * the linked timers above are.
+   */
+  useEffect(() => {
+    const left = remainingOf(cardRun);
+
+    if (!cardRun || left === Infinity) return;
+
+    const wait = setTimeout(() => {
+      setCardRun(null);
+      cardRef.current = null;
+
+      void save(
+        db.from('session_state').update({ card: null }).eq('session_id', initial.session.id),
+        'the name card',
+      );
+    }, left);
+
+    return () => clearTimeout(wait);
+  }, [cardRun, db, initial.session.id]);
+
+  const saveCard = useCallback<StudioValue['saveCard']>(
+    async card => {
+      // A card written in the console has a placeholder id until it is saved;
+      // leaving it off lets Postgres mint the real one.
+      const saved = isSaved(card.id) ? { id: card.id } : {};
+
+      const { data, error } = await db
+        .from('name_cards')
+        .upsert({
+          ...saved,
+          user_id: initial.settings.user_id,
+          title: card.title,
+          subtitle: card.subtitle,
+          template: card.template,
+          position: card.position,
+        })
+        .select()
+        .single();
+
+      if (error) throw new Error(error.message);
+      if (!data) return;
+
+      const written = data as NameCard;
+
+      setCards(current => {
+        const without = current.filter(item => item.id !== written.id);
+
+        return [...without, written].sort((a, b) => a.position - b.position || a.title.localeCompare(b.title));
+      });
+    },
+    [db, initial.settings.user_id],
+  );
+
+  const removeCard = useCallback<StudioValue['removeCard']>(
+    async id => {
+      const { error } = await db.from('name_cards').delete().eq('id', id);
+
+      if (error) throw new Error(error.message);
+
+      setCards(current => current.filter(card => card.id !== id));
+
+      // A card taken out of the library while it is on the stream comes off it.
+      if (cardRef.current?.card.id === id) publishCard(null);
+    },
+    [db, publishCard],
+  );
 
   /** Normalised on the way out, so a hand-typed duration or a stale row can
    *  never reach an output half-formed. */
@@ -974,6 +1124,14 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       selectVerse,
       stepLive,
       clearProjector,
+      cards,
+      cardRun,
+      cardHoldMs,
+      setCardHoldMs,
+      showCard,
+      clearCard,
+      saveCard,
+      removeCard,
       songs,
       activeSongId,
       setActiveSongId,
@@ -1012,6 +1170,10 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       addPassage,
       blocks,
       cardSize,
+      cardHoldMs,
+      cardRun,
+      cards,
+      clearCard,
       clearProjector,
       client,
       db,
@@ -1029,8 +1191,11 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       publishLyrics,
       refreshBlocks,
       regroupCards,
+      removeCard,
       removeGroup,
+      saveCard,
       setLangOrder,
+      showCard,
       addLang,
       removeLang,
       removeSong,

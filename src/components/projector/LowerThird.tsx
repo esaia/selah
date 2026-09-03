@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 import { openLiveChannel } from '@/lib/live/channel';
+import { asCardRun, isShowing, remainingOf, withSkew, type CardRun } from '@/lib/lower3rd/card';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
 import { keepSame } from '@/lib/projector/keepSame';
 import { apiBookName } from '@/lib/bible/passage';
@@ -88,7 +89,31 @@ const Block = ({ showData, lang }: { showData: ShowData; lang: Lang }) => {
 export interface LowerThirdInitial {
   showData: ShowData;
   style: Partial<StreamStyle>;
+  /** The name card that was up when this page opened, if any. */
+  card: unknown;
 }
+
+/**
+ * The speaker's name, strapped over the shot.
+ *
+ * Its own element rather than another `.lower3rd-bar` variant, because it is
+ * not a variant of anything: it carries two fixed lines with no reference and
+ * no languages, and it is laid over whatever the bar is already showing rather
+ * than replacing it.
+ */
+const NameCard = ({ run, visible }: { run: CardRun; visible: boolean }) => (
+  <div
+    // Keyed on the run so re-firing the same person replays the entrance
+    // rather than leaving a card that was already on screen sitting there.
+    key={run.firedAt}
+    className={`namecard namecard--${run.card.template}${visible ? ' namecard--in' : ' namecard--out'}`}
+  >
+    <div className="namecard-inner">
+      <p className="namecard-title">{run.card.title}</p>
+      {run.card.subtitle ? <p className="namecard-subtitle">{run.card.subtitle}</p> : null}
+    </div>
+  </div>
+);
 
 /**
  * The OBS Browser Source output: the live slide as a broadcast lower third,
@@ -113,6 +138,40 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
   // only while the bar is hidden means the refit measures the incoming text
   // and the stream never sees a half-sized frame.
   const [displayed, setDisplayed] = useState(slide);
+
+  /**
+   * The name card, held apart from the slide on purpose.
+   *
+   * It is laid over whatever the bar is showing rather than replacing it, so
+   * it must not take part in the slide's crossfade — a card firing should not
+   * make the verse underneath blink.
+   */
+  const [card, setCard] = useState<CardRun | null>(() => withSkew(asCardRun(initial.card)));
+
+  // Whether the console has taken the card down. Held apart from the card
+  // itself so the element stays mounted while it leaves: an exit animation
+  // cannot play on something already removed from the page, and a strap that
+  // vanishes between two frames reads as a dropped connection rather than as
+  // someone clearing it.
+  const [cleared, setCleared] = useState(false);
+
+  // A card that has run out of hold, without waiting for a message saying so.
+  // The console publishes `firedAt` and a duration rather than a countdown, so
+  // taking the card away is this page's own arithmetic on its own clock — the
+  // same rule the stage timer follows. It means an overlay that joins halfway
+  // through a card shows the rest of it and then clears itself, even if the
+  // console has since closed.
+  const [, setNow] = useState(0);
+
+  useEffect(() => {
+    const left = remainingOf(card);
+
+    if (!card || left === Infinity) return;
+
+    const done = setTimeout(() => setNow(Date.now()), left);
+
+    return () => clearTimeout(done);
+  }, [card]);
   const [received, setReceived] = useState<{ count: number; at: string | null }>({ count: 0, at: null });
 
   const textRef = useRef<HTMLDivElement>(null);
@@ -161,6 +220,24 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
       // A payload that only carries a new timer shape must not restart the
       // crossfade: keeping the old object leaves `slide === displayed`.
       setSlide(current => keepSame(current, next));
+
+      // The card rides beside the slide, so a verse change carries it along
+      // unchanged and it neither restarts nor disappears. Skew-corrected here
+      // because this is a reader: the console must publish back exactly what
+      // it sent, or two consoles would push a card around between them.
+      const run = withSkew(asCardRun(payload.card));
+
+      // Nothing on the stream: keep the card mounted and let it play its exit.
+      // The next one to arrive replaces it.
+      setCleared(!run);
+
+      if (!run) return;
+
+      setCard(current =>
+        // Same card, same firing: hold the object so an unrelated slide change
+        // does not replay the entrance.
+        current && run.card.id === current.card.id && run.firedAt === current.firedAt ? current : run,
+      );
       setReceived(current => ({ count: current.count + 1, at: new Date().toLocaleTimeString() }));
     });
 
@@ -232,8 +309,15 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
   const top = style.position === 'top';
   const align = (lyrics ? style.lyricsAlign : style.align) ?? 'left';
 
+  // A name card takes the bar's place while it holds, and the bar comes
+  // straight back underneath when it goes — the verse was never taken down,
+  // only covered. Two straps stacked on one shot is the thing to avoid.
+  const cardShowing = !blanked && !cleared && isShowing(card);
+
   return (
     <div className={`lower3rd-stage ${lyrics ? style.lyricsFont : style.font}`}>
+      {card ? <NameCard run={card} visible={cardShowing} /> : null}
+
       <div
         className={`lower3rd-bar lower3rd-bar--${(lyrics ? style.lyricsVariant : style.variant) || 'scrim'} ${
           top ? 'lower3rd-bar--top' : ''
@@ -242,7 +326,7 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
         // that moves pulls the eye away from the speaker every time a verse
         // changes — a fade lets the words swap without the frame shifting.
         style={{
-          opacity: visible ? 1 : 0,
+          opacity: visible && !cardShowing ? 1 : 0,
           transition: transitionMs === 0 ? 'none' : `opacity ${transitionMs / 2}ms ease-in-out`,
         }}
       >

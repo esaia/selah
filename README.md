@@ -90,6 +90,36 @@ shut — does not blank the screen.
 - The **classic console** (`/`), the plain reader, the docs page and the
   donation page are not ported.
 
+## Name cards
+
+Who is speaking, strapped across the bottom of the stream — the one graphic a
+church broadcast uses constantly. The **Lower3rd** tab holds the people an
+operator keeps (their preachers, worship leaders, guests) and five finished
+designs. Type a name and a role, pick a design, and it plays over the stream
+and takes itself away.
+
+Two things are worth knowing about it.
+
+**A card goes to the OBS overlay alone.** The projector keeps its verse and the
+stage keeps its clock. That is why a card rides *beside* `showData` in the
+payload rather than inside it: `showData` means "what the room is seeing", and
+a name card is precisely not that. It is laid over whatever the lower third is
+already showing, and when it goes the verse is still underneath — the same
+arrangement the stage timer has with the projector.
+
+**The hold does not tick over the wire.** The payload carries when a card fired
+and how long it holds, and every overlay counts down on its own clock. So an
+overlay that opens halfway through a card gets the rest of it, and a console
+that closed cannot leave one on the stream forever. Same rule as the timer, and
+for the same reason.
+
+The designs live in `globals.css` as `.namecard--<name>`, and the picker
+renders that real markup shrunk into a tile, so a design and its preview cannot
+drift. Unlike the verse bar — which only ever fades, because movement on every
+verse change pulls the eye off the speaker — the cards animate in and out. A
+card fires once, as a deliberate act, and a strap that simply appears reads as
+a glitch.
+
 ## Where the verses come from
 
 Three places, in this order, all behind `/api/bible` so nothing above the route

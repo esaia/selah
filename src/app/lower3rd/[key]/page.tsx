@@ -17,13 +17,16 @@ export default async function LowerThirdPage({ params }: PageProps<'/lower3rd/[k
 
   const { data: state } = await db
     .from('session_state')
-    .select('show_data, stream_style')
+    .select('show_data, stream_style, card')
     .eq('session_id', session.id)
     .maybeSingle();
 
   const initial: LowerThirdInitial = {
     showData: (state?.show_data as ShowData) ?? emptyShowData(),
     style: (state?.stream_style as Partial<StreamStyle>) ?? {},
+    // A card that was live when this overlay opened. Read raw: the hold
+    // arithmetic and the clock correction belong to the component.
+    card: state?.card ?? null,
   };
 
   return <LowerThird outputKey={key} initial={initial} />;

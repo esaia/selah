@@ -1,3 +1,4 @@
+import type { CardRun } from '@/lib/lower3rd/card';
 import type { TimerState } from '@/lib/timer/model';
 import type { Lang, ProjectorStyle, ShowData, StreamStyle } from '@/lib/types';
 
@@ -43,6 +44,17 @@ export interface SlidePayload {
    * `/show` can be handed the verse and the countdown in the same message.
    */
   timer: TimerState;
+  /**
+   * Who is speaking, for the stream overlay only. Beside `showData` rather
+   * than inside it because a name card is not what the room is seeing: it goes
+   * up while a verse stays live underneath and comes away without disturbing
+   * it. The projector and the stage ignore this field.
+   *
+   * Like the timer, it carries the shape of a run rather than a countdown —
+   * `firedAt` and `holdMs`, with every reader working out the rest from its
+   * own clock.
+   */
+  card: CardRun | null;
 }
 
 /**

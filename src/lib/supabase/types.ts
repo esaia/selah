@@ -50,6 +50,7 @@ export interface Database {
         stream_lang: string;
         stage_lang: string;
         timer: Json;
+        card: Json;
         updated_at: string;
       }>;
       session_workspace: Row<{
@@ -87,6 +88,16 @@ export interface Database {
         obs_hidden: boolean;
         stream_lang: string;
         stage_lang: string;
+        updated_at: string;
+      }>;
+      name_cards: Row<{
+        id: string;
+        user_id: string;
+        title: string;
+        subtitle: string;
+        template: string;
+        position: number;
+        created_at: string;
         updated_at: string;
       }>;
       songs: Row<{

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   BookOpen,
+  Captions,
   Check,
   Copy,
   ExternalLink,
@@ -22,6 +23,7 @@ const TABS: { id: Tab; label: string; Icon: typeof BookOpen }[] = [
   { id: 'bible', label: 'Bible', Icon: BookOpen },
   { id: 'lyrics', label: 'Lyrics', Icon: Mic2 },
   { id: 'audio', label: 'Audio', Icon: Music },
+  { id: 'lower3rd', label: 'Lower3rd', Icon: Captions },
   { id: 'stage', label: 'Stage', Icon: MonitorPlay },
 ];
 

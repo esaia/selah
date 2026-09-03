@@ -10,6 +10,7 @@ import { toggleRun } from '@/lib/timer/model';
 import { AppBar } from './AppBar';
 import { AudioBar } from './AudioBar';
 import { AudioPanel } from './AudioPanel';
+import { Lower3rdPanel } from './Lower3rdPanel';
 import { LyricsPanel } from './LyricsPanel';
 import { SongSearch } from './SongSearch';
 import { PassageBlock } from './PassageBlock';
@@ -181,6 +182,7 @@ export const Console = () => {
           ) : null}
 
           {tab === 'lyrics' ? <LyricsPanel onSearch={() => setSearching(true)} /> : null}
+          {tab === 'lower3rd' ? <Lower3rdPanel /> : null}
           {tab === 'audio' ? <AudioPanel /> : null}
           {tab === 'stage' ? <TimerPanel /> : null}
 
