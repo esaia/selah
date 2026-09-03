@@ -214,6 +214,11 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   // push twice for every verse.
   const showRef = useRef<ShowData>(showData);
 
+  // What that push actually carried, as a string. The armed-language effect
+  // below compares the slide it would send against this, so a push it has
+  // already made — or one `publish` made a moment earlier — is not made twice.
+  const pushedRef = useRef(JSON.stringify([initial.showData, initial.nextShowData]));
+
   useEffect(() => {
     showRef.current = showData;
   }, [showData]);
@@ -297,6 +302,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       showRef.current = payload;
       setNextShowData(next);
       nextRef.current = next;
+
+      pushedRef.current = JSON.stringify([payload, next]);
 
       channelRef.current?.publishSlide(payloadOf(payload, next, timerRef.current));
 
@@ -686,6 +693,38 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     },
     [pushShow, settings.enabled],
   );
+
+  /**
+   * Arming a language has to reach the card that is already on screen.
+   *
+   * The look effect re-sends the style, but the verses ride in the payload, so
+   * a language switched on mid-service would not appear until the operator
+   * moved to another card. This rebuilds the live slide from the block instead.
+   *
+   * Keyed on what the slide would be rather than on the settings, because
+   * arming a language also triggers the re-fetch that gets its verses: the
+   * toggle alone would push a slide with the language still empty, and this
+   * way the push waits for the data and happens once.
+   */
+  const liveSlide = useMemo(() => {
+    if (!live || live.kind === 'lyrics') return null;
+
+    const block = blocks.find(item => item.id === live.blockId);
+
+    return block
+      ? [slideOf(block, live.verseIndex, settings.enabled), slideOf(block, live.verseIndex + 1, settings.enabled)]
+      : null;
+  }, [blocks, live, settings.enabled]);
+
+  useEffect(() => {
+    if (!liveSlide) return;
+
+    const wanted = JSON.stringify(liveSlide);
+
+    if (wanted === pushedRef.current) return;
+
+    pushShow(liveSlide[0], liveSlide[1]);
+  }, [liveSlide, pushShow]);
 
   /**
    * Join or split cards, and put the result on the outputs when the card that
