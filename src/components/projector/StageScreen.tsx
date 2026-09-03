@@ -307,6 +307,12 @@ const Notes = ({
 const AGENDA_ROWS = 6;
 
 /**
+ * How many line-heights a full panel of rows takes, in ems: every row is a line
+ * and a third, and all but the first carry the gap above them.
+ */
+const AGENDA_LINES = AGENDA_ROWS * 1.35 + (AGENDA_ROWS - 1) * 0.28;
+
+/**
  * The window of the running order worth showing: what is up, one behind it for
  * bearing, and everything still to come until the panel is full.
  */
@@ -347,8 +353,14 @@ const Agenda = ({ timer }: { timer: TimerState }) => {
   useLayoutEffect(() => {
     const refit = () =>
       // A lower ceiling than a slide's: six lines that fit are the point here,
-      // not one line as large as the box will take.
-      fitText(textRef.current, box.height * TEXT_SHARE, { min: 4, max: Math.max(6, box.height * 0.28) });
+      // not one line as large as the box will take. The ceiling is the size a
+      // *full* panel would settle on, so the agenda is set at one size all
+      // service — with two items left, fitting them to the box blew the type up
+      // to twice what the same panel had been showing a minute earlier.
+      fitText(textRef.current, box.height * TEXT_SHARE, {
+        min: 4,
+        max: Math.max(6, (box.height * TEXT_SHARE) / AGENDA_LINES),
+      });
 
     refit();
 
