@@ -1,21 +1,20 @@
 import catalogue from '@/lib/bible/languages.json';
 
 /**
- * Every language the scripture API carries, keyed by the API's own code — so a
- * request needs no translation table, and a language added upstream is one
- * entry here.
+ * Every language Selah can put on a screen — which is exactly the set we hold
+ * our own copy of, in `bible_text`.
  *
- * German is missing on purpose: `holybible.ge` lists it and offers two
- * translations, but every German request comes back in English, so arming it
- * would put English on the projector under a German label. Add it back — and
- * regenerate the catalogue — the day the upstream corpus is real.
+ * It used to be everything `holybible.ge` listed, with the console falling
+ * back to that host for whatever had not been copied. Offering a translation
+ * we cannot serve ourselves is a promise we cannot keep on the one morning it
+ * matters, so the catalogue and the corpus are now the same list. Adding a
+ * language means mirroring it first: `pnpm mirror`, then regenerate this.
  *
- * This list is what makes `Lang` a closed union; `languages.json` is what the
- * rows are. They have to agree, and `mapping.test.ts` checks that they do.
+ * Codes are the scripture API's own, so the mirror script needs no translation
+ * table. This list is what makes `Lang` a closed union; `languages.json` is
+ * what the rows are, and `mapping.test.ts` checks the two agree.
  */
-export const LANGS = [
-  'geo', 'eng', 'ru', 'es', 'fr', 'gr', 'he', 'ae', 'tr', 'la', 'jp', 'ua', 'ab', 'os',
-] as const;
+export const LANGS = ['geo', 'eng', 'ru', 'gr', 'ae', 'la'] as const;
 
 export type Lang = (typeof LANGS)[number];
 
@@ -44,9 +43,14 @@ export interface LangSpec {
    * name in it sits one index later than the book id says.
    */
   nameOffset: 0 | 1;
-  /** The upstream `mv` strings, in the order the API lists them. */
+  /**
+   * The translations, best first — the first is what a console opens on, so
+   * the order is a recommendation rather than a catalogue listing. English
+   * leads with the WEB: it is the only modern-English translation here, and
+   * the only one dedicated outright to the public domain.
+   */
   versions: string[];
-  /** The translation the language opens on, when it is not the first listed. */
+  /** Overrides the first entry, for a language whose order is not a preference. */
   defaultVersion?: string;
   /** `bibleNames`: three group headers, then the 66 books. */
   names: string[];

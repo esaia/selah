@@ -22,9 +22,11 @@ domain vocabulary. This file is the working agreement on top of it.
   `REQUIRED_LANG`. The catalogue is JSON because `scripts/` reads it too;
   `LANGS` in `languages.ts` is what makes `Lang` a closed union, and a test
   keeps the two in step.
-- **Scripture is read local-first.** `/api/bible` tries `bible_text`, then
-  `bible_cache`, then the upstream host, and that order is the whole point of
-  the route existing. `bible_text` holds one chapter per row as
+- **Scripture comes out of our own database, and nowhere else.** `/api/bible`
+  reads `bible_text` and 404s on a miss; it does not call anyone. The catalogue
+  in `languages.json` is generated from that table, so the console can never
+  offer a translation it cannot serve — do not add one to the catalogue without
+  mirroring it first. `bible_text` holds one chapter per row as
   `[[verse, text], …]`, and the route's `chapterOf` is the contract between
   that row and what the client reads — change one and change the other. A
   missing row means "not copied yet" and falls through; a row with an empty

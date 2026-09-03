@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import books from './books.json';
 import catalogue from './languages.json';
-import { LANGS, specOf } from './languages';
+import { defaultVersionOf, LANGS, specOf } from './languages';
 import { canonicalToEnglish, englishToCanonical, fromCanonicalRef } from './psalms';
 import { englishBooks } from './englishBooks';
 import { apiBookName, bookName, toLangBook, toSharedBook, parseReference } from './passage';
@@ -51,22 +51,22 @@ describe('book numbering', () => {
     }
   });
 
-  // The two orderings, in the languages that were checked against the API:
-  // `w=48` returns James where the catholic epistles come first, and Romans
-  // where they do not.
-  it('follows the Georgian order in Ukrainian, Abkhazian and Ossetian', () => {
-    (['ua', 'ab', 'os'] as const).forEach(lang => expect(toLangBook(48, lang)).toBe(48));
+  // The two orderings, checked against the API when each was mirrored: `w=48`
+  // returns James where the catholic epistles come first, and Romans where
+  // they do not.
+  it('follows the Georgian order in Georgian and Russian', () => {
+    (['geo', 'ru'] as const).forEach(lang => expect(toLangBook(48, lang)).toBe(48));
   });
 
-  it('follows the English order in Spanish, Greek and Japanese', () => {
-    (['es', 'gr', 'jp'] as const).forEach(lang => expect(toLangBook(48, lang)).toBe(62));
+  it('follows the English order in Greek, Latin and Arabic', () => {
+    (['gr', 'la', 'ae'] as const).forEach(lang => expect(toLangBook(48, lang)).toBe(62));
   });
 });
 
 describe('book names', () => {
   it('names a book in its own language', () => {
     expect(bookName(4, 'eng')).toBe('Genesis');
-    expect(bookName(46, 'es')).toBe('Juan');
+    expect(bookName(46, 'la')).toBe('Ioannem');
   });
 
   // Greek's name array carries a stray fourth header before Genesis, so every
@@ -112,12 +112,12 @@ describe('versification', () => {
     expect(verseCount(22, 9, 'geo')).toBe(verseCount(22, 9, 'eng') + verseCount(22, 10, 'eng'));
   });
 
-  // Ukrainian follows the Septuagint split; every other added language does
-  // not, Greek's own "Septuagint LXX" translation included.
+  // Georgian and Russian follow the Septuagint split; Greek, Latin and Arabic
+  // do not, despite Greek being the language the Septuagint is named for.
   it('splits the psalms the way each language numbers them', () => {
-    expect(fromCanonicalRef(22, 'ua', 10, 1)).toEqual({ chapter: 10, verse: 1 });
+    expect(fromCanonicalRef(22, 'ru', 10, 1)).toEqual({ chapter: 10, verse: 1 });
     expect(fromCanonicalRef(22, 'gr', 10, 1)).toEqual({ chapter: 11, verse: 1 });
-    expect(verseCount(22, 9, 'ua')).toBe(verseCount(22, 9, 'gr') + verseCount(22, 10, 'gr'));
+    expect(verseCount(22, 9, 'ru')).toBe(verseCount(22, 9, 'gr') + verseCount(22, 10, 'gr'));
   });
 });
 
@@ -179,5 +179,29 @@ describe('the book table', () => {
     Object.entries(books.englishBooks).forEach(([shared, english]) => {
       expect(englishBooks[Number(shared)]).toBe(english);
     });
+  });
+});
+
+describe('what the library can serve', () => {
+  // The catalogue is generated from `bible_text` and there is no fallback to
+  // anyone else, so anything offered here has to be something we hold. A
+  // translation in this list that is not in the database is a 404 on a Sunday.
+  it('opens every language on a translation it lists', () => {
+    LANGS.forEach(lang => expect(specOf(lang).versions).toContain(defaultVersionOf(lang)));
+  });
+
+  // A new console opens on this, and it is a deliberate choice rather than
+  // whichever translation happened to sort first: the WEB is the only modern
+  // English here, and the only one outright dedicated to the public domain.
+  // The KJV reads as 400-year-old English and is under Crown copyright in the
+  // UK; the Basic English Bible's public-domain status is genuinely disputed.
+  it('opens English on the World English Bible', () => {
+    expect(defaultVersionOf('eng')).toBe('WEB-World English Bible');
+  });
+
+  // Georgian and Russian are the reason this app exists; English is the
+  // fallback every output lands on.
+  it('carries the languages the console cannot do without', () => {
+    (['geo', 'eng', 'ru'] as const).forEach(lang => expect(LANGS).toContain(lang));
   });
 });

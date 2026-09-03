@@ -17,7 +17,10 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 
-const UPSTREAM = process.env.BIBLE_API_URL || 'https://holybible.ge/service.php';
+// Where the scripture was copied from. Hard-coded rather than an environment
+// variable: the app has no connection to this host any more, and a setting in
+// `.env` would suggest the running product still reaches for it.
+const UPSTREAM = 'https://holybible.ge/service.php';
 const CATALOGUE = new URL('../src/lib/bible/languages.json', import.meta.url);
 
 /** The three whose entries are maintained by hand. */

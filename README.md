@@ -122,76 +122,62 @@ a glitch.
 
 ## Where the verses come from
 
-Three places, in this order, all behind `/api/bible` so nothing above the route
-handler knows the difference:
+**Our own database, and nowhere else.** `bible_text` holds every translation
+the console offers — one row per chapter, holding only `[[verse, text], …]`.
+That is the unit the console asks for, so a read is a primary-key lookup, and a
+chapter is over the TOAST threshold so Postgres compresses each row without
+being asked. Seventeen translations across six languages come to about 35 MB.
 
-1. **`bible_text`** — our own copy. One row is one chapter of one translation,
-   holding only `[[verse, text], …]`. That is the same unit the console asks
-   for, so a read is a primary-key lookup, and a chapter is over the TOAST
-   threshold so Postgres compresses each row without being asked. All 47
-   translations come to roughly 100 MB.
-2. **`bible_cache`** — whole upstream responses, keyed by query string. Covers
-   whatever the copy does not have: a translation added upstream since the last
-   mirror run, or a request that names no translation.
-3. **`holybible.ge`** — the live API, and the reason for the two above it. It is
-   a third party on shared hosting with no account and no contract; a service
-   should not depend on it being awake.
+`/api/bible` used to be a proxy with a cache in front of `holybible.ge`. It no
+longer talks to anyone. A church's Sunday morning does not depend on a
+stranger's shared PHP host being awake, and a chapter we do not hold is a 404
+rather than a fetch — quietly reaching outward would put the dependency back
+the moment someone armed a language nobody had mirrored.
 
-`pnpm mirror` fills the copy. It walks language → translation → book → chapter,
-takes the chapter count from `tavi[0].cc` rather than trusting a table, and
-writes in batches. Two things matter about it:
+That is also why `lib/bible/languages.json` is generated from what is in
+`bible_text`: the catalogue and the corpus are the same list, so the console
+cannot offer a translation it is unable to serve. Adding one means mirroring it
+first.
+
+### Adding a translation
+
+`pnpm mirror --set scripts/mirror-set.json` fills the database. It walks
+language → translation → book → chapter, takes the chapter count from
+`books.json` rather than trusting the API's own (which says Leviticus has 40
+chapters and 2 John has 3), and writes in batches. Two things matter about it:
 
 - **It resumes.** It reads the keys it already has and skips them, so stopping
-  it costs nothing and running it again after adding a language does only the
-  new work. A whole run is ~55,900 chapters, about five hours at three requests
-  a second.
-- **It is slow on purpose.** `--rps` and `--concurrency` cap it. holybible.ge is
-  someone's ministry on cheap shared hosting; the copy should be invisible to
-  them.
+  it costs nothing and a re-run after adding a translation does only the new
+  work. A full run is ~20,000 chapters.
+- **It is slow on purpose,** and stops when refused. `--rps` and
+  `--concurrency` cap it; a 403 or 468 ends the run rather than being retried.
+  An early attempt at three requests a second was blocked after seven thousand
+  chapters, and the retries are what turned a warning into a block.
 
-`pnpm mirror --dry-run` says what the work would be. `--lang` and `--version`
-narrow it to one translation, which is how to re-pull a single one.
-
-`pnpm mirror-verify` picks stored chapters at random, asks the API for the same
-ones and compares them verse by verse. A copy nobody has checked is a rumour.
-
+`pnpm mirror-verify` picks stored chapters at random and compares them verse by
+verse against the source — a copy nobody has checked is a rumour.
 `pnpm mirror-gaps` lists chapters holding fewer verses than `versification.ts`
-says they should. A short chapter is one of three things and the row alone
-cannot say which: the translation genuinely omits the verse (the NIV has no
-Matthew 17:21, the KJV does), the API has nothing for that chapter at all
-(Abkhazian and Ossetian outside the New Testament), or the fetch went wrong.
-`--refill` is what tells them apart — it re-fetches each suspect and keeps the
-result only when it has *more* verses than what is stored, so a genuine
-omission is left alone.
+expects, and `--refill` tells a real gap from a verse the translation simply
+does not have: it keeps a re-fetch only when it comes back longer.
 
-Do not trust the API's own chapter count. `tavi[0].cc` says Leviticus has 40
-chapters and 2 John has 3; the real numbers live in `books.json`, which mirrors
-`versification.ts` and is checked against it by a test. The same file carries
-the verse counts the gap report reads and the English book remap, because the
-scripts cannot import TypeScript.
+Then regenerate the catalogue so the console offers the new translation.
 
-Both scripts read `.env.local` for the service-role key and talk to PostgREST
-over plain `fetch` — no client library, so they run on any Node that has
-`fetch`.
-
-Note that roughly half the translations on offer are under active copyright
-(NIV, NASB, ESV, NRSV, Reina Valera 1960, Kutsal Kitap 1989, the 2015 Georgian
-revision). Proxying a third party with a cache is one posture; holding a
-permanent copy inside a paid product is another. The table has a `version`
-column, so narrowing to the public-domain ones is a `delete` and a shorter list.
+These scripts are the only things that reach the network, they are run by hand,
+and they hold their own address — nothing in `.env` points at a scripture host,
+because the running product has no use for one.
 
 ## Languages
 
-A console opens on English and the operator adds up to two more, from the
-fourteen the scripture API carries. `lib/bible/languages.json` is the whole
+A console opens on English and the operator adds up to two more, from the six
+we hold a copy of — Georgian, English, Russian, Greek, Arabic and Latin. `lib/bible/languages.json` is the whole
 catalogue: a label, the translations, the book names, and the two things that
 actually vary — Georgian or English book ordering, Septuagint or Masoretic
 psalms. `lib/bible/languages.ts` imports and types it; it is JSON so that the
 scripts can read it too, and `LANGS` in the `.ts` is what makes `Lang` a closed
 union. The two have to agree, and `mapping.test.ts` checks that they do.
-Everything but Georgian, English and Russian is generated from the API by
-`scripts/languages.mjs`. German is listed upstream but returns English text, so
-it is left out on purpose.
+Its contents are exactly what `bible_text` holds; `scripts/languages.mjs`
+refreshes the book names and translation lists from the source when a new
+language is mirrored.
 
 English cannot be removed: it is what every output falls back to when the
 language the stream or the stage was pointed at goes away.
