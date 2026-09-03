@@ -1,7 +1,7 @@
 'use client';
 
 import { Button, type ButtonProps } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
+import { Modal, useModalClose } from '@/components/ui/Modal';
 
 /**
  * A yes/no gate in front of something that cannot be undone. The confirming
@@ -24,21 +24,26 @@ export const ConfirmDialog = ({
   variant?: ButtonProps['variant'];
   onConfirm: () => void;
   onCancel: () => void;
-}) => (
-  <Modal
-    open={open}
-    onClose={onCancel}
-    title={title}
-    width="max-w-md"
-    footer={
-      <>
-        <Button onClick={onCancel}>Cancel</Button>
-        <Button variant={variant} onClick={onConfirm}>
-          {confirmLabel}
-        </Button>
-      </>
-    }
-  >
-    <p className="py-1 text-sm leading-relaxed text-studio-muted">{message}</p>
-  </Modal>
-);
+}) => {
+  const close = useModalClose();
+
+  return (
+    <Modal
+      open={open}
+      onClose={onCancel}
+      closeRef={close}
+      title={title}
+      width="max-w-md"
+      footer={
+        <>
+          <Button onClick={() => close.current?.()}>Cancel</Button>
+          <Button variant={variant} onClick={() => close.current?.(onConfirm)}>
+            {confirmLabel}
+          </Button>
+        </>
+      }
+    >
+      <p className="py-1 text-sm leading-relaxed text-studio-muted">{message}</p>
+    </Modal>
+  );
+};

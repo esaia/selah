@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
+import { Modal, useModalClose } from '@/components/ui/Modal';
 import type { SongSlide } from '@/lib/types';
 
 /**
@@ -28,22 +28,25 @@ export const SlideEditor = ({
   // Mounted per slide by its caller, so the box never shows the previous
   // slide's words for a frame and no effect is needed to correct it.
   const [text, setText] = useState(slide?.text ?? '');
+  const close = useModalClose();
 
   const dirty = text !== (slide?.text ?? '');
 
-  const save = () => {
-    onSave(text);
-    onClose();
-  };
+  const save = () =>
+    close.current?.(() => {
+      onSave(text);
+      onClose();
+    });
 
   return (
     <Modal
       open
       onClose={onClose}
+      closeRef={close}
       title={`Edit slide ${index + 1}`}
       footer={
         <>
-          <Button variant="ghost" size="md" onClick={onClose}>
+          <Button variant="ghost" size="md" onClick={() => close.current?.()}>
             Cancel
           </Button>
           <Button variant="accent" size="md" onClick={save} disabled={!text.trim() || !dirty}>

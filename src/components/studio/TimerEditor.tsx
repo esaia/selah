@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefO
 import { X } from 'lucide-react';
 
 import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
+import { Modal, useModalClose } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { cn } from '@/lib/cn';
 import { useStudio } from '@/lib/studio/StudioProvider';
@@ -373,25 +373,29 @@ const LabelModal = ({
   const [color, setColor] = useState<LabelColor>(
     label?.color ?? COLORS.find(tint => !taken.includes(tint)) ?? 'amber',
   );
+  const close = useModalClose();
 
   const save = () => {
     const trimmed = text.trim();
 
     if (!trimmed) return;
 
-    onSave({ text: trimmed, color });
-    onClose();
+    close.current?.(() => {
+      onSave({ text: trimmed, color });
+      onClose();
+    });
   };
 
   return (
     <Modal
       open
       onClose={onClose}
+      closeRef={close}
       title={label ? 'Edit label' : 'Add label'}
       width="max-w-sm"
       footer={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={() => close.current?.()}>Cancel</Button>
           <Button variant="accent" disabled={!text.trim()} onClick={save}>
             {label ? 'Save label' : 'Add label'}
           </Button>
