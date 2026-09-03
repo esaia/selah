@@ -517,3 +517,48 @@ describe("the row menu's operations", () => {
     expect(after.map((timer) => timer.linked)).toEqual([false, false]);
   });
 });
+
+describe("the final stretch", () => {
+  /** A five-minute countdown whose last thirty seconds are the red ones. */
+  const thirty = (): TimerState => {
+    const base = emptyTimerState();
+
+    return {
+      ...base,
+      timers: [
+        {
+          ...base.timers[0],
+          duration: 5 * MINUTE,
+          wrapUp: MINUTE,
+          finalAt: 30_000,
+        },
+      ],
+    };
+  };
+
+  const phaseAt = (state: TimerState, gone: number) =>
+    timerReading(startRun(state, 0), gone)?.phase;
+
+  it("turns red at the operator's own figure, not at ten seconds", () => {
+    const run = thirty();
+
+    expect(phaseAt(run, 5 * MINUTE - 31_000)).toBe("warn");
+    expect(phaseAt(run, 5 * MINUTE - 30_000)).toBe("final");
+  });
+
+  it("keeps the ten seconds a console has always counted, unset", () => {
+    const run = state();
+
+    expect(phaseAt(run, 10 * MINUTE - FINAL_MS - 1_000)).toBe("warn");
+    expect(phaseAt(run, 10 * MINUTE - FINAL_MS)).toBe("final");
+  });
+
+  it("reads a stored timer that predates the field", () => {
+    const stored = asTimerState({
+      ...emptyTimerState(),
+      timers: [{ ...emptyTimerState().timers[0], finalAt: undefined }],
+    });
+
+    expect(stored.timers[0].finalAt).toBe(FINAL_MS);
+  });
+});

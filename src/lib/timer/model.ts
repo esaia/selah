@@ -87,6 +87,14 @@ export interface StageTimer {
   duration: number;
   /** With this much left the digits turn amber. */
   wrapUp: number;
+  /**
+   * With this much left the digits turn red and beat out the seconds.
+   *
+   * The operator's, not the console's: ten seconds is what a stage manager
+   * counts out loud, but a band changing over wants thirty and a two-minute
+   * notice wants none of it.
+   */
+  finalAt: number;
 }
 
 export interface TimerMessage {
@@ -155,6 +163,7 @@ export const newTimer = (overrides: Partial<StageTimer> = {}): StageTimer => ({
   kind: "countdown",
   duration: 10 * MINUTE,
   wrapUp: MINUTE,
+  finalAt: FINAL_MS,
   ...overrides,
 });
 
@@ -247,6 +256,7 @@ export const asTimerState = (raw: unknown): TimerState => {
       kind: isKind(timer.kind) ? timer.kind : "countdown",
       duration: Math.max(0, num(timer.duration, 10 * MINUTE)),
       wrapUp: Math.max(0, num(timer.wrapUp, MINUTE)),
+      finalAt: Math.max(0, num(timer.finalAt, FINAL_MS)),
     }));
 
   const list = timers.length ? timers : base.timers;
@@ -646,16 +656,22 @@ export interface TimerReading {
   progress: number | null;
   phase: Phase;
   overtime: boolean;
+  /** How long the red stretch at the end of this run is, in ms. */
+  finalAt: number;
 }
 
 /**
  * Which colour a run is wearing, from how much of it is left. `null` is a run
  * with no target to be near the end of — a count-up nobody set a length for.
  */
-const phaseOf = (remaining: number | null, wrapUp: number): Phase =>
+const phaseOf = (
+  remaining: number | null,
+  wrapUp: number,
+  finalAt: number,
+): Phase =>
   remaining === null
     ? "normal"
-    : remaining <= FINAL_MS
+    : remaining <= finalAt
       ? "final"
       : remaining <= wrapUp
         ? "warn"
@@ -670,7 +686,12 @@ export const timerReading = (
 
   if (!timer) return null;
 
-  const base = { name: timer.name, speaker: timer.speaker, kind: timer.kind };
+  const base = {
+    name: timer.name,
+    speaker: timer.speaker,
+    kind: timer.kind,
+    finalAt: timer.finalAt,
+  };
 
   if (timer.kind === "clock") {
     return {
@@ -695,7 +716,7 @@ export const timerReading = (
       progress: total ? clamp01(elapsed / total) : null,
       phase: overtime
         ? "over"
-        : phaseOf(total ? total - elapsed : null, timer.wrapUp),
+        : phaseOf(total ? total - elapsed : null, timer.wrapUp, timer.finalAt),
       overtime,
     };
   }
@@ -707,7 +728,7 @@ export const timerReading = (
     ...base,
     text: `${overtime ? "-" : ""}${formatDuration(Math.abs(remaining))}`,
     progress: total ? clamp01(elapsed / total) : 0,
-    phase: overtime ? "over" : phaseOf(remaining, timer.wrapUp),
+    phase: overtime ? "over" : phaseOf(remaining, timer.wrapUp, timer.finalAt),
     overtime,
   };
 };

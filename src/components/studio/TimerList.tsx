@@ -18,16 +18,14 @@ import {
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { IconButton } from '@/components/ui/IconButton';
-import { Select } from '@/components/ui/Select';
 import { cn } from '@/lib/cn';
 import { useStudio } from '@/lib/studio/StudioProvider';
 
 import { SortHandle } from './SortHandle';
-import { TimerEditor } from './TimerEditor';
+import { TimerEditor, TimerLength } from './TimerEditor';
 import { LIFTED_SLOT, useSortable, type Sortable } from './sortable';
 import {
   LABEL_COLORS,
-  TIMER_KINDS,
   armTimer,
   cloneTimer,
   formatDuration,
@@ -39,7 +37,6 @@ import {
   startRun,
   toggleRun,
   type StageTimer,
-  type TimerKind,
   type TimerState,
 } from '@/lib/timer/model';
 
@@ -232,12 +229,7 @@ const Row = ({
   const { timer: state, updateTimer } = useStudio();
 
   const [editing, setEditing] = useState(false);
-
-  const patch = (fields: Partial<StageTimer>) =>
-    updateTimer(current => ({
-      ...current,
-      timers: current.timers.map(item => (item.id === timer.id ? { ...item, ...fields } : item)),
-    }));
+  const [timing, setTiming] = useState(false);
 
   // The transport icon follows the run rather than the highlight — they part
   // company for a timer armed but not up — and Clear stops the run, so a row
@@ -296,18 +288,40 @@ const Row = ({
         {played ? <Check className="size-3.5 text-studio-go" /> : index + 1}
       </SortHandle>
 
-      {/* Read on the row, typed in the panel — the same rule as the title. A
-          field here meant the running order was half a form: three boxes to tab
-          through on every line of a list that is mostly read, never edited. */}
-      {timer.kind === 'clock' ? (
-        <span className="flex h-8 w-[76px] items-center justify-center text-xs text-studio-muted">clock</span>
-      ) : (
-        <Number
-          value={formatDuration(timer.duration)}
-          label={`Duration of ${timer.name || 'this timer'}`}
-          onOpen={() => setEditing(true)}
-        />
-      )}
+      {/* Read on the row, set in a panel of its own under it — a field here
+          meant the running order was half a form: boxes to tab through on every
+          line of a list that is mostly read. The length has its own panel
+          rather than sharing the title's, because "give them five more" is one
+          click on the number, not a hunt through a form for it. */}
+      <span className="relative shrink-0">
+        {/* A clock has no length to read, but the cell still opens the panel:
+            it is where what a timer counts is chosen, and a clock set by
+            mistake would otherwise have no way back. */}
+        {timer.kind === 'clock' ? (
+          <button
+            type="button"
+            title={`What ${timer.name || 'this timer'} counts`}
+            onClick={event => {
+              event.stopPropagation();
+              setTiming(current => !current);
+            }}
+            className="h-8 w-[76px] rounded-studio text-center text-xs text-studio-muted underline
+              decoration-dashed decoration-studio-border decoration-from-font underline-offset-4
+              transition-colors duration-150 hover:text-studio-accent focus:outline-none
+              focus-visible:ring-2 focus-visible:ring-studio-accent/40"
+          >
+            clock
+          </button>
+        ) : (
+          <Number
+            value={formatDuration(timer.duration)}
+            label={`Length of ${timer.name || 'this timer'}`}
+            onOpen={() => setTiming(current => !current)}
+          />
+        )}
+
+        {timing ? <TimerLength timer={timer} onClose={() => setTiming(false)} /> : null}
+      </span>
 
       {/* The title is read here and written in the panel behind it, which is
           where the rest of what it says lives: a field in the row invited the
@@ -358,14 +372,6 @@ const Row = ({
 
         {editing ? <TimerEditor timer={timer} onClose={() => setEditing(false)} /> : null}
       </span>
-
-      <Select
-        className="w-[118px] shrink-0"
-        value={timer.kind}
-        onChange={kind => patch({ kind: kind as TimerKind })}
-        onClick={event => event.stopPropagation()}
-        options={TIMER_KINDS}
-      />
 
       <div className="ml-auto flex shrink-0 items-center gap-0.5">
         <button

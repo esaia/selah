@@ -145,12 +145,15 @@ const MIN_TYPE = 10;
 
 /**
  * What the digits are doing: blinking at a flash the operator sent, or beating
- * out the last ten seconds. The flash wins — it was asked for, and two
- * animations on one element means the later one alone.
+ * out the last stretch of the run, a second at a time for as long as that
+ * stretch is set to. The flash wins — it was asked for, and two animations on
+ * one element means the later one alone.
  */
-const digitAnimation = (flashing: number, final: boolean) =>
+const digitAnimation = (flashing: number, final: boolean, finalAt: number) =>
   flashAnimation(flashing) ??
-  (final ? `timer-final 1000ms ease-in-out ${FINAL_MS / 1000}` : undefined);
+  (final
+    ? `timer-final 1000ms ease-in-out ${Math.max(1, Math.round(finalAt / 1000))}`
+    : undefined);
 
 /** One note on the screen. It blinks on its own stamp, and along with the
  *  screen when the whole output is flashed. */
@@ -363,7 +366,11 @@ export const TimerScreen = ({
               fontSize: digitSize || 1,
               color: PHASE_COLOR[reading?.phase ?? "normal"],
               transition: "color 300ms linear",
-              animation: digitAnimation(flashing, reading?.phase === "final"),
+              animation: digitAnimation(
+                flashing,
+                reading?.phase === "final",
+                reading?.finalAt ?? FINAL_MS,
+              ),
             }}
           >
             {text}
