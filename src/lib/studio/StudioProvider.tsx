@@ -129,7 +129,8 @@ interface StudioValue {
   setActiveSongId: (id: string | null) => void;
   setlist: string[];
   importSongs: (songs: Song[]) => Promise<void>;
-  saveSong: (song: Song) => Promise<void>;
+  /** Writes the song and hands back the row, whose id is the database's, not the draft's. */
+  saveSong: (song: Song) => Promise<Song | undefined>;
   removeSong: (id: string) => Promise<void>;
   clearSongs: () => Promise<void>;
   placeInSetlist: (songId: string, index: number) => void;
@@ -883,14 +884,18 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
         .select()
         .single();
 
+      // One title per library is a unique index, and Postgres says so in its own
+      // words. The operator gets ours.
+      if (error?.code === '23505') throw new Error(`A song called “${song.title}” is already in the library.`);
       if (error) throw new Error(error.message);
       if (!data) return;
 
-      setSongs(current => {
-        const saved: Song = { id: data.id, title: data.title, slides: data.slides as Song['slides'] };
-        const without = current.filter(item => item.id !== saved.id);
+      const written: Song = { id: data.id, title: data.title, slides: data.slides as Song['slides'] };
 
-        return [...without, saved].sort((a, b) => a.title.localeCompare(b.title));
+      setSongs(current => {
+        const without = current.filter(item => item.id !== written.id);
+
+        return [...without, written].sort((a, b) => a.title.localeCompare(b.title));
       });
 
       // A slide that was live and has since been edited away clears the output.
@@ -899,6 +904,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
         return current.live.slideIndex < song.slides.length ? current : { ...current, live: null };
       });
+
+      return written;
     },
     [db, initial.settings.user_id],
   );

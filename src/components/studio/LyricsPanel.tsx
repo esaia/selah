@@ -20,6 +20,7 @@ import { useStudio } from '@/lib/studio/StudioProvider';
 import type { Song } from '@/lib/types';
 
 import { LyricCard } from './LyricCard';
+import { NewSongModal } from './NewSongModal';
 import { Setlist, songDragProps } from './Setlist';
 import { SlideEditor } from './SlideEditor';
 import { useSearchHint } from './SongSearch';
@@ -61,16 +62,10 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
   const [confirmingRemove, setConfirmingRemove] = useState<Song | null>(null);
   const [editingSlide, setEditingSlide] = useState<number | null>(null);
   const [editing, setEditing] = useState<Song | null>(null);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const active = songs.find(song => song.id === activeSongId) ?? songs[0] ?? null;
-
-  /** A blank song, opened in the editor and only added to the library on save. */
-  const writeSong = () => {
-    const now = Date.now();
-
-    setEditing({ id: `song-${now}`, title: '', slides: [{ id: `slide-${now}`, text: '' }] });
-  };
 
   const handleFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = [...(event.target.files ?? [])];
@@ -152,7 +147,7 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
           <Button
             className="min-w-0 flex-1 px-2"
             icon={<HiOutlineDocumentAdd className="text-sm" />}
-            onClick={writeSong}
+            onClick={() => setCreating(true)}
           >
             New song
           </Button>
@@ -266,6 +261,16 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
           setConfirmingClear(false);
         }}
       />
+
+      {creating ? (
+        <NewSongModal
+          onClose={() => setCreating(false)}
+          onDraft={song => {
+            setCreating(false);
+            setEditing(song);
+          }}
+        />
+      ) : null}
 
       {editing ? <SongEditor song={editing} onClose={() => setEditing(null)} /> : null}
 
