@@ -1,3 +1,4 @@
+import books from '@/lib/bible/books.json';
 import { specOf, type Lang } from '@/lib/bible/languages';
 
 /**
@@ -6,31 +7,13 @@ import { specOf, type Lang } from '@/lib/bible/languages';
  * books whose English id differs from the shared id.
  *
  * Moved out of `src/context/BibleSettingProvider.js` so every fetch path can
- * apply the same remap.
+ * apply the same remap, and into `books.json` so `scripts/mirror.mjs` can read
+ * it too — the mirror walks a language's own book ids and has to get back to
+ * the shared ones.
  */
-export const englishBooks: Record<number, number> = {
-  48: 62,
-  49: 63,
-  50: 64,
-  51: 65,
-  52: 66,
-  53: 67,
-  54: 68,
-  55: 48,
-  56: 49,
-  57: 50,
-  58: 51,
-  59: 52,
-  60: 53,
-  61: 54,
-  62: 55,
-  63: 56,
-  64: 57,
-  65: 58,
-  66: 59,
-  67: 60,
-  68: 61,
-};
+export const englishBooks: Record<number, number> = Object.fromEntries(
+  Object.entries(books.englishBooks).map(([shared, english]) => [Number(shared), english]),
+);
 
 /**
  * Translate a shared book id into the id the API expects for `lang`.

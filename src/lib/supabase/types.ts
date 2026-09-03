@@ -125,6 +125,16 @@ export interface Database {
         payload: Json;
         fetched_at: string;
       }>;
+      bible_text: Row<{
+        lang: string;
+        version: string;
+        book: number;
+        chapter: number;
+        wigni: number;
+        chapters: number;
+        verses: Json;
+        fetched_at: string;
+      }>;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import books from './books.json';
+import catalogue from './languages.json';
+import { LANGS, specOf } from './languages';
 import { canonicalToEnglish, englishToCanonical, fromCanonicalRef } from './psalms';
+import { englishBooks } from './englishBooks';
 import { apiBookName, bookName, toLangBook, toSharedBook, parseReference } from './passage';
-import { chapterCount, verseCount } from './versification';
+import { chapterCount, verseCount, versesPerChapter } from './versification';
 
 describe('psalm numbering', () => {
   it('leaves the psalms both traditions agree on', () => {
@@ -114,5 +118,66 @@ describe('versification', () => {
     expect(fromCanonicalRef(22, 'ua', 10, 1)).toEqual({ chapter: 10, verse: 1 });
     expect(fromCanonicalRef(22, 'gr', 10, 1)).toEqual({ chapter: 11, verse: 1 });
     expect(verseCount(22, 9, 'ua')).toBe(verseCount(22, 9, 'gr') + verseCount(22, 10, 'gr'));
+  });
+});
+
+describe('the language catalogue', () => {
+  // `LANGS` is what makes `Lang` a closed union and `languages.json` is what
+  // the rows are; nothing in the type system ties them together, and the
+  // catalogue is rewritten by a script that talks to a third party.
+  it('holds exactly the languages LANGS names, in the same order', () => {
+    expect(Object.keys(catalogue)).toEqual([...LANGS]);
+  });
+
+  it('gives every language a translation to open on', () => {
+    LANGS.forEach(lang => {
+      const spec = specOf(lang);
+
+      expect(spec.versions.length).toBeGreaterThan(0);
+
+      if (spec.defaultVersion) {
+        expect(spec.versions).toContain(spec.defaultVersion);
+      }
+    });
+  });
+
+  it('gives every language three group headers and 66 books', () => {
+    LANGS.forEach(lang => {
+      const spec = specOf(lang);
+
+      expect(spec.names).toHaveLength(69 + spec.nameOffset);
+    });
+  });
+});
+
+describe('the book table', () => {
+  // `books.json` is what `scripts/mirror.mjs` walks — it cannot import the
+  // TypeScript, and it must not trust the API's own chapter count, which is
+  // wrong for a good number of books (Leviticus comes back as 40, 2 John as 3).
+  it('agrees with the versification table about every book', () => {
+    Object.entries(books.chapters).forEach(([book, count]) => {
+      expect(chapterCount(Number(book))).toBe(count);
+    });
+  });
+
+  it('covers the whole canon', () => {
+    expect(Object.keys(books.chapters)).toHaveLength(66);
+    expect(Object.values(books.chapters).reduce((a, b) => a + b, 0)).toBe(1189);
+  });
+
+  // The verse counts are what tells a chapter that came back short from one a
+  // translation simply does not have every verse of.
+  it('agrees with the versification table about every chapter', () => {
+    Object.entries(books.verses).forEach(([book, counts]) => {
+      expect(counts).toEqual(versesPerChapter[Number(book)]);
+    });
+
+    expect(Object.values(books.verses).flat().reduce((a, b) => a + b, 0)).toBe(31102);
+  });
+
+  it('agrees with the English remap', () => {
+    Object.entries(books.englishBooks).forEach(([shared, english]) => {
+      expect(englishBooks[Number(shared)]).toBe(english);
+    });
   });
 });
