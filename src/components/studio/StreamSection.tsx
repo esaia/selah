@@ -7,7 +7,7 @@ import { Select } from '@/components/ui/Select';
 import { Toggle } from '@/components/ui/Toggle';
 import { cn } from '@/lib/cn';
 import { useStudio } from '@/lib/studio/StudioProvider';
-import { LANG_LABELS, LANGS, type Lang } from '@/lib/types';
+import { LANG_LABELS, type Lang } from '@/lib/types';
 
 import { LowerThirdStylePicker } from './LowerThirdStylePicker';
 import { CopyField, ObsHelpModal } from './ObsHelpModal';
@@ -72,18 +72,21 @@ export const StreamSection = () => {
           </div>
         </Field>
 
-        <Field label="Language on the stream" hint="One language only, chosen from the ones you have armed.">
-          <Select
-            className="w-full"
-            value={settings.streamLang}
-            onChange={value => update({ streamLang: value as Lang })}
-            options={LANGS.map(lang => ({
-              value: lang,
-              label: settings.enabled[lang] ? LANG_LABELS[lang] : `${LANG_LABELS[lang]} — not armed`,
-              disabled: !settings.enabled[lang],
-            }))}
-          />
-        </Field>
+        {/* Nothing to choose when the projector carries one language. */}
+        {settings.langOrder.length > 1 ? (
+          <Field label="Language on the stream" hint="One language only, chosen from the ones you have armed.">
+            <Select
+              className="w-full"
+              value={settings.streamLang}
+              onChange={value => update({ streamLang: value as Lang })}
+              options={settings.langOrder.map(lang => ({
+                value: lang,
+                label: settings.enabled[lang] ? LANG_LABELS[lang] : `${LANG_LABELS[lang]} — not armed`,
+                disabled: !settings.enabled[lang],
+              }))}
+            />
+          </Field>
+        ) : null}
       </div>
 
       <div className="space-y-6">

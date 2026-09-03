@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "languages": "node scripts/languages.mjs",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",

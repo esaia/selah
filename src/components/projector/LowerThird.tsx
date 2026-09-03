@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-import { bibleNames } from '@/lib/bible/catalog';
 import { openLiveChannel } from '@/lib/live/channel';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
 import { keepSame } from '@/lib/projector/keepSame';
-import { emptyShowData, LANGS, type Align, type Lang, type ShowData, type StreamStyle } from '@/lib/types';
+import { apiBookName } from '@/lib/bible/passage';
+import { emptyShowData, LANGS, REQUIRED_LANG, type Align, type Lang, type ShowData, type StreamStyle } from '@/lib/types';
 
 const ALIGN_CLASS: Record<Align, string> = { left: 'text-left', center: 'text-center', right: 'text-right' };
 
@@ -40,8 +40,8 @@ const defaultStyle: StreamStyle = {
   align: 'left',
   lyricsFont: 'font-banner',
   lyricsAlign: 'left',
-  order: ['eng', 'geo', 'rus'],
-  enabled: { geo: true, eng: false, rus: false },
+  order: [REQUIRED_LANG],
+  enabled: { [REQUIRED_LANG]: true },
   transitionMs: 320,
   position: 'bottom',
   variant: 'scrim',
@@ -50,10 +50,10 @@ const defaultStyle: StreamStyle = {
 };
 
 /** Is there anything on this slide worth putting on screen? */
-const hasContent = (showData: ShowData, enabled: Record<Lang, boolean>) => {
+const hasContent = (showData: ShowData, enabled: Partial<Record<Lang, boolean>>) => {
   if (showData?.lyrics?.text) return true;
 
-  return LANGS.some(lang => enabled?.[lang] && showData?.[lang]?.length > 0);
+  return LANGS.some(lang => enabled?.[lang] && (showData?.[lang]?.length ?? 0) > 0);
 };
 
 /** One language: its verses, then the reference that produced them. */
@@ -64,7 +64,7 @@ const Block = ({ showData, lang }: { showData: ShowData; lang: Lang }) => {
 
   const first = verses[0];
   const last = verses[verses.length - 1];
-  const name = bibleNames[lang]?.[+first.wigni + 2] ?? '';
+  const name = apiBookName(first.wigni, lang);
   const muxli = verses.length > 1 ? `${first.muxli}-${last.muxli}` : first.muxli;
 
   return (

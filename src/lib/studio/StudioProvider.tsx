@@ -22,8 +22,10 @@ import { armTimer, asTimerState, finishesAt, linkedNext, startRun, type TimerSta
 import { supabase } from '@/lib/supabase/client';
 import { save } from '@/lib/supabase/save';
 import {
+  defaultVersionOf,
   emptyShowData,
-  LANGS,
+  MAX_LANGS,
+  REQUIRED_LANG,
   type Block,
   type Lang,
   type Live,
@@ -94,6 +96,8 @@ interface StudioValue {
   settings: Settings;
   update: (patch: Partial<Settings>) => void;
   setLangOrder: (order: Lang[]) => void;
+  addLang: (lang: Lang) => void;
+  removeLang: (lang: Lang) => void;
   setLocalBackground: (file: LocalFileMeta | null) => void;
 
   blocks: Block[];
@@ -430,6 +434,52 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     setSettings(current => (order.length === current.langOrder.length ? { ...current, langOrder: order } : current));
   }, []);
 
+  /**
+   * Put a language on the projector: armed, on its default translation, at the
+   * bottom of the stack. Adding past the ceiling is a no-op rather than a
+   * silent shuffle — the button that calls this is hidden by then anyway.
+   */
+  const addLang = useCallback((lang: Lang) => {
+    setSettings(current =>
+      current.langOrder.includes(lang) || current.langOrder.length >= MAX_LANGS
+        ? current
+        : {
+            ...current,
+            langOrder: [...current.langOrder, lang],
+            enabled: { ...current.enabled, [lang]: true },
+            versions: { ...current.versions, [lang]: current.versions[lang] || defaultVersionOf(lang) },
+          },
+    );
+  }, []);
+
+  /**
+   * Take a language off. English stays whatever happens — it is what the
+   * outputs fall back to. The stream and stage picks are left alone: they
+   * already fall back to the first armed language, and keeping them means
+   * adding the language back restores what it was set to.
+   */
+  const removeLang = useCallback((lang: Lang) => {
+    setSettings(current => {
+      if (lang === REQUIRED_LANG || !current.langOrder.includes(lang)) return current;
+
+      const langOrder = current.langOrder.filter(entry => entry !== lang);
+      const only = <T,>(kept: Partial<Record<Lang, T>>) =>
+        Object.fromEntries(langOrder.map(entry => [entry, kept[entry]]).filter(([, value]) => value !== undefined));
+
+      return {
+        ...current,
+        langOrder,
+        enabled: only(current.enabled),
+        versions: only(current.versions),
+        adminLang: current.adminLang === lang ? langOrder[0] : current.adminLang,
+        adminVersion:
+          current.adminLang === lang
+            ? current.versions[langOrder[0]] || defaultVersionOf(langOrder[0])
+            : current.adminVersion,
+      };
+    });
+  }, []);
+
   const setLocalBackground = useCallback((file: LocalFileMeta | null) => {
     setSettings(current =>
       file
@@ -442,14 +492,14 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
   /** Every language that has to be fetched: the armed ones plus the one being browsed. */
   const targets = useMemo((): Target[] => {
-    const langs = new Set<Lang>(LANGS.filter(lang => settings.enabled[lang]));
+    const langs = new Set<Lang>(settings.langOrder.filter(lang => settings.enabled[lang]));
     langs.add(settings.adminLang);
 
     return [...langs].map(lang => ({
       lang,
       version: lang === settings.adminLang ? settings.adminVersion : settings.versions[lang],
     }));
-  }, [settings.adminLang, settings.adminVersion, settings.enabled, settings.versions]);
+  }, [settings.adminLang, settings.adminVersion, settings.enabled, settings.langOrder, settings.versions]);
 
   const addPassage = useCallback<StudioValue['addPassage']>(
     async ({ book, chapter, from = null, to = null }) => {
@@ -611,9 +661,9 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   // Changing which languages are armed, or which translation any of them uses,
   // invalidates every open passage. Tracked as a string so re-fetching — which
   // replaces `blocks` — cannot retrigger it.
-  const settingsKey = `${settings.adminLang}|${settings.adminVersion}|${LANGS.map(
-    lang => `${lang}:${settings.enabled[lang] ? 1 : 0}:${settings.versions[lang]}`,
-  ).join('|')}`;
+  const settingsKey = `${settings.adminLang}|${settings.adminVersion}|${settings.langOrder
+    .map(lang => `${lang}:${settings.enabled[lang] ? 1 : 0}:${settings.versions[lang]}`)
+    .join('|')}`;
   const lastSettingsKey = useRef(settingsKey);
 
   useEffect(() => {
@@ -855,6 +905,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       settings,
       update,
       setLangOrder,
+      addLang,
+      removeLang,
       setLocalBackground,
       blocks,
       live,
@@ -933,6 +985,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       regroupCards,
       removeGroup,
       setLangOrder,
+      addLang,
+      removeLang,
       removeSong,
       saveSong,
       selectLyric,

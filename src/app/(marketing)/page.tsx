@@ -7,7 +7,7 @@ const STEPS = [
   },
   {
     title: 'Three languages, one slide',
-    body: 'Georgian, English and Russian stacked in whatever order your congregation reads them. Psalm numbering is reconciled for you.',
+    body: 'Up to three languages stacked in whatever order your congregation reads them — Georgian, Russian, Spanish, Greek, Japanese and more. Psalm numbering is reconciled for you.',
   },
   {
     title: 'Send it anywhere in the room',
@@ -27,7 +27,7 @@ export default function HomePage() {
 
         <p className="text-studio-text mt-6 max-w-xl text-lg">
           Selah is the console churches use to put verses and song lyrics on a projector and a livestream — in
-          Georgian, English and Russian, at the same time.
+          three languages, at the same time.
         </p>
 
         <div className="mt-10 flex items-center gap-4">

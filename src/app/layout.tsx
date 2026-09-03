@@ -7,7 +7,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: { default: 'Selah', template: '%s · Selah' },
-  description: 'Put scripture on the screen — in Georgian, English and Russian, on any machine in the room.',
+  description: 'Put scripture on the screen — in up to three languages at once, on any machine in the room.',
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {

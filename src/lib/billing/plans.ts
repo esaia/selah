@@ -37,7 +37,7 @@ export const PLANS: Record<PlanId, Plan> = {
     features: ['three_languages', 'lower_third'],
     highlights: [
       'One live session',
-      'Georgian, English and Russian side by side',
+      'Three languages side by side',
       '33 built-in backgrounds',
       'Projector output and OBS lower third',
     ],

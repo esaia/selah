@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { canonicalToEnglish, englishToCanonical } from './psalms';
-import { toLangBook, toSharedBook, parseReference } from './passage';
+import { canonicalToEnglish, englishToCanonical, fromCanonicalRef } from './psalms';
+import { apiBookName, bookName, toLangBook, toSharedBook, parseReference } from './passage';
 import { chapterCount, verseCount } from './versification';
 
 describe('psalm numbering', () => {
@@ -46,6 +46,37 @@ describe('book numbering', () => {
       expect(toSharedBook(toLangBook(book, 'eng'), 'eng')).toBe(book);
     }
   });
+
+  // The two orderings, in the languages that were checked against the API:
+  // `w=48` returns James where the catholic epistles come first, and Romans
+  // where they do not.
+  it('follows the Georgian order in Ukrainian, Abkhazian and Ossetian', () => {
+    (['ua', 'ab', 'os'] as const).forEach(lang => expect(toLangBook(48, lang)).toBe(48));
+  });
+
+  it('follows the English order in Spanish, Greek and Japanese', () => {
+    (['es', 'gr', 'jp'] as const).forEach(lang => expect(toLangBook(48, lang)).toBe(62));
+  });
+});
+
+describe('book names', () => {
+  it('names a book in its own language', () => {
+    expect(bookName(4, 'eng')).toBe('Genesis');
+    expect(bookName(46, 'es')).toBe('Juan');
+  });
+
+  // Greek's name array carries a stray fourth header before Genesis, so every
+  // name in it sits one index later than the book id says.
+  it('steps over the stray header in the Greek names', () => {
+    expect(bookName(4, 'gr')).toBe('Γένεσις');
+    expect(bookName(46, 'gr')).toBe('κατά Ιωάννην');
+  });
+
+  it('names the book a verse came back from, offset and all', () => {
+    // `wigni` counts books from 1, past the three group headers.
+    expect(apiBookName(1, 'eng')).toBe('Genesis');
+    expect(apiBookName(1, 'gr')).toBe('Γένεσις');
+  });
 });
 
 describe('parseReference', () => {
@@ -75,5 +106,13 @@ describe('versification', () => {
   it('counts a Septuagint psalm from the Masoretic table', () => {
     // LXX 9 is Hebrew 9 + 10.
     expect(verseCount(22, 9, 'geo')).toBe(verseCount(22, 9, 'eng') + verseCount(22, 10, 'eng'));
+  });
+
+  // Ukrainian follows the Septuagint split; every other added language does
+  // not, Greek's own "Septuagint LXX" translation included.
+  it('splits the psalms the way each language numbers them', () => {
+    expect(fromCanonicalRef(22, 'ua', 10, 1)).toEqual({ chapter: 10, verse: 1 });
+    expect(fromCanonicalRef(22, 'gr', 10, 1)).toEqual({ chapter: 11, verse: 1 });
+    expect(verseCount(22, 9, 'ua')).toBe(verseCount(22, 9, 'gr') + verseCount(22, 10, 'gr'));
   });
 });

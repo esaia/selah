@@ -1,4 +1,4 @@
-import { bibleNames } from '@/lib/bible/catalog';
+import { apiBookName } from '@/lib/bible/passage';
 import type { Lang, ShowData } from '@/lib/types';
 
 /**
@@ -17,7 +17,7 @@ export const VerseBlock = ({ showData, lang }: { showData: ShowData; lang: Lang 
   // `wigni` is the book number the API used for this language, counting from
   // Genesis = 1; the name arrays carry three group headers before Genesis, so
   // the same book sits two further along.
-  const name = bibleNames[lang]?.[+first.wigni + 2] ?? '';
+  const name = apiBookName(first.wigni, lang);
   const muxli = verses.length > 1 ? `${first.muxli}-${last.muxli}` : first.muxli;
 
   return (

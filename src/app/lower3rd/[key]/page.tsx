@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 
 import { LowerThird, type LowerThirdInitial } from '@/components/projector/LowerThird';
 import { admin } from '@/lib/supabase/admin';
-import type { ShowData, StreamStyle } from '@/lib/types';
+import { emptyShowData, type ShowData, type StreamStyle } from '@/lib/types';
 
 export const metadata = { title: 'Lower third', robots: { index: false } };
 
@@ -22,7 +22,7 @@ export default async function LowerThirdPage({ params }: PageProps<'/lower3rd/[k
     .maybeSingle();
 
   const initial: LowerThirdInitial = {
-    showData: (state?.show_data as ShowData) ?? { geo: [], eng: [], rus: [] },
+    showData: (state?.show_data as ShowData) ?? emptyShowData(),
     style: (state?.stream_style as Partial<StreamStyle>) ?? {},
   };
 

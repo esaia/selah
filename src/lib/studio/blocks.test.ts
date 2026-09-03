@@ -25,7 +25,7 @@ const block = (overrides: Partial<Block> = {}): Block => ({
   chapterLength: 36,
   verses: [16, 17, 18],
   groups: [[16], [17], [18]],
-  data: { geo: [], eng: [], rus: [] },
+  data: {},
   ...overrides,
 });
 
@@ -180,21 +180,21 @@ describe('slideOf', () => {
 
   const filled = block({
     groups: [[16, 17], [18]],
-    data: { geo: [verse(16), verse(17), verse(18)], eng: [verse(16), verse(17), verse(18)], rus: [] },
+    data: { geo: [verse(16), verse(17), verse(18)], eng: [verse(16), verse(17), verse(18)], ru: [] },
   });
 
-  const enabled = { geo: true, eng: false, rus: false };
+  const enabled = { geo: true, eng: false, ru: false };
 
-  it('fills the armed languages and leaves the rest empty', () => {
+  it('carries the armed languages and leaves the rest out', () => {
     const slide = slideOf(filled, 0, enabled);
 
-    expect(slide.geo.map(item => item.muxli)).toEqual([16, 17]);
-    expect(slide.eng).toEqual([]);
-    expect(slide.rus).toEqual([]);
+    expect(slide.geo?.map(item => item.muxli)).toEqual([16, 17]);
+    expect(slide.eng).toBeUndefined();
+    expect(slide.ru).toBeUndefined();
   });
 
   it('gives an empty slide past the end of the block, so a caller can ask for the next card', () => {
-    expect(slideOf(filled, 2, enabled)).toEqual({ geo: [], eng: [], rus: [] });
-    expect(slideOf(undefined, 0, enabled)).toEqual({ geo: [], eng: [], rus: [] });
+    expect(slideOf(filled, 2, enabled)).toEqual({});
+    expect(slideOf(undefined, 0, enabled)).toEqual({});
   });
 });

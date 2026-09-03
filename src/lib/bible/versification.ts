@@ -1,4 +1,4 @@
-import type { Lang } from '@/lib/types';
+import { specOf, type Lang } from '@/lib/bible/languages';
 /**
  * How many chapters each book has, and how many verses each chapter has.
  *
@@ -7,8 +7,8 @@ import type { Lang } from '@/lib/types';
  * indexed by chapter - 1. The numbers are the Masoretic/Protestant counts the
  * API returns for English.
  *
- * Psalms is the one book where the Georgian and Russian bibles disagree with
- * that, because they follow the Septuagint: same 150 psalms, different splits.
+ * Psalms is the one book where the Septuagint languages — Georgian, Russian
+ * and Ukrainian — disagree with that: same 150 psalms, different splits.
  * `verseCount` derives those counts from the table using the same mapping
  * `src/data/psalms.js` uses for references, so only one table is maintained.
  *
@@ -141,7 +141,7 @@ export const verseCount = (book: number, chapter: number, lang: Lang): number =>
     return 0;
   }
 
-  if (book === PSALMS_BOOK && lang !== 'eng') {
+  if (book === PSALMS_BOOK && specOf(lang).psalms === 'lxx') {
     return septuagintPsalm(chapter);
   }
 

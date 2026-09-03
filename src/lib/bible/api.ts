@@ -1,5 +1,6 @@
+import type { Lang } from '@/lib/bible/languages';
 import { toLangBook } from '@/lib/bible/passage';
-import { API_LANG, type ApiChapter, type Lang } from '@/lib/types';
+import type { ApiChapter } from '@/lib/types';
 
 /** The query the scripture API expects. Georgian field names are the API's. */
 export interface ChapterQuery {
@@ -15,7 +16,7 @@ export const chapterParams = ({ book, chapter, lang, version }: ChapterQuery) =>
   m: '',
   s: '',
   mv: version || '',
-  language: API_LANG[lang],
+  language: lang,
   page: '1',
 });
 

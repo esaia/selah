@@ -19,7 +19,7 @@ const ALIGNMENTS = [
 ];
 
 // Only the first two are Georgian-only / Latin-only; the rest cover Georgian,
-// Latin and Cyrillic, so one typeface serves all three projector languages.
+// Latin, Cyrillic and Georgian, so one typeface serves most language sets.
 export const FONTS = [
   { value: 'font-banner', label: 'BPG Banner Caps (Georgian)' },
   { value: 'font-valera', label: 'Varela Round (Latin)' },

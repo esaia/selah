@@ -2,7 +2,8 @@ import type { QueryClient } from '@tanstack/react-query';
 
 import { chapterKey, fetchChapter, type ChapterQuery } from '@/lib/bible/api';
 import { fromCanonicalRef, toCanonicalRef } from '@/lib/bible/psalms';
-import type { ApiChapter, Lang, Verse } from '@/lib/types';
+import type { Lang } from '@/lib/bible/languages';
+import type { ApiChapter, Verse } from '@/lib/types';
 
 export interface Target {
   lang: Lang;
@@ -18,7 +19,7 @@ export interface PassageRequest {
 }
 
 export interface Passage {
-  data: Record<Lang, (Verse | null)[]>;
+  data: Partial<Record<Lang, (Verse | null)[]>>;
   chapterLength: number;
   verses: number[];
 }
@@ -88,7 +89,7 @@ export const loadPassage = async (
   );
 
   return {
-    data: { geo: [], eng: [], rus: [], ...Object.fromEntries(results) },
+    data: Object.fromEntries(results),
     chapterLength,
     verses: wanted,
   };

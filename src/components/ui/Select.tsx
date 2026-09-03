@@ -11,7 +11,7 @@ export interface Option {
 }
 
 /**
- * Restyled native select. The longest list here is thirteen translations, so a
+ * Restyled native select. The longest list here is a dozen translations, so a
  * native control is lighter than a combobox, keyboard-accessible for free, and
  * usable on a touch screen at the back of a hall.
  */

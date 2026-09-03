@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { admin } from '@/lib/supabase/admin';
+import { emptyShowData, REQUIRED_LANG } from '@/lib/types';
 
 /**
  * What a session is showing right now, for an output page that has just opened.
@@ -32,12 +33,12 @@ export const GET = async (_request: Request, { params }: RouteContext<'/api/live
   return NextResponse.json(
     {
       name: session.name,
-      showData: state?.show_data ?? { geo: [], eng: [], rus: [] },
-      next: state?.next_show_data ?? { geo: [], eng: [], rus: [] },
+      showData: state?.show_data ?? emptyShowData(),
+      next: state?.next_show_data ?? emptyShowData(),
       projector: state?.projector ?? {},
       style: state?.stream_style ?? {},
-      streamLang: state?.stream_lang ?? 'geo',
-      stageLang: state?.stage_lang ?? 'geo',
+      streamLang: state?.stream_lang ?? REQUIRED_LANG,
+      stageLang: state?.stage_lang ?? REQUIRED_LANG,
       timer: state?.timer ?? {},
     },
     { headers: { 'cache-control': 'no-store' } },

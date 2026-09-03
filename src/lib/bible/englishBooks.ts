@@ -1,4 +1,4 @@
-import type { Lang } from '@/lib/types';
+import { specOf, type Lang } from '@/lib/bible/languages';
 
 /**
  * The API numbers books in Georgian canonical order, but the English corpus
@@ -32,5 +32,12 @@ export const englishBooks: Record<number, number> = {
   68: 61,
 };
 
-/** Translate a shared book id into the id the API expects for `lang`. */
-export const toApiBook = (book: number, lang: Lang) => (lang === 'eng' ? englishBooks[book] || book : book);
+/**
+ * Translate a shared book id into the id the API expects for `lang`.
+ *
+ * Every language the API carries uses one of two orderings, and the spec table
+ * says which — Spanish and Japanese order the epistles the way English does,
+ * Ukrainian and Ossetian the way Georgian does.
+ */
+export const toApiBook = (book: number, lang: Lang) =>
+  specOf(lang).order === 'eng' ? englishBooks[book] || book : book;

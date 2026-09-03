@@ -1,11 +1,13 @@
-import type { Lang } from '@/lib/types';
+import { specOf, type Lang } from '@/lib/bible/languages';
 
 /**
  * Psalm numbering.
  *
- * Georgian and Russian Bibles follow the Septuagint; English follows the
- * Masoretic text. From Psalm 9 on the two diverge, and it is not a flat
- * offset — some psalms are split and others merged:
+ * Georgian, Russian and Ukrainian Bibles follow the Septuagint; English and
+ * every other language the API carries follow the Masoretic text, Greek's
+ * "Septuagint LXX" translation included — `specOf(lang).psalms` is which.
+ * From Psalm 9 on the two diverge, and it is not a flat offset — some psalms
+ * are split and others merged:
  *
  *   LXX 9        = Heb 9 + 10
  *   LXX 10-112   = Heb 11-113          (+1)
@@ -24,7 +26,7 @@ export interface Ref {
   verse: number;
 }
 
-/** Septuagint (Georgian/Russian) reference -> Masoretic (English). */
+/** Septuagint reference -> Masoretic. */
 export const canonicalToEnglish = (chapter: number, verse: number): Ref => {
   if (chapter <= 8 || chapter >= 148) {
     return { chapter, verse };
@@ -61,7 +63,7 @@ export const canonicalToEnglish = (chapter: number, verse: number): Ref => {
   return { chapter: 147, verse: verse + 11 };
 };
 
-/** Masoretic (English) reference -> Septuagint (Georgian/Russian). */
+/** Masoretic reference -> Septuagint. */
 export const englishToCanonical = (chapter: number, verse: number): Ref => {
   if (chapter <= 8 || chapter >= 148) {
     return { chapter, verse };
@@ -100,8 +102,8 @@ export const englishToCanonical = (chapter: number, verse: number): Ref => {
 
 /** A language's own reference -> the shared Septuagint numbering. */
 export const toCanonicalRef = (book: number, lang: Lang, chapter: number, verse: number): Ref =>
-  book === PSALMS_BOOK && lang === 'eng' ? englishToCanonical(chapter, verse) : { chapter, verse };
+  book === PSALMS_BOOK && specOf(lang).psalms === 'masoretic' ? englishToCanonical(chapter, verse) : { chapter, verse };
 
 /** Shared Septuagint numbering -> the reference `lang` uses. */
 export const fromCanonicalRef = (book: number, lang: Lang, chapter: number, verse: number): Ref =>
-  book === PSALMS_BOOK && lang === 'eng' ? canonicalToEnglish(chapter, verse) : { chapter, verse };
+  book === PSALMS_BOOK && specOf(lang).psalms === 'masoretic' ? canonicalToEnglish(chapter, verse) : { chapter, verse };

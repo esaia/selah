@@ -1,4 +1,4 @@
-import { bibleNames } from '@/lib/bible/catalog';
+import { apiBookName } from '@/lib/bible/passage';
 import type { Lang, Verse } from '@/lib/types';
 
 /**
@@ -22,7 +22,7 @@ export const plain = (value: string | null | undefined): string =>
 export const verseRef = (item: Verse | null | undefined, lang: Lang): string => {
   if (!item) return '';
 
-  const name = bibleNames[lang]?.[+item.wigni + 2] ?? '';
+  const name = apiBookName(item.wigni, lang);
 
   return `${name} ${item.tavi}:${item.muxli}`.trim();
 };

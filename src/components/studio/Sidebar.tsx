@@ -1,16 +1,15 @@
 'use client';
 
-import { ChevronRight, MonitorPlay, Video } from 'lucide-react';
+import { ChevronRight, MonitorPlay, Video, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { Select } from '@/components/ui/Select';
 import { Toggle } from '@/components/ui/Toggle';
-import { versionsByLang } from '@/lib/bible/catalog';
 import { cn } from '@/lib/cn';
 import { THEMES } from '@/lib/projector/themes';
-import { stageLangOf } from '@/lib/studio/settings';
+import { stageLangOf, streamLangOf } from '@/lib/studio/settings';
 import { useStudio } from '@/lib/studio/StudioProvider';
-import { LANG_LABELS, LANGS, type Lang } from '@/lib/types';
+import { LANG_LABELS, LANGS, MAX_LANGS, REQUIRED_LANG, versionsOf, type Lang } from '@/lib/types';
 
 import { SortHandle } from './SortHandle';
 import { LIFTED_SLOT, useSortable } from './sortable';
@@ -73,13 +72,19 @@ const SummaryRow = ({
  * sits one click away in the settings dialog, summarised at the foot.
  */
 export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) => {
-  const { settings, update, setLangOrder, peers } = useStudio();
+  const { settings, update, setLangOrder, addLang, removeLang, peers } = useStudio();
 
   const theme = THEMES.find(entry => entry.id === settings.theme);
 
   // The stacking order on the projector, dragged by the number each row is read
   // by. Committed on release, not on every row the pointer crosses.
   const sortable = useSortable(settings.langOrder, lang => lang, ids => setLangOrder(ids as Lang[]));
+
+  // One language is a list of one: nothing to stack, nothing to choose between.
+  // The chip, the grip and the stream's radios all say something about a
+  // choice, so with a single row there is nothing for them to say.
+  const many = settings.langOrder.length > 1;
+  const spare = LANGS.filter(lang => !settings.langOrder.includes(lang));
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-white">
@@ -89,23 +94,27 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
             <Select
               value={settings.adminLang}
               onChange={value => update({ adminLang: value as Lang })}
-              options={LANGS.map(lang => ({ value: lang, label: LANG_LABELS[lang] }))}
+              options={settings.langOrder.map(lang => ({ value: lang, label: LANG_LABELS[lang] }))}
               className="w-full"
             />
 
             <Select
               value={settings.adminVersion}
               onChange={value => update({ adminVersion: value })}
-              options={versionsByLang[settings.adminLang].map(version => ({
-                value: version.value,
-                label: version.label,
-              }))}
+              options={versionsOf(settings.adminLang)}
               className="w-full"
             />
           </div>
         </Section>
 
-        <Section title="Projector" hint="Armed languages are fetched with each passage and shown together on screen. Stage marks the one language the stage display reads.">
+        <Section
+          title="Projector"
+          hint={
+            many
+              ? 'Armed languages are fetched with each passage and shown together on screen. Stage marks the one language the stage display reads.'
+              : 'The language fetched with each passage and shown on screen. Add a second to put two on the same slide.'
+          }
+        >
           {/* The gaps between the rows belong to the list, and a release in
               one of them is still a release on the order the drag arrived at. */}
           <ul className="space-y-3" {...sortable.list()}>
@@ -121,7 +130,7 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <SortHandle index={index} className="w-4" {...sortable.handle(lang)} />
+                  {many ? <SortHandle index={index} className="w-4" {...sortable.handle(lang)} /> : null}
 
                   <span
                     className={cn(
@@ -139,88 +148,137 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
                       room is not shown. A named chip rather than a bare radio:
                       one dot in a column of switches says nothing about what it
                       decides. */}
-                  <button
-                    type="button"
-                    aria-pressed={stageLangOf(settings) === lang}
-                    disabled={!settings.enabled[lang]}
-                    title={`Read ${LANG_LABELS[lang]} on the stage display`}
-                    onClick={() => update({ stageLang: lang })}
-                    className={cn(
-                      `rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase
-                        transition-colors duration-150 focus:outline-none
-                        focus-visible:ring-2 focus-visible:ring-studio-accent/40`,
-                      !settings.enabled[lang]
-                        ? 'cursor-not-allowed border-transparent text-studio-faint/50'
-                        : stageLangOf(settings) === lang
-                          ? 'border-studio-accent bg-studio-accent text-white'
-                          : 'border-studio-border text-studio-faint hover:bg-studio-surface hover:text-studio-muted',
-                    )}
-                  >
-                    Stage
-                  </button>
+                  {many ? (
+                    <button
+                      type="button"
+                      aria-pressed={stageLangOf(settings) === lang}
+                      disabled={!settings.enabled[lang]}
+                      title={`Read ${LANG_LABELS[lang]} on the stage display`}
+                      onClick={() => update({ stageLang: lang })}
+                      className={cn(
+                        `rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase
+                          transition-colors duration-150 focus:outline-none
+                          focus-visible:ring-2 focus-visible:ring-studio-accent/40`,
+                        !settings.enabled[lang]
+                          ? 'cursor-not-allowed border-transparent text-studio-faint/50'
+                          : stageLangOf(settings) === lang
+                            ? 'border-studio-accent bg-studio-accent text-white'
+                            : 'border-studio-border text-studio-faint hover:bg-studio-surface hover:text-studio-muted',
+                      )}
+                    >
+                      Stage
+                    </button>
+                  ) : null}
 
                   <Toggle
-                    checked={settings.enabled[lang]}
+                    checked={Boolean(settings.enabled[lang])}
                     onChange={checked => update({ enabled: { ...settings.enabled, [lang]: checked } })}
                     label={`Show ${LANG_LABELS[lang]} on the projector`}
                   />
+
+                  {/* English stays: it is what every output falls back to when
+                      a pick goes away, so there is always one language left. */}
+                  {lang === REQUIRED_LANG ? (
+                    <span className="w-4" />
+                  ) : (
+                    <button
+                      type="button"
+                      title={`Take ${LANG_LABELS[lang]} off the projector`}
+                      onClick={() => removeLang(lang)}
+                      className="rounded-studio p-0.5 text-studio-faint transition-colors duration-150
+                        hover:bg-studio-surface hover:text-studio-text focus:outline-none
+                        focus-visible:ring-2 focus-visible:ring-studio-accent/40"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  )}
                 </div>
 
                 <Select
-                  value={settings.versions[lang]}
+                  value={settings.versions[lang] ?? ''}
                   onChange={value => update({ versions: { ...settings.versions, [lang]: value } })}
-                  options={versionsByLang[lang].map(version => ({ value: version.value, label: version.label }))}
+                  options={versionsOf(lang)}
                   className="mt-1.5 w-full"
                 />
               </li>
             ))}
           </ul>
+
+          {/* Adding is a pick, not a dialog: the list is short enough that the
+              native menu is the whole interaction, and it resets to its
+              placeholder because it is a verb rather than a setting. */}
+          {settings.langOrder.length < MAX_LANGS ? (
+            <Select
+              value=""
+              onChange={value => addLang(value as Lang)}
+              options={[
+                { value: '', label: 'Add a language…' },
+                ...spare.map(lang => ({ value: lang, label: LANG_LABELS[lang] })),
+              ]}
+              className="mt-3 w-full"
+            />
+          ) : null}
         </Section>
 
         <Section title="Stream" hint="What the OBS lower third is carrying right now.">
-          {/* Says what is actually there rather than what was configured: the
-              dot is presence on the session's channel, so an overlay that has
-              been closed in OBS shows as gone without anything to refresh. */}
-          <div className="flex items-center justify-between rounded-studio border border-studio-border px-3 py-2.5">
-            <span className="flex items-center gap-2 text-sm text-studio-text">
+          {/* The row is named for the thing the switch acts on, not for the
+              state it happens to be in — "Connected" beside a switch reads as
+              though the switch is what connects it. The state is the line
+              under the name and the dot beside it: presence on the session's
+              channel, so an overlay closed in OBS shows as gone without
+              anything to refresh. */}
+          <div className="flex items-center justify-between gap-2 rounded-studio border border-studio-border px-3 py-2">
+            <span className="flex min-w-0 items-center gap-2">
               <span
                 aria-hidden
                 className={cn('size-1.5 shrink-0 rounded-full', peers.lower3rd ? 'bg-studio-go' : 'bg-studio-border')}
               />
-              {peers.lower3rd ? 'Connected' : 'No overlay'}
+
+              <span className="min-w-0">
+                <span className="block text-sm text-studio-text">Lower third</span>
+                <span className="block truncate text-[11px] text-studio-faint">
+                  {peers.lower3rd ? 'Connected' : 'Not open anywhere'}
+                </span>
+              </span>
             </span>
 
             <Toggle
               checked={!settings.obsHidden}
               onChange={checked => update({ obsHidden: !checked })}
-              label="Show slides in OBS"
+              label="Show slides on the lower third"
             />
           </div>
 
-          <p className="mt-3 text-xs text-studio-muted">Language on stream</p>
+          {/* With one language there is nothing to pick between, and a lone
+              radio button beside its own name is a question with one answer. */}
+          {many ? (
+            <>
+              <p className="mt-3 text-xs text-studio-muted">Language on stream</p>
 
-          <div className="mt-1.5 space-y-1">
-            {LANGS.map(lang => (
-              <label
-                key={lang}
-                className={cn(
-                  'flex items-center gap-2 text-sm',
-                  settings.enabled[lang] ? 'text-studio-text' : 'text-studio-faint',
-                )}
-              >
-                <input
-                  type="radio"
-                  name="stream-language"
-                  checked={settings.streamLang === lang}
-                  disabled={!settings.enabled[lang]}
-                  onChange={() => update({ streamLang: lang })}
-                  className="accent-studio-accent"
-                />
-                {LANG_LABELS[lang]}
-                {settings.enabled[lang] ? '' : ' · not armed'}
-              </label>
-            ))}
-          </div>
+              <div className="mt-1.5 space-y-1">
+                {settings.langOrder.map(lang => (
+                  <label
+                    key={lang}
+                    className={cn(
+                      'flex items-center gap-2 text-sm',
+                      settings.enabled[lang] ? 'text-studio-text' : 'text-studio-faint',
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="stream-language"
+                      checked={settings.streamLang === lang}
+                      disabled={!settings.enabled[lang]}
+                      onChange={() => update({ streamLang: lang })}
+                      className="accent-studio-accent"
+                    />
+                    {LANG_LABELS[lang]}
+                    {settings.enabled[lang] ? '' : ' · not armed'}
+                  </label>
+                ))}
+              </div>
+            </>
+          ) : null}
         </Section>
       </div>
 
@@ -236,7 +294,7 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
         <SummaryRow
           icon={<Video className="size-4" />}
           label="Stream"
-          value={settings.obsHidden ? 'Blanked' : `${LANG_LABELS[settings.streamLang]} · ${settings.lowerThirdPosition}`}
+          value={settings.obsHidden ? 'Blanked' : `${LANG_LABELS[streamLangOf(settings)]} · ${settings.lowerThirdPosition}`}
           onClick={() => onSettings('stream')}
         />
       </div>

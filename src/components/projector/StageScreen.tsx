@@ -16,7 +16,7 @@ import {
   type TimerMessage,
   type TimerState,
 } from '@/lib/timer/model';
-import { LANGS, type Lang, type ProjectorStyle, type ShowData } from '@/lib/types';
+import { LANGS, REQUIRED_LANG, type Lang, type ProjectorStyle, type ShowData } from '@/lib/types';
 
 import { TimerScreen, useTimerNow } from './TimerScreen';
 
@@ -56,7 +56,7 @@ import { TimerScreen, useTimerNow } from './TimerScreen';
 const langOf = (projector: Partial<ProjectorStyle>, chosen: Lang | undefined): Lang =>
   chosen && projector.enabled?.[chosen]
     ? chosen
-    : ((projector.order ?? LANGS).find(lang => projector.enabled?.[lang]) ?? 'geo');
+    : ((projector.order ?? LANGS).find(lang => projector.enabled?.[lang]) ?? REQUIRED_LANG);
 
 /**
  * A slide as lines of plain text.

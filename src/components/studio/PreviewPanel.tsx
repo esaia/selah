@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { HiOutlinePencil } from 'react-icons/hi';
 
-import { bibleNames } from '@/lib/bible/catalog';
+import { apiBookName } from '@/lib/bible/passage';
 import { cn } from '@/lib/cn';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
 import { DYNAMIC_THEME, LOCAL_THEME, themeSrc } from '@/lib/projector/themes';
@@ -67,7 +67,7 @@ const modeStore = {
 const reference = (items: Verse[], lang: Lang) => {
   const first = items[0];
   const last = items[items.length - 1];
-  const name = bibleNames[lang]?.[+first.wigni + 2] ?? '';
+  const name = apiBookName(first.wigni, lang);
 
   return items.length > 1
     ? `${name} ${first.tavi}:${first.muxli}-${last.muxli}`

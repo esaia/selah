@@ -1,4 +1,4 @@
-import { LANGS, emptyShowData, groupVerses, type Block, type Lang, type Live, type ShowData } from '@/lib/types';
+import { emptyShowData, groupVerses, type Block, type Lang, type Live, type ShowData } from '@/lib/types';
 
 /**
  * Pure operations on the passage list.
@@ -192,7 +192,7 @@ export const stepWithin = (block: Block | undefined, live: Live, direction: numb
 
 /**
  * One card of a block as an output would receive it: the armed languages
- * filled in, the rest left empty.
+ * filled in, the rest left out.
  *
  * A card index off either end gives an empty slide rather than nothing, which
  * is what lets the caller ask for `groupIndex + 1` without a guard — the stage
@@ -202,14 +202,15 @@ export const stepWithin = (block: Block | undefined, live: Live, direction: numb
 export const slideOf = (
   block: Block | undefined,
   groupIndex: number,
-  enabled: Record<Lang, boolean>,
+  enabled: Partial<Record<Lang, boolean>>,
 ): ShowData => {
   const group = block?.groups?.[groupIndex];
 
   if (!block || !group) return emptyShowData();
 
-  return {
-    ...emptyShowData(),
-    ...Object.fromEntries(LANGS.map(lang => [lang, enabled[lang] ? groupVerses(block, lang, group) : []])),
-  } as ShowData;
+  return Object.fromEntries(
+    Object.keys(enabled)
+      .filter((lang): lang is Lang => Boolean(enabled[lang as Lang]))
+      .map(lang => [lang, groupVerses(block, lang, group)]),
+  );
 };

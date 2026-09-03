@@ -1,15 +1,17 @@
-/** The three languages, in the order the API and the old app use them. */
-export const LANGS = ['geo', 'eng', 'rus'] as const;
-export type Lang = (typeof LANGS)[number];
+export {
+  LANGS,
+  LANG_LABELS,
+  LANG_SPECS,
+  MAX_LANGS,
+  REQUIRED_LANG,
+  defaultVersionOf,
+  isLang,
+  specOf,
+  versionsOf,
+} from '@/lib/bible/languages';
+export type { Lang, LangSpec } from '@/lib/bible/languages';
 
-export const LANG_LABELS: Record<Lang, string> = {
-  geo: 'Georgian',
-  eng: 'English',
-  rus: 'Russian',
-};
-
-/** The upstream API speaks 'ru', not 'rus'. */
-export const API_LANG: Record<Lang, string> = { geo: 'geo', eng: 'eng', rus: 'ru' };
+import type { Lang } from '@/lib/bible/languages';
 
 /**
  * A verse exactly as the scripture API returns it. The Georgian field names are
@@ -31,17 +33,20 @@ export interface ApiChapter {
 }
 
 /**
- * What the outputs render. When `lyrics` is present the language arrays are
+ * What the outputs render: the verses of one card, in whichever languages the
+ * operator has armed. A language the slide does not carry is simply absent
+ * rather than empty, which is also what makes adding a fourteenth language
+ * cost nothing on the wire. When `lyrics` is present the language arrays are
  * ignored and the slide is a song slide instead.
+ *
+ * Flat rather than nested because every reader already asks it for a language
+ * by key, and no language code is `lyrics`.
  */
-export interface ShowData {
-  geo: Verse[];
-  eng: Verse[];
-  rus: Verse[];
+export type ShowData = Partial<Record<Lang, Verse[]>> & {
   lyrics?: { title: string; text: string };
-}
+};
 
-export const emptyShowData = (): ShowData => ({ geo: [], eng: [], rus: [] });
+export const emptyShowData = (): ShowData => ({});
 
 export type Align = 'left' | 'center' | 'right';
 
@@ -55,7 +60,7 @@ export interface ProjectorStyle {
   lyricsFont: string;
   lyricsAlign: Align;
   order: Lang[];
-  enabled: Record<Lang, boolean>;
+  enabled: Partial<Record<Lang, boolean>>;
   transitionMs: number;
 }
 
@@ -69,7 +74,7 @@ export interface StreamStyle {
   lyricsFont: string;
   lyricsAlign: Align;
   order: Lang[];
-  enabled: Record<Lang, boolean>;
+  enabled: Partial<Record<Lang, boolean>>;
   transitionMs: number;
   position: 'top' | 'bottom';
   variant: string;
@@ -103,7 +108,7 @@ export interface Block {
   chapterLength: number;
   verses: number[];
   groups: number[][];
-  data: Record<Lang, (Verse | null)[]>;
+  data: Partial<Record<Lang, (Verse | null)[]>>;
   collapsed?: boolean;
 }
 

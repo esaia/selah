@@ -1,7 +1,8 @@
 # Selah
 
 The console churches use to put scripture and song lyrics on a projector and a
-livestream — in Georgian, English and Russian at the same time.
+livestream — in up to three languages at the same time, picked from everything
+the scripture API carries.
 
 This is the rewrite of `mybible` (Create React App, `localStorage`, no accounts)
 as a subscription product: Next.js + Supabase, studio console only, with Google
@@ -26,6 +27,7 @@ redirect.
 pnpm test        # vitest — psalm mapping, book remap, block operations
 pnpm typecheck
 pnpm build
+pnpm languages   # re-fetch the book names and translation lists (rarely)
 ```
 
 ## How it fits together
@@ -84,6 +86,19 @@ shut — does not blank the screen.
 - The **classic console** (`/`), the plain reader, the docs page and the
   donation page are not ported.
 
+## Languages
+
+A console opens on English and the operator adds up to two more, from the
+fourteen the scripture API carries. `lib/bible/languages.ts` is the whole
+catalogue: a label, the translations, the book names, and the two things that
+actually vary — Georgian or English book ordering, Septuagint or Masoretic
+psalms. Everything but Georgian, English and Russian is generated from the API
+by `scripts/languages.mjs` and committed. German is listed upstream but returns
+English text, so it is left out on purpose.
+
+English cannot be removed: it is what every output falls back to when the
+language the stream or the stage was pointed at goes away.
+
 ## Domain vocabulary
 
 The scripture API is Georgian, and its field names are kept where they face it:
@@ -104,7 +119,7 @@ src/
     projector/             what the outputs draw (shared by the console preview)
     studio/                the console
   lib/
-    bible/                 catalog, versification, psalms, book remap, chapter loading
+    bible/                 languages, versification, psalms, book remap, chapter loading
     billing/               plans, entitlements, Stripe
     live/                  the realtime channel and its payloads
     media/                 IndexedDB + WebRTC file transfer

@@ -8,7 +8,7 @@ import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
 import { keepSame } from '@/lib/projector/keepSame';
 import { DYNAMIC_THEME, LOCAL_THEME, themeSrc } from '@/lib/projector/themes';
 import { asTimerState, withSkew, type TimerState } from '@/lib/timer/model';
-import { emptyShowData, type Align, type ProjectorStyle, type ShowData } from '@/lib/types';
+import { emptyShowData, REQUIRED_LANG, type Align, type ProjectorStyle, type ShowData } from '@/lib/types';
 
 import { TimerScreen } from './TimerScreen';
 import { VerseBlock } from './VerseBlock';
@@ -34,8 +34,8 @@ const defaultStyle: ProjectorStyle = {
   align: 'left',
   lyricsFont: 'font-banner',
   lyricsAlign: 'left',
-  order: ['eng', 'geo', 'rus'],
-  enabled: { geo: true, eng: false, rus: false },
+  order: [REQUIRED_LANG],
+  enabled: { [REQUIRED_LANG]: true },
   transitionMs: 320,
 };
 

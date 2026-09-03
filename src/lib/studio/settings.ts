@@ -1,7 +1,7 @@
-import { versionsByLang } from '@/lib/bible/catalog';
+import { defaultVersionOf, isLang, MAX_LANGS, REQUIRED_LANG, type Lang } from '@/lib/bible/languages';
 import { clampTransition, DEFAULT_TRANSITION_MS } from '@/lib/projector/transition';
 import type { Database } from '@/lib/supabase/types';
-import { LANGS, type Align, type Lang, type LocalFileMeta, type ProjectorStyle, type StreamStyle } from '@/lib/types';
+import type { Align, LocalFileMeta, ProjectorStyle, StreamStyle } from '@/lib/types';
 
 export type SettingsRow = Database['public']['Tables']['settings']['Row'];
 
@@ -14,8 +14,8 @@ export type SettingsRow = Database['public']['Tables']['settings']['Row'];
 export interface Settings {
   adminLang: Lang;
   adminVersion: string;
-  enabled: Record<Lang, boolean>;
-  versions: Record<Lang, string>;
+  enabled: Partial<Record<Lang, boolean>>;
+  versions: Partial<Record<Lang, string>>;
   theme: string;
   dynamicImage: string;
   localImage: LocalFileMeta | null;
@@ -33,44 +33,44 @@ export interface Settings {
   stageLang: Lang;
 }
 
-/** The translation each language opens on. English defaults to the KJV. */
-export const defaultVersions: Record<Lang, string> = {
-  geo: versionsByLang.geo[0].value,
-  eng: versionsByLang.eng[2].value,
-  rus: versionsByLang.rus[0].value,
-};
+/**
+ * The languages the operator has chosen, cleaned up.
+ *
+ * English is always in and always first if it had fallen out, because it is
+ * what every output falls back to and the one row that cannot be removed.
+ * Three is the ceiling: a fourth language on a slide is a fourth block of text
+ * on a projector nobody at the back can read.
+ */
+export const asOrder = (value: unknown): Lang[] => {
+  const listed: Lang[] = Array.isArray(value) ? value.filter(isLang) : [];
+  const chosen = listed.filter((lang, index, all) => all.indexOf(lang) === index);
+  const order = chosen.includes(REQUIRED_LANG) ? chosen : [REQUIRED_LANG, ...chosen];
 
-const isLang = (value: unknown): value is Lang => LANGS.includes(value as Lang);
-
-const asOrder = (value: unknown): Lang[] => {
-  const order = Array.isArray(value) ? value.filter(isLang) : [];
-
-  return order.length === LANGS.length && LANGS.every(lang => order.includes(lang))
-    ? order
-    : ['eng', 'geo', 'rus'];
+  return order.slice(0, MAX_LANGS);
 };
 
 const asAlign = (value: unknown): Align =>
   value === 'center' || value === 'right' ? value : 'left';
 
-const asFlags = (value: unknown, fallback: Record<Lang, boolean>): Record<Lang, boolean> => {
+/** Armed flags for the chosen languages, and nothing for the rest. */
+const asFlags = (value: unknown, order: Lang[]): Partial<Record<Lang, boolean>> => {
   const flags = (value ?? {}) as Partial<Record<Lang, unknown>>;
 
   return Object.fromEntries(
-    LANGS.map(lang => [lang, typeof flags[lang] === 'boolean' ? flags[lang] : fallback[lang]]),
-  ) as Record<Lang, boolean>;
+    order.map(lang => [lang, typeof flags[lang] === 'boolean' ? flags[lang] : true]),
+  );
 };
 
 export const fromRow = (row: SettingsRow): Settings => {
   const versions = (row.versions ?? {}) as Partial<Record<Lang, string>>;
+  const langOrder = asOrder(row.lang_order);
+  const adminLang = isLang(row.admin_lang) && langOrder.includes(row.admin_lang) ? row.admin_lang : langOrder[0];
 
   return {
-    adminLang: isLang(row.admin_lang) ? row.admin_lang : 'geo',
-    adminVersion: row.admin_version || defaultVersions.geo,
-    enabled: asFlags(row.enabled, { geo: true, eng: false, rus: false }),
-    versions: Object.fromEntries(
-      LANGS.map(lang => [lang, versions[lang] || defaultVersions[lang]]),
-    ) as Record<Lang, string>,
+    adminLang,
+    adminVersion: row.admin_version || defaultVersionOf(adminLang),
+    enabled: asFlags(row.enabled, langOrder),
+    versions: Object.fromEntries(langOrder.map(lang => [lang, versions[lang] || defaultVersionOf(lang)])),
     theme: row.theme || '1',
     dynamicImage: row.dynamic_image || '',
     localImage: (row.local_image as LocalFileMeta | null) ?? null,
@@ -79,13 +79,13 @@ export const fromRow = (row: SettingsRow): Settings => {
     lyricsFont: row.lyrics_font || row.font || 'font-banner',
     lyricsAlign: asAlign(row.lyrics_align ?? row.align),
     transitionMs: clampTransition(row.transition_ms ?? DEFAULT_TRANSITION_MS),
-    langOrder: asOrder(row.lang_order),
+    langOrder,
     lowerThirdPosition: row.lower_third_position === 'top' ? 'top' : 'bottom',
     lowerThirdVariant: row.lower_third_variant || 'scrim',
     lyricsVariant: row.lyrics_variant || 'scrim',
     obsHidden: Boolean(row.obs_hidden),
-    streamLang: isLang(row.stream_lang) ? row.stream_lang : 'geo',
-    stageLang: isLang(row.stage_lang) ? row.stage_lang : 'geo',
+    streamLang: isLang(row.stream_lang) ? row.stream_lang : REQUIRED_LANG,
+    stageLang: isLang(row.stage_lang) ? row.stage_lang : REQUIRED_LANG,
   };
 };
 
@@ -133,7 +133,7 @@ const armedLangs = (settings: Settings): Lang[] =>
 export const streamLangOf = (settings: Settings): Lang => {
   const armed = armedLangs(settings);
 
-  return armed.includes(settings.streamLang) ? settings.streamLang : (armed[0] ?? 'geo');
+  return armed.includes(settings.streamLang) ? settings.streamLang : (armed[0] ?? REQUIRED_LANG);
 };
 
 /**
@@ -145,7 +145,7 @@ export const streamLangOf = (settings: Settings): Lang => {
 export const stageLangOf = (settings: Settings): Lang => {
   const armed = armedLangs(settings);
 
-  return armed.includes(settings.stageLang) ? settings.stageLang : (armed[0] ?? 'geo');
+  return armed.includes(settings.stageLang) ? settings.stageLang : (armed[0] ?? REQUIRED_LANG);
 };
 
 /**
@@ -163,7 +163,7 @@ export const streamStyle = (settings: Settings): StreamStyle => {
     lyricsFont: settings.lyricsFont,
     lyricsAlign: settings.lyricsAlign,
     order: settings.langOrder,
-    enabled: Object.fromEntries(LANGS.map(lang => [lang, lang === chosen])) as Record<Lang, boolean>,
+    enabled: Object.fromEntries(settings.langOrder.map(lang => [lang, lang === chosen])),
     transitionMs: settings.transitionMs,
     position: settings.lowerThirdPosition,
     variant: settings.lowerThirdVariant,
