@@ -170,7 +170,7 @@ export const TimerPanel = () => {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
           <div className="min-w-0 space-y-5">
             <div>
               <Heading>Dashboard</Heading>
@@ -183,7 +183,15 @@ export const TimerPanel = () => {
             </div>
           </div>
 
-          <div className="min-w-0">
+          {/* Pinned beside the running order, once there is a column of its own
+              to pin it in: the notes are written against the list, and scrolling
+              down to timer twelve used to take them off the screen. It stops
+              under the header the panel already pins, and scrolls within itself
+              rather than growing past the foot of the window. */}
+          <div
+            className="min-w-0 lg:sticky lg:top-[4.5rem] lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto
+              lg:studio-scroll lg:pb-2"
+          >
             <Heading>Messages</Heading>
             <TimerMessages />
           </div>

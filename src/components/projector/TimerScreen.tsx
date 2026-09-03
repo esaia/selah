@@ -107,6 +107,12 @@ const widthInEms = (text: string) =>
 // this counting", which on the stage's rail — a box of digits beside the
 // agenda — is asked before the number itself is any use.
 const NAME = { size: 0.065, gap: 0.03, lead: 1.3 };
+
+// Under the title rather than after it: two answers to two questions — what
+// this is counting, and who is giving it — read faster stacked than run
+// together on one line, and a long Georgian title no longer squeezes the name
+// of the person off the end of the row.
+const SPEAKER = { size: 0.045, lead: 1.35 };
 const CLOCK = { size: 0.05, gap: 0.04 };
 
 /**
@@ -216,17 +222,21 @@ export const TimerScreen = ({
   const takeover = messages.filter((message) => message.fullScreen);
 
   const hasName = Boolean(showName && reading?.name);
+  const hasSpeaker = Boolean(showName && reading?.speaker);
 
   // The pieces that have a floor are measured before they are budgeted: on a
   // small frame the floor is what gets drawn, and a budget taken from the
   // share alone would be short by the difference.
   const nameSize = hasName ? Math.max(MIN_TYPE, unit * NAME.size) : 0;
+  const speakerSize = hasSpeaker ? Math.max(MIN_TYPE, unit * SPEAKER.size) : 0;
   const clockSize = showClock ? Math.max(MIN_TYPE, unit * CLOCK.size) : 0;
 
   // What the furniture is taking, as a fraction of the frame. The bar is not
   // in it — it lies in the margin below the column, not in the column.
   const spent = unit
-    ? (hasName ? (nameSize * NAME.lead) / unit + NAME.gap : 0) +
+    ? (hasName ? (nameSize * NAME.lead) / unit : 0) +
+      (hasSpeaker ? (speakerSize * SPEAKER.lead) / unit : 0) +
+      (hasName || hasSpeaker ? NAME.gap : 0) +
       (showClock ? clockSize / unit + CLOCK.gap : 0) +
       (messages.length > 0 ? MESSAGE.gap + MESSAGE.share : 0)
     : 0;
@@ -313,25 +323,31 @@ export const TimerScreen = ({
       className={cn("relative size-full px-[5%] pt-[6%] pb-[7%]", className)}
     >
       <div ref={frameRef} className="flex size-full flex-col justify-center">
-        {showName && reading?.name ? (
-          <div
-            // The line box is the font size and a little under it, and the
-            // budget above is taken from that same figure — normal leading
-            // would spend a fifth again of the column that nothing accounted
-            // for, and none at all cuts the descenders off.
-            className="shrink-0 truncate text-center font-medium tracking-[0.2em] text-white/70 uppercase"
-            style={{
-              fontSize: nameSize,
-              lineHeight: NAME.lead,
-              marginBottom: unit * NAME.gap,
-            }}
-          >
-            {reading.name}
-            {reading.speaker ? (
-              // Dimmer than the title, and on the same line: the name of the
-              // item is what the screen is *for*, and who is giving it is the
-              // answer to a second question the person on stage already knows.
-              <span className="text-white/45"> · {reading.speaker}</span>
+        {hasName || hasSpeaker ? (
+          <div className="shrink-0" style={{ marginBottom: unit * NAME.gap }}>
+            {hasName ? (
+              <div
+                // The line box is the font size and a little under it, and the
+                // budget above is taken from that same figure — normal leading
+                // would spend a fifth again of the column that nothing accounted
+                // for, and none at all cuts the descenders off.
+                className="truncate text-center font-medium tracking-[0.2em] text-white/70 uppercase"
+                style={{ fontSize: nameSize, lineHeight: NAME.lead }}
+              >
+                {reading?.name}
+              </div>
+            ) : null}
+
+            {hasSpeaker ? (
+              // Smaller and dimmer, on its own line under the title: the name
+              // of the item is what the screen is *for*, and who is giving it
+              // is the answer to a second question.
+              <div
+                className="truncate text-center font-medium tracking-[0.16em] text-white/45 uppercase"
+                style={{ fontSize: speakerSize, lineHeight: SPEAKER.lead }}
+              >
+                {reading?.speaker}
+              </div>
             ) : null}
           </div>
         ) : null}

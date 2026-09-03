@@ -15,7 +15,11 @@ import {
   newTimer,
   onOutputs,
   parseDuration,
+  cloneTimer,
+  insertTimer,
   pauseRun,
+  removeTimer,
+  reorderTimers,
   resetRun,
   runUnderWay,
   seekRun,
@@ -405,5 +409,111 @@ describe("timerIsLive", () => {
     const started = startRun(switched(), 1_000);
 
     expect(timerIsLive(clearOutputs(pauseRun(started, 5_000)))).toBe(false);
+  });
+});
+
+describe("reorderTimers", () => {
+  /** Four timers, every one of them following the one above it. */
+  const chain = () =>
+    ["a", "b", "c", "d"].map((id, at) =>
+      newTimer({ id, name: id, linked: at > 0 }),
+    );
+
+  const linksOf = (timers: ReturnType<typeof chain>) =>
+    timers.map((timer) => `${timer.id}${timer.linked ? "+" : "-"}`);
+
+  it("puts the rows in the order the drag arrived at", () => {
+    expect(
+      reorderTimers(chain(), ["a", "c", "b", "d"]).map((timer) => timer.id),
+    ).toEqual(["a", "c", "b", "d"]);
+  });
+
+  it("breaks the link of a row that lands under a different neighbour", () => {
+    // "b" moved to the end: it no longer follows "a", "c" no longer follows
+    // "b", and "d" no longer follows "c".
+    expect(linksOf(reorderTimers(chain(), ["a", "c", "d", "b"]))).toEqual([
+      "a-",
+      "c-",
+      "d+",
+      "b-",
+    ]);
+  });
+
+  it("leaves the joins a drag never came near alone", () => {
+    // The last pair is untouched by swapping the first two.
+    expect(linksOf(reorderTimers(chain(), ["b", "a", "c", "d"]))).toEqual([
+      "b-",
+      "a-",
+      "c-",
+      "d+",
+    ]);
+  });
+
+  it("keeps every row when the list has moved on under the drag", () => {
+    const timers = [...chain(), newTimer({ id: "e", name: "e" })];
+
+    // A stale drag that never saw "e", and mentions an id that has gone.
+    expect(
+      reorderTimers(timers, ["gone", "b", "a", "c", "d"]).map(
+        (timer) => timer.id,
+      ),
+    ).toEqual(["b", "a", "c", "d", "e"]);
+  });
+});
+
+describe("the row menu's operations", () => {
+  const chain = () =>
+    ["a", "b", "c"].map((id, at) => newTimer({ id, name: id, linked: at > 0 }));
+
+  it("puts a new timer either side of the row it was opened on", () => {
+    expect(
+      insertTimer(chain(), "b", "above", newTimer({ id: "new" })).map(
+        (timer) => timer.id,
+      ),
+    ).toEqual(["a", "new", "b", "c"]);
+
+    expect(
+      insertTimer(chain(), "b", "below", newTimer({ id: "new" })).map(
+        (timer) => timer.id,
+      ),
+    ).toEqual(["a", "b", "new", "c"]);
+  });
+
+  it("breaks the join it was inserted through, and leaves the others", () => {
+    const after = insertTimer(chain(), "b", "above", newTimer({ id: "new" }));
+
+    // "b" follows the new row now, so its promise goes; "c" still follows "b".
+    expect(after.map((timer) => timer.linked)).toEqual([
+      false,
+      false,
+      false,
+      true,
+    ]);
+  });
+
+  it("clones a timer under itself, under fresh ids", () => {
+    const timers = [
+      newTimer({
+        id: "a",
+        name: "Sermon",
+        duration: 25 * MINUTE,
+        labels: [{ id: "l1", text: "main", color: "amber" }],
+      }),
+    ];
+
+    const [original, copy] = cloneTimer(timers, "a");
+
+    expect(copy.name).toBe("Sermon copy");
+    expect(copy.duration).toBe(25 * MINUTE);
+    expect(copy.id).not.toBe(original.id);
+    expect(copy.labels[0].text).toBe("main");
+    expect(copy.labels[0].id).not.toBe(original.labels[0].id);
+  });
+
+  it("breaks the join left pointing over a deleted row", () => {
+    const after = removeTimer(chain(), "b");
+
+    expect(after.map((timer) => timer.id)).toEqual(["a", "c"]);
+    expect(after.map((timer) => timer.linked)).toEqual([false, false]);
   });
 });

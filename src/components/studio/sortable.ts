@@ -32,35 +32,63 @@ const groundOf = (element: HTMLElement) => {
 };
 
 /**
- * Lend the row a card for the one frame the browser takes its picture in. A row
- * that sits on the panel with no ground of its own is snapshotted as loose text
- * over whatever it passes; the drag image is a copy, so the row has its own
- * styling back before anything is painted.
+ * The picture the pointer carries: a copy of the row, taken aside and dressed
+ * as a card for the one frame the browser photographs it in.
+ *
+ * A copy rather than the row itself. The row is about to be hollowed out into
+ * the berth it leaves behind, and React writes that to the DOM before the
+ * browser takes its picture — photographing the row gave an empty rectangle.
+ * The copy is squared off as well: the snapshot keeps the whole box, so a
+ * rounded row leaves transparent corners in it that the browser paints black.
  */
 const ghostOf = (event: DragEvent<HTMLElement>) => {
   const row = event.currentTarget;
   const box = row.getBoundingClientRect();
-  const was = {
-    background: row.style.background,
-    boxShadow: row.style.boxShadow,
-    outline: row.style.outline,
-  };
+  const copy = row.cloneNode(true) as HTMLElement;
 
-  Object.assign(row.style, {
+  // What the operator typed but never committed to an attribute: a clone
+  // carries the markup, not the live value of a field.
+  const typed = row.querySelectorAll('input, textarea');
+
+  copy.querySelectorAll('input, textarea').forEach((field, at) => {
+    const from = typed[at];
+
+    if (from instanceof HTMLTextAreaElement && field instanceof HTMLTextAreaElement)
+      field.textContent = from.value;
+
+    if (from instanceof HTMLInputElement && field instanceof HTMLInputElement)
+      field.setAttribute('value', from.value);
+  });
+
+  Object.assign(copy.style, {
+    position: 'fixed',
+    top: '0px',
+    left: '-10000px',
+    width: `${box.width}px`,
+    height: `${box.height}px`,
+    margin: '0',
+    borderRadius: '0px',
     background: groundOf(row),
     boxShadow: '0 10px 24px -8px rgb(17 19 24 / 0.35)',
     outline: '1px solid rgb(17 19 24 / 0.08)',
+    pointerEvents: 'none',
   });
+
+  document.body.append(copy);
 
   // Held at the point it was picked up rather than pinned to a corner.
   event.dataTransfer.setDragImage(
-    row,
+    copy,
     event.clientX - box.left,
     event.clientY - box.top,
   );
 
-  requestAnimationFrame(() => Object.assign(row.style, was));
+  requestAnimationFrame(() => copy.remove());
 };
+
+export const LIFTED_SLOT =
+  'bg-studio-surface bg-none outline-1 -outline-offset-1 outline-dashed outline-studio-border ' +
+  '[&>*]:invisible before:hidden';
 
 export interface Sortable<T> {
   /** The list to render: the order the drag has arrived at, while one is on. */

@@ -7,6 +7,7 @@ import { cn } from '@/lib/cn';
 import { useAudio, type Track } from '@/lib/studio/AudioProvider';
 
 import { DROP_ZONE } from './dropZone';
+import { LIFTED_SLOT } from './sortable';
 import { useTrackReorder } from './trackDrag';
 
 /** Every track, as opposed to one of the operator's libraries. */
@@ -341,7 +342,7 @@ export const AudioPanel = () => {
                   'group relative mx-1 flex cursor-grab items-center gap-2.5 rounded-studio px-2 py-1.5',
                   'transition-colors duration-150 active:cursor-grabbing',
                   isCurrent ? 'bg-studio-accent/10' : 'hover:bg-studio-surface',
-                  reorder.lifted === track.id && 'opacity-40',
+                  reorder.lifted === track.id && LIFTED_SLOT,
                 )}
               >
                 <button

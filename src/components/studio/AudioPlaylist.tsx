@@ -8,6 +8,7 @@ import { useAudio, type Track } from '@/lib/studio/AudioProvider';
 import { useStudio } from '@/lib/studio/StudioProvider';
 
 import { DROP_ZONE } from './dropZone';
+import { LIFTED_SLOT } from './sortable';
 import { useTrackReorder } from './trackDrag';
 
 /** Three bars, animated only on the track actually playing. */
@@ -244,7 +245,7 @@ export const AudioPlaylist = () => {
                   // out matches the sound, which is on its own ramp.
                   'transition-colors duration-200 active:cursor-grabbing',
                   isCurrent ? 'bg-studio-accent/10' : 'hover:bg-studio-surface',
-                  reorder.lifted === track.id && 'opacity-40',
+                  reorder.lifted === track.id && LIFTED_SLOT,
                 )}
               >
                 <button

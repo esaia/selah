@@ -438,6 +438,111 @@ export const adjustRun = (
 export const armTimer = (state: TimerState, id: string): TimerState =>
   state.activeId === id ? state : { ...resetRun(state), activeId: id };
 
+/**
+ * A rearranged running order with the joins it falsified broken.
+ *
+ * A link belongs to the second of its pair — "I follow that one" — so a row
+ * that ends up under a different neighbour is no longer saying what it said.
+ * Those joins go, and only those: a pair carried along untouched keeps its
+ * link, and so does one the change never came near. A row that was not in the
+ * list before — inserted, or a copy — starts with no promise to keep.
+ */
+const settleJoins = (
+  before: StageTimer[],
+  after: StageTimer[],
+): StageTimer[] => {
+  const followed = new Map(
+    before.map((timer, at) => [timer.id, before[at - 1]?.id ?? null]),
+  );
+
+  return after.map((timer, at) => {
+    const above = after[at - 1]?.id ?? null;
+    const kept = followed.has(timer.id) && followed.get(timer.id) === above;
+
+    return !timer.linked || kept ? timer : { ...timer, linked: false };
+  });
+};
+
+/**
+ * The running order after a drag.
+ *
+ * Ids the list no longer knows are dropped and rows the caller did not mention
+ * keep their place at the end, so a running order rewritten by another console
+ * mid-drag cannot lose an item to a stale index.
+ */
+export const reorderTimers = (
+  timers: StageTimer[],
+  ids: string[],
+): StageTimer[] => {
+  const known = new Set(ids);
+
+  return settleJoins(timers, [
+    ...ids
+      .map((id) => timers.find((timer) => timer.id === id))
+      .filter((timer): timer is StageTimer => Boolean(timer)),
+    ...timers.filter((timer) => !known.has(timer.id)),
+  ]);
+};
+
+/** Where a new row goes relative to the one the menu was opened on. */
+export type Beside = "above" | "below";
+
+/**
+ * A new timer put in beside another one. Unknown ids append, which is what an
+ * operator who pressed a row that another console had just deleted meant.
+ */
+export const insertTimer = (
+  timers: StageTimer[],
+  id: string,
+  side: Beside,
+  made: StageTimer = newTimer({ name: `Timer ${timers.length + 1}` }),
+): StageTimer[] => {
+  const at = timers.findIndex((timer) => timer.id === id);
+  const next = [...timers];
+
+  next.splice(at === -1 ? timers.length : at + (side === "below" ? 1 : 0), 0, made);
+
+  return settleJoins(timers, next);
+};
+
+/**
+ * A copy of a timer, directly under the original.
+ *
+ * Everything the operator set is carried over — duration, kind, speaker, notes,
+ * labels — under fresh ids, so editing the copy cannot reach back into what it
+ * was copied from. The name says which is which.
+ */
+export const cloneTimer = (
+  timers: StageTimer[],
+  id: string,
+): StageTimer[] => {
+  const original = timers.find((timer) => timer.id === id);
+
+  if (!original) return timers;
+
+  return insertTimer(
+    timers,
+    id,
+    "below",
+    newTimer({
+      ...original,
+      id: undefined,
+      name: `${original.name} copy`,
+      labels: original.labels.map((label) => newLabel({ ...label, id: undefined })),
+    }),
+  );
+};
+
+/** A timer taken out, and any join that was pointing over it broken. */
+export const removeTimer = (
+  timers: StageTimer[],
+  id: string,
+): StageTimer[] =>
+  settleJoins(
+    timers,
+    timers.filter((timer) => timer.id !== id),
+  );
+
 /** Next or previous in the running order, stopping at the ends. */
 export const stepTimer = (state: TimerState, direction: number): TimerState => {
   const index = state.timers.findIndex((timer) => timer.id === state.activeId);

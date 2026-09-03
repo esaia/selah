@@ -107,7 +107,7 @@ const AdjustGroup = ({ sign }: { sign: 1 | -1 }) => {
   const Icon = sign > 0 ? Plus : Minus;
 
   return (
-    <div ref={box} className="relative flex min-w-0 max-w-[150px] flex-1">
+    <div ref={box} className="relative flex min-w-0 max-w-[220px] flex-1">
       {/* One split key, not two buttons side by side: the rounding belongs to
           the group, and the halves are told apart by a hairline. */}
       <div className="flex w-full overflow-hidden rounded-studio">
@@ -177,18 +177,18 @@ export const TimerDashboard = () => {
   const finish = now === null ? null : finishesAt(timer, now);
 
   return (
-    /* The screen at a size it is actually read at, and the controls taking the
-       rest of the row: stacked under it they left the column half empty, and
-       boxed in a panel of their own they read as furniture rather than as the
-       instrument. */
-    <section className="flex flex-wrap items-stretch gap-4">
+    /* Stacked, always: the screen across the top of the column at the size it
+       is actually read at, the transport under it at the width of the thing it
+       is driving. Side by side, both halves were squeezed — the preview too
+       small to read a stage message off, the keys bunched into a strip. */
+    <section className="flex flex-col gap-3">
       {/* What `/stage/[key]` is drawing, face for face: the run while it is up,
           the slides once it has been cleared, decided by the same predicate the
           output itself uses. Not the page in an iframe — that would be a second
           output joining the channel to tell the console what the console
           already knows. The projector's version of the timer, which leaves the
           wall clock off, is previewed beside the slide instead. */}
-      <div className="w-full shrink-0 overflow-hidden rounded-studio bg-studio-slide sm:w-[300px]">
+      <div className="w-full overflow-hidden rounded-studio bg-studio-slide">
         <div className="aspect-video w-full">
           {timerIsLive(timer) ? (
             <TimerScreen state={timer} />
@@ -204,10 +204,10 @@ export const TimerDashboard = () => {
         </div>
       </div>
 
-      {/* Centred beside the screen rather than spread down it: stretched to the
-          preview's height, the three rows drifted apart into bands of nothing
-          and the transport stopped reading as one instrument. */}
-      <div className="flex min-w-[300px] flex-1 flex-col justify-center gap-2.5">
+      {/* The scrubber, the transport and the clocks, in that order, each at the
+          width of the screen above them — so the line being scrubbed sits
+          directly under the picture it is scrubbing. */}
+      <div className="flex min-w-0 flex-col gap-2.5">
         <TimerScrubber />
 
         {/* Spread rather than bunched: the two amounts sit under the ends of

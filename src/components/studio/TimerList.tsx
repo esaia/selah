@@ -1,9 +1,22 @@
 'use client';
 
-import { Fragment, useState } from 'react';
-import { Check, Pause, Pencil, Play, Plus, RotateCcw, StickyNote, Trash2 } from 'lucide-react';
+import { Fragment, useEffect, useRef, useState, type MouseEvent as MouseEvent_, type ReactNode } from 'react';
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  Copy,
+  MoreHorizontal,
+  Pause,
+  Pencil,
+  Play,
+  Plus,
+  StickyNote,
+  Trash2,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { IconButton } from '@/components/ui/IconButton';
 import { Select } from '@/components/ui/Select';
 import { cn } from '@/lib/cn';
@@ -11,18 +24,23 @@ import { useStudio } from '@/lib/studio/StudioProvider';
 
 import { SortHandle } from './SortHandle';
 import { TimerEditor } from './TimerEditor';
-import { useSortable, type Sortable } from './sortable';
+import { LIFTED_SLOT, useSortable, type Sortable } from './sortable';
 import {
   LABEL_COLORS,
   TIMER_KINDS,
   armTimer,
+  cloneTimer,
   formatDuration,
+  insertTimer,
   newTimer,
+  removeTimer,
+  reorderTimers,
   resetRun,
   startRun,
   toggleRun,
   type StageTimer,
   type TimerKind,
+  type TimerState,
 } from '@/lib/timer/model';
 
 /**
@@ -35,12 +53,10 @@ import {
 const Number = ({
   value,
   label,
-  tone = 'plain',
   onOpen,
 }: {
   value: string;
   label: string;
-  tone?: 'plain' | 'warn';
   onOpen: () => void;
 }) => (
   <button
@@ -55,14 +71,152 @@ const Number = ({
       'h-8 w-[76px] shrink-0 rounded-studio text-center text-sm font-semibold tabular-nums',
       'underline decoration-dashed decoration-from-font underline-offset-4 transition-colors duration-150',
       'focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
-      tone === 'warn'
-        ? 'text-amber-600 decoration-amber-300 hover:text-amber-700'
-        : 'text-studio-text decoration-studio-border hover:text-studio-accent',
+      'text-studio-text decoration-studio-border hover:text-studio-accent',
     )}
   >
     {value}
   </button>
 );
+
+/** One line of the row menu. */
+const MenuItem = ({
+  icon,
+  label,
+  tone = 'plain',
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  tone?: 'plain' | 'danger';
+  onClick: (event: MouseEvent_) => void;
+}) => (
+  <button
+    type="button"
+    role="menuitem"
+    onClick={onClick}
+    className={cn(
+      'flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium transition-colors',
+      'duration-150 focus:outline-none',
+      tone === 'danger'
+        ? 'text-studio-danger hover:bg-red-50 focus-visible:bg-red-50'
+        : 'text-studio-text hover:bg-studio-surface focus-visible:bg-studio-surface',
+    )}
+  >
+    {icon}
+    {label}
+  </button>
+);
+
+/**
+ * Everything else the row can have done to it: another timer either side of it,
+ * a copy of it, or the end of it.
+ *
+ * One button rather than four. A running order is read far more often than it
+ * is rearranged, and a rail of icons on every line turned the column into a
+ * control panel — the operator lost the times and titles in it. The one button
+ * stays out on every row: something that appears under the pointer has to be
+ * found before it can be used, which is the wrong game to play mid-service.
+ */
+const RowMenu = ({ timer }: { timer: StageTimer }) => {
+  const { updateTimer } = useStudio();
+
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onDown = (event: MouseEvent) => {
+      if (!box.current?.contains(event.target as Node)) setOpen(false);
+    };
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const act = (change: (state: TimerState) => TimerState) => (event: MouseEvent_) => {
+    event.stopPropagation();
+    updateTimer(change);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={box} className="relative">
+      <IconButton
+        label="More for this timer"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={cn(open && 'bg-studio-surface text-studio-text')}
+        onClick={event => {
+          event.stopPropagation();
+          setOpen(current => !current);
+        }}
+      >
+        <MoreHorizontal className="size-3.5" />
+      </IconButton>
+
+      {open ? (
+        // Hung off the right edge: the menu is at the end of the row, and one
+        // opening leftwards would run off the panel on a narrow console.
+        <div
+          role="menu"
+          className="absolute top-full right-0 z-30 mt-1 min-w-[148px] overflow-hidden rounded-studio
+            border border-studio-border bg-white py-1 shadow-studio-panel"
+        >
+          <MenuItem
+            icon={<ArrowUp className="size-3.5 text-studio-muted" />}
+            label="Add above"
+            onClick={act(current => ({
+              ...current,
+              timers: insertTimer(current.timers, timer.id, 'above'),
+            }))}
+          />
+
+          <MenuItem
+            icon={<ArrowDown className="size-3.5 text-studio-muted" />}
+            label="Add below"
+            onClick={act(current => ({
+              ...current,
+              timers: insertTimer(current.timers, timer.id, 'below'),
+            }))}
+          />
+
+          <span aria-hidden="true" className="my-1 block h-px bg-studio-divider" />
+
+          <MenuItem
+            icon={<Copy className="size-3.5 text-studio-muted" />}
+            label="Clone"
+            onClick={act(current => ({ ...current, timers: cloneTimer(current.timers, timer.id) }))}
+          />
+
+          <MenuItem
+            icon={<Trash2 className="size-3.5" />}
+            label="Delete"
+            tone="danger"
+            onClick={act(current => {
+              const timers = removeTimer(current.timers, timer.id);
+
+              // The last one is never removed outright: a console with no timer
+              // has nothing to put on screen. It is emptied back to a fresh one.
+              return timers.length
+                ? { ...current, timers }
+                : { ...resetRun(current), timers: [newTimer({ name: 'Timer 1' })] };
+            })}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+};
 
 const Row = ({
   timer,
@@ -90,25 +244,48 @@ const Row = ({
   // that has gone quiet offers play again.
   const running = state.activeId === timer.id && state.running;
 
+  // Armed: the one the transport is pointed at, whether or not it is on a
+  // screen. It is what pressing play will start, so the list says so.
+  const armed = state.activeId === timer.id;
+
   // The last item a run was actually started on. Not the armed one — arming the
   // next thing does not undo having given this one — and never both at once.
-  const played = !live && timer.id === state.playedId;
+  const played = !live && !armed && timer.id === state.playedId;
 
   return (
     <li
       {...sortable.row(timer.id)}
       onClick={() => updateTimer(current => armTimer(current, timer.id))}
       className={cn(
-        'group flex cursor-pointer flex-wrap items-center gap-2 rounded-studio border px-3 py-2.5',
+        'group relative flex cursor-pointer flex-wrap items-center gap-2 rounded-studio border px-3 py-2.5',
         'transition-colors duration-150',
-        // The browser snapshots the ghost before this paints, so the fade lands
-        // on the slot the row is holding open rather than on the one in the air.
-        sortable.lifted === timer.id && 'opacity-40',
-        live
-          ? 'border-studio-accent bg-studio-accent/10'
-          : played
-            ? 'border-studio-border bg-studio-surface'
-            : 'border-studio-border bg-white hover:bg-studio-surface',
+        // Three states, each a flat fill: the row is a block of colour that can
+        // be picked out of the column at a glance, rather than a wash that
+        // fades out halfway across and leaves the far half looking ordinary.
+        // Up on a screen is the loud one, armed is the same colour held back,
+        // and given-already is a flat grey with a tick.
+        // The fill does all of it. Every row keeps the same quiet border, so
+        // the column reads as one list and the colour is the only thing that
+        // moves down it as the service goes.
+        //
+        // Red is the clock actually running — the console's live colour, the
+        // same one the outputs wear when they are on air. Blue is the pointer:
+        // armed, or up on a screen, but not counting. So the operator can see
+        // from the far side of the room whether time is passing.
+        'border-studio-border',
+        running
+          ? 'bg-studio-live/[0.09]'
+          : live
+            ? 'bg-studio-accent/10'
+            : armed
+              ? 'bg-studio-accent/[0.055]'
+              : played
+                ? 'bg-studio-surface'
+                : 'bg-white hover:bg-studio-surface',
+        // Last, so the empty berth wins over whatever the row was wearing. The
+        // browser snapshots the ghost before this paints, so it lands on the
+        // slot the row is holding open rather than on the one in the air.
+        sortable.lifted === timer.id && LIFTED_SLOT,
       )}
     >
       {/* The place in the order, until this is the row that was last given —
@@ -132,18 +309,31 @@ const Row = ({
         />
       )}
 
-      {/* The title is read here and written in the panel behind the pencil,
-          which is where the rest of what it says lives: a field in the row
-          invited the operator to type a name in one place and everything else
-          about the same item in another. */}
+      {/* The title is read here and written in the panel behind it, which is
+          where the rest of what it says lives: a field in the row invited the
+          operator to type a name in one place and everything else about the
+          same item in another. The words themselves open that panel — the
+          pencil is the hint, not the only way in, the same as the times. */}
       {/* The panel hangs off this cell rather than off the pencil inside it.
           The pencil sits at the end of the title, so it moves as the title is
           typed — and a panel anchored to it slid along under the cursor with
           every keystroke. The cell's own left edge does not move. */}
       <span className="relative flex min-w-0 flex-1 items-center gap-1">
-        <span className={cn('truncate text-sm font-medium', timer.name ? 'text-studio-text' : 'text-studio-faint')}>
+        <button
+          type="button"
+          title={`Title, speaker, notes and labels of ${timer.name || 'this timer'}`}
+          onClick={event => {
+            event.stopPropagation();
+            setEditing(current => !current);
+          }}
+          className={cn(
+            'min-w-0 truncate rounded-studio text-left text-sm font-medium transition-colors duration-150',
+            'hover:text-studio-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
+            timer.name ? 'text-studio-text' : 'text-studio-faint',
+          )}
+        >
           {timer.name || 'Untitled'}
-        </span>
+        </button>
 
         {/* Absent until the row is under the pointer, faint even then, and
             full strength only when it is the pencil itself being aimed at — a
@@ -177,30 +367,7 @@ const Row = ({
         options={TIMER_KINDS}
       />
 
-      {/* The wrap-up is a countdown's own: it is the amount of time *left*, and
-          a count-up counts away from a start rather than towards a deadline the
-          operator is watching. Offering the field there only invited someone to
-          set an amber warning that never arrives. */}
-      {timer.kind === 'countdown' ? (
-        <Number
-          value={formatDuration(timer.wrapUp)}
-          label="Wrap-up warning — the digits turn amber with this much left"
-          tone="warn"
-          onOpen={() => setEditing(true)}
-        />
-      ) : null}
-
       <div className="ml-auto flex shrink-0 items-center gap-0.5">
-        <IconButton
-          label="Reset this timer"
-          onClick={event => {
-            event.stopPropagation();
-            updateTimer(current => resetRun(armTimer(current, timer.id)));
-          }}
-        >
-          <RotateCcw className="size-3.5" />
-        </IconButton>
-
         <button
           type="button"
           title={running ? 'Pause' : 'Start'}
@@ -220,24 +387,7 @@ const Row = ({
           {running ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
         </button>
 
-        <IconButton
-          label="Remove this timer"
-          tone="danger"
-          onClick={event => {
-            event.stopPropagation();
-            updateTimer(current => {
-              const timers = current.timers.filter(item => item.id !== timer.id);
-
-              // The last one is never removed outright: a console with no timer
-              // has nothing to put on screen. It is emptied back to a fresh one.
-              return timers.length
-                ? { ...current, timers }
-                : { ...resetRun(current), timers: [newTimer({ name: 'Timer 1' })] };
-            });
-          }}
-        >
-          <Trash2 className="size-3.5" />
-        </IconButton>
+        <RowMenu timer={timer} />
       </div>
 
       {/* The detail line, and only when there is detail: an empty second row
@@ -274,11 +424,13 @@ const Row = ({
  * The join between one item and the next: with it made, the second starts the
  * moment the first runs out.
  *
- * It is the gap itself, not a control parked in it. The whole strip between two
- * rows takes the click, and the link only draws — a short bar bridging the two,
- * the way a chain link reads — once the pointer is over that strip or the join
- * has actually been made. A running order at rest is rows and nothing between
- * them.
+ * It is part of the gap rather than a control parked in it: the patch of the
+ * strip the bar itself sits in takes the click, and the link only draws — a
+ * short bar bridging the two rows, the way a chain link reads — once the
+ * pointer is over that patch or the join has actually been made. Reaching
+ * across the whole width meant a pointer merely on its way between two rows lit
+ * a link it was not aiming at, tooltip and all. A running order at rest is rows
+ * and nothing between them.
  *
  * The link belongs to the *second* of the pair — "I follow that" — so moving or
  * deleting the row above cannot leave a timer promising to start something that
@@ -289,8 +441,10 @@ const Join = ({ timer, linked }: { timer: StageTimer; linked: boolean }) => {
 
   return (
     // Pulled into the space the list already leaves between rows, so making a
-    // link does not push the running order about.
-    <li className="-my-2 flex h-3">
+    // link does not push the running order about — and lifted above them,
+    // because the rows are positioned to carry their own rail and would
+    // otherwise paint over the ends of a bar that is taller than the gap.
+    <li className="relative z-10 -my-2 flex h-3">
       <button
         type="button"
         aria-pressed={linked}
@@ -306,7 +460,7 @@ const Join = ({ timer, linked }: { timer: StageTimer; linked: boolean }) => {
             timers: current.timers.map(item => (item.id === timer.id ? { ...item, linked: !linked } : item)),
           }))
         }
-        className="group/join flex flex-1 items-center pl-[1.55rem] focus:outline-none"
+        className="group/join flex w-12 items-center pl-[1.55rem] focus:outline-none"
       >
         <span
           className={cn(
@@ -325,22 +479,13 @@ export const TimerList = () => {
   const { timer, updateTimer } = useStudio();
 
   // Reordered by id rather than by the slots the rows were dragged through: the
-  // running order can have been rewritten by another console mid-drag.
+  // running order can have been rewritten by another console mid-drag. Breaking
+  // the joins the move falsified is part of the reorder, so it lives with it.
   const sortable = useSortable(timer.timers, item => item.id, ids =>
-    updateTimer(current => {
-      const known = new Set(ids);
-
-      return {
-        ...current,
-        timers: [
-          ...ids.map(id => current.timers.find(item => item.id === id)).filter((item): item is StageTimer =>
-            Boolean(item),
-          ),
-          ...current.timers.filter(item => !known.has(item.id)),
-        ],
-      };
-    }),
+    updateTimer(current => ({ ...current, timers: reorderTimers(current.timers, ids) })),
   );
+
+  const [clearing, setClearing] = useState(false);
 
   return (
     <section className="space-y-2">
@@ -364,17 +509,46 @@ export const TimerList = () => {
         ))}
       </ul>
 
-      <Button
-        icon={<Plus className="size-3.5" />}
-        onClick={() =>
-          updateTimer(current => ({
-            ...current,
-            timers: [...current.timers, newTimer({ name: `Timer ${current.timers.length + 1}` })],
-          }))
-        }
-      >
-        Add timer
-      </Button>
+      {/* Add on the left where the list ends, clear away on the right at arm's
+          length from it: the two are not a pair, and a running order emptied by
+          a mis-aimed click in the middle of a service is not recoverable. */}
+      <div className="flex items-center justify-between gap-2">
+        <Button
+          icon={<Plus className="size-3.5" />}
+          onClick={() =>
+            updateTimer(current => ({
+              ...current,
+              timers: [...current.timers, newTimer({ name: `Timer ${current.timers.length + 1}` })],
+            }))
+          }
+        >
+          Add timer
+        </Button>
+
+        {timer.timers.length > 1 ? (
+          <Button variant="ghost" icon={<Trash2 className="size-3.5" />} onClick={() => setClearing(true)}>
+            Delete all timers
+          </Button>
+        ) : null}
+      </div>
+
+      <ConfirmDialog
+        open={clearing}
+        title="Delete all timers?"
+        message={`All ${timer.timers.length} timers and the order they are in are deleted, and the running order starts again with one fresh timer. Nothing on a screen changes until you start it.`}
+        confirmLabel="Delete all timers"
+        onCancel={() => setClearing(false)}
+        onConfirm={() => {
+          // Back to the state a new console opens in: one timer, armed, with
+          // nothing running — not an empty list, which has nothing to show.
+          updateTimer(current => {
+            const fresh = newTimer({ name: 'Timer 1' });
+
+            return { ...resetRun(current), timers: [fresh], activeId: fresh.id, playedId: '' };
+          });
+          setClearing(false);
+        }}
+      />
     </section>
   );
 };

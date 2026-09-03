@@ -13,7 +13,7 @@ import { useStudio } from '@/lib/studio/StudioProvider';
 import { LANG_LABELS, LANGS, type Lang } from '@/lib/types';
 
 import { SortHandle } from './SortHandle';
-import { useSortable } from './sortable';
+import { LIFTED_SLOT, useSortable } from './sortable';
 
 const Section = ({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) => (
   <section className="border-b border-studio-divider px-4 py-4 last:border-b-0">
@@ -116,8 +116,8 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
                 className={cn(
                   'group rounded-studio transition-opacity duration-150',
                   // The browser snapshots the ghost before this paints, so the
-                  // fade lands on the slot the row is holding open.
-                  sortable.lifted === lang && 'opacity-40',
+                  // empty berth lands on the slot the row is holding open.
+                  sortable.lifted === lang && LIFTED_SLOT,
                 )}
               >
                 <div className="flex items-center gap-2">

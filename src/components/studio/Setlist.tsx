@@ -9,7 +9,7 @@ import { useStudio } from '@/lib/studio/StudioProvider';
 import type { Song } from '@/lib/types';
 
 import { SortHandle } from './SortHandle';
-import { useSortable } from './sortable';
+import { LIFTED_SLOT, useSortable } from './sortable';
 
 const DRAG_TYPE = 'application/x-studio-song';
 
@@ -143,7 +143,7 @@ export const Setlist = ({ onEdit }: { onEdit: (song: Song) => void }) => {
               className={cn(
                 'group group/set flex items-center gap-1 border-b border-studio-divider last:border-b-0',
                 song.id === activeSongId ? 'bg-studio-accent/10' : 'hover:bg-studio-surface',
-                sortable.lifted === song.id && 'opacity-40',
+                sortable.lifted === song.id && LIFTED_SLOT,
                 dropIndex === index && 'border-t-2 border-t-studio-accent',
                 dropIndex === index + 1 && 'border-b-2 border-b-studio-accent',
               )}

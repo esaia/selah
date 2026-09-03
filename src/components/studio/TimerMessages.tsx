@@ -15,7 +15,7 @@ import {
 } from "@/lib/timer/model";
 
 import { SortHandle } from "./SortHandle";
-import { useSortable, type Sortable } from "./sortable";
+import { LIFTED_SLOT, useSortable, type Sortable } from "./sortable";
 
 /** The one-character style buttons under each message. */
 const Chip = ({
@@ -82,9 +82,10 @@ const Card = ({
         message.visible
           ? "border-studio-accent bg-studio-accent/[0.06]"
           : "border-studio-border bg-white focus-within:border-studio-accent/50",
-        // The browser snapshots the ghost before this paints, so the fade lands
-        // on the slot the card is holding open rather than on the one in the air.
-        sortable.lifted === message.id && "opacity-40",
+        // The browser snapshots the ghost before this paints, so the empty
+        // berth lands on the slot the card is holding open rather than on the
+        // one in the air.
+        sortable.lifted === message.id && LIFTED_SLOT,
       )}
     >
       <div className="flex items-stretch">
