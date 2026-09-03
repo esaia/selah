@@ -1,0 +1,27 @@
+{
+  "note": "The translations to copy locally. `pnpm mirror --set scripts/mirror-set.json`. Version strings must match src/lib/bible/languages.json exactly; the script fails loudly on one that does not.",
+  "translations": [
+    { "lang": "geo", "version": "ახალი გადამუშავებული გამოცემა 2015" },
+    { "lang": "geo", "version": "სბს–2013" },
+    { "lang": "geo", "version": "სბს–სტოკჰოლმი 2001" },
+
+    { "lang": "eng", "version": "KJV King James Version" },
+    { "lang": "eng", "version": "Geneva Bible 1599" },
+    { "lang": "eng", "version": "Douay Rheims Bible" },
+    { "lang": "eng", "version": "WEB-World English Bible" },
+    { "lang": "eng", "version": "ASV American Standard Version 1901" },
+    { "lang": "eng", "version": "Basic English Bible" },
+    { "lang": "eng", "version": "Catholic Public Domain Version 2009" },
+
+    { "lang": "ru", "version": "Синодальный перевод" },
+    { "lang": "ru", "version": "Библия Германа Менге" },
+    { "lang": "ru", "version": "Церковно-славянская Библия Кирилла и Мефодия" },
+
+    { "lang": "gr", "version": "Westcott Hort Greek New Testament 1881" },
+    { "lang": "gr", "version": "Modern Greek Bible" },
+
+    { "lang": "la", "version": "Vulgata Latina" },
+
+    { "lang": "ae", "version": "Van Dike Arabic Bible" }
+  ]
+}

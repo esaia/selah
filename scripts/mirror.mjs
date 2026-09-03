@@ -1,6 +1,7 @@
 // Copies the scripture into our own database, one chapter at a time.
 //
-//   pnpm mirror                                     everything
+//   pnpm mirror                                     everything the API carries
+//   pnpm mirror --set scripts/mirror-set.json       a curated list of translations
 //   pnpm mirror --lang eng                          one language
 //   pnpm mirror --lang eng --version "KJV King James Version"
 //   pnpm mirror --dry-run                           say what the work is, fetch nothing
@@ -17,11 +18,12 @@
 // someone's ministry on cheap shared hosting, and a copy taken over a few hours
 // at three requests a second should be invisible to them.
 
-import { readFile } from 'node:fs/promises';
+import { readFile } from "node:fs/promises";
 
-import { connect } from './db.mjs';
+import { connect } from "./db.mjs";
 
-const UPSTREAM = process.env.BIBLE_API_URL || 'https://holybible.ge/service.php';
+const UPSTREAM =
+  process.env.BIBLE_API_URL || "https://holybible.ge/service.php";
 
 /** The 66 books, in whichever order the language uses. Three group headers come first. */
 const FIRST_BOOK = 4;
@@ -35,23 +37,36 @@ const BATCH = 100;
 
 const ATTEMPTS = 4;
 
+/**
+ * Statuses that mean "stop", not "try again".
+ *
+ * A first run at three a second was answered with 468 Access Denied after
+ * about seven thousand chapters, and the script kept politely backing off and
+ * retrying through a hundred and thirty of them. Every one of those made the
+ * block more likely to stick. A refusal is the host saying no; the only decent
+ * answer is to stop asking.
+ */
+const REFUSED = new Set([401, 403, 429, 468]);
+
+class Refused extends Error {}
+
 // ------------------------------------------------------------------ arguments
 
 const args = process.argv.slice(2);
 
-const flag = name => {
+const flag = (name) => {
   const at = args.indexOf(`--${name}`);
   return at === -1 ? null : args[at + 1];
 };
 
-const only = { lang: flag('lang'), version: flag('version') };
-const dryRun = args.includes('--dry-run');
-const rps = Number(flag('rps')) || 3;
-const concurrency = Number(flag('concurrency')) || 3;
+const only = { lang: flag("lang"), version: flag("version"), set: flag("set") };
+const dryRun = args.includes("--dry-run");
+const rps = Number(flag("rps")) || 3;
+const concurrency = Number(flag("concurrency")) || 3;
 
 // ------------------------------------------------------------------ fetching
 
-const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * One request every 1/rps seconds, however many workers are asking.
@@ -75,24 +90,28 @@ const fetchChapter = async (lang, version, book, chapter) => {
   const query = new URLSearchParams({
     w: String(book),
     t: String(chapter),
-    m: '',
-    s: '',
+    m: "",
+    s: "",
     mv: version,
     language: lang,
-    page: '1',
+    page: "1",
   });
 
   for (let attempt = 1; ; attempt += 1) {
     await slot();
 
     try {
-      const response = await fetch(`${UPSTREAM}?${query}`, { signal: AbortSignal.timeout(20000) });
+      const response = await fetch(`${UPSTREAM}?${query}`, {
+        signal: AbortSignal.timeout(20000),
+      });
 
+      if (REFUSED.has(response.status))
+        throw new Refused(`upstream ${response.status}`);
       if (!response.ok) throw new Error(`upstream ${response.status}`);
 
       return await response.json();
     } catch (error) {
-      if (attempt === ATTEMPTS) throw error;
+      if (error instanceof Refused || attempt === ATTEMPTS) throw error;
 
       // Backing off rather than trying again at once: a host that has just said
       // no is not helped by being asked immediately.
@@ -114,18 +133,24 @@ const rowOf = (lang, version, book, chapter, chapters, body) => {
     // taken from the response rather than assumed. An empty chapter has none.
     wigni: verses.length ? Number(verses[0].wigni) : book - 3,
     chapters,
-    verses: verses.map(verse => [Number(verse.muxli), verse.bv]),
+    verses: verses.map((verse) => [Number(verse.muxli), verse.bv]),
   };
 };
 
 // ------------------------------------------------------------------ the walk
 
-const read = async name => JSON.parse(await readFile(new URL(`../src/lib/bible/${name}`, import.meta.url), 'utf8'));
+const read = async (name) =>
+  JSON.parse(
+    await readFile(
+      new URL(`../src/lib/bible/${name}`, import.meta.url),
+      "utf8",
+    ),
+  );
 
 const run = async () => {
   const db = await connect();
-  const catalogue = await read('languages.json');
-  const books = await read('books.json');
+  const catalogue = await read("languages.json");
+  const books = await read("books.json");
 
   /**
    * How many chapters a book has, from our own table rather than the API's.
@@ -137,33 +162,73 @@ const run = async () => {
    * test keeps them in step with `versification.ts`.
    */
   const sharedByEnglish = Object.fromEntries(
-    Object.entries(books.englishBooks).map(([shared, english]) => [english, Number(shared)]),
+    Object.entries(books.englishBooks).map(([shared, english]) => [
+      english,
+      Number(shared),
+    ]),
   );
 
   const chapterCount = (spec, book) =>
-    books.chapters[spec.order === 'eng' ? (sharedByEnglish[book] ?? book) : book] ?? 0;
+    books.chapters[
+      spec.order === "eng" ? (sharedByEnglish[book] ?? book) : book
+    ] ?? 0;
+
+  // A curated set, if one was named. Copying everything the API carries is
+  // rarely what is wanted — most of it is under licences we do not hold — so
+  // the list of translations Selah actually keeps is a file rather than a flag.
+  //
+  // A version string that matches nothing is an error rather than a silent
+  // skip: these are long, hand-copied strings in four scripts, and a typo that
+  // quietly fetched sixteen translations instead of seventeen would not be
+  // noticed until someone armed the missing one mid-service.
+  const chosen = only.set
+    ? JSON.parse(
+        await readFile(new URL(only.set, `file://${process.cwd()}/`), "utf8"),
+      )
+    : null;
+
+  chosen?.translations.forEach(({ lang, version }) => {
+    if (!catalogue[lang])
+      throw new Error(`${only.set}: no such language "${lang}"`);
+    if (!catalogue[lang].versions.includes(version)) {
+      throw new Error(`${only.set}: ${lang} has no translation "${version}"`);
+    }
+  });
+
+  const wanted =
+    chosen &&
+    new Set(
+      chosen.translations.map(({ lang, version }) => `${lang} ${version}`),
+    );
 
   const targets = Object.entries(catalogue)
     .filter(([lang]) => !only.lang || lang === only.lang)
     .flatMap(([lang, spec]) =>
       spec.versions
-        .filter(version => !only.version || version === only.version)
-        .map(version => ({ lang, version, spec })),
+        .filter((version) => !only.version || version === only.version)
+        .filter((version) => !wanted || wanted.has(`${lang} ${version}`))
+        .map((version) => ({ lang, version, spec })),
     );
 
   if (targets.length === 0) {
-    throw new Error(`nothing matches --lang ${only.lang ?? '*'} --version ${only.version ?? '*'}`);
+    throw new Error(
+      `nothing matches --lang ${only.lang ?? "*"} --version ${only.version ?? "*"}`,
+    );
   }
 
-  console.log(`${targets.length} translation(s), ${rps} req/s, ${concurrency} at a time\n`);
+  console.log(
+    `${targets.length} translation(s), ${rps} req/s, ${concurrency} at a time\n`,
+  );
 
   if (dryRun) {
     const chapters = targets.length * CHAPTERS;
 
-    targets.forEach(({ lang, version }) => console.log(`  ${lang}  ${version}`));
+    targets.forEach(({ lang, version }) =>
+      console.log(`  ${lang}  ${version}`),
+    );
     console.log(
       `\nabout ${chapters.toLocaleString()} chapters — ${(chapters / rps / 3600).toFixed(1)} hours at ${rps}/s.` +
-        '\nAn estimate: the real count per translation is only knowable by asking.',
+        "\nAn estimate: the real count per translation is only knowable by asking.",
     );
 
     return;
@@ -174,11 +239,18 @@ const run = async () => {
   const done = new Set();
 
   for (let from = 0; ; from += 1000) {
-    const page = await db.select('bible_text', 'select=lang,version,book,chapter', from, from + 999);
+    const page = await db.select(
+      "bible_text",
+      "select=lang,version,book,chapter",
+      from,
+      from + 999,
+    );
 
     if (!page.length) break;
 
-    page.forEach(row => done.add(`${row.lang} ${row.version} ${row.book} ${row.chapter}`));
+    page.forEach((row) =>
+      done.add(`${row.lang} ${row.version} ${row.book} ${row.chapter}`),
+    );
 
     if (page.length < 1000) break;
   }
@@ -197,13 +269,13 @@ const run = async () => {
     const flush = async () => {
       if (pending.length === 0) return;
 
-      await db.upsert('bible_text', pending);
+      await db.upsert("bible_text", pending);
 
       stored += pending.length;
       pending = [];
     };
 
-    const say = book => {
+    const say = (book) => {
       const rate = fetched / Math.max((Date.now() - started) / 1000, 1);
 
       process.stdout.write(
@@ -212,61 +284,96 @@ const run = async () => {
       );
     };
 
-    for (let book = FIRST_BOOK; book <= LAST_BOOK; book += 1) {
-      const count = chapterCount(spec, book);
-      const rest = [];
+    // A refusal unwinds the whole run, so what has been fetched and not yet
+    // written goes out first — up to a batch of chapters that were paid for
+    // and would otherwise have to be asked for a second time.
+    try {
+      for (let book = FIRST_BOOK; book <= LAST_BOOK; book += 1) {
+        const count = chapterCount(spec, book);
+        const rest = [];
 
-      for (let chapter = 1; chapter <= count; chapter += 1) {
-        if (done.has(`${lang} ${version} ${book} ${chapter}`)) {
-          skipped += 1;
-          continue;
+        for (let chapter = 1; chapter <= count; chapter += 1) {
+          if (done.has(`${lang} ${version} ${book} ${chapter}`)) {
+            skipped += 1;
+            continue;
+          }
+
+          rest.push(chapter);
         }
 
-        rest.push(chapter);
-      }
+        // A few chapters in flight at once. The rate ceiling is what actually
+        // paces them; this only stops the run being one round trip at a time.
+        for (let at = 0; at < rest.length; at += concurrency) {
+          const group = rest.slice(at, at + concurrency);
 
-      // A few chapters in flight at once. The rate ceiling is what actually
-      // paces them; this only stops the run being one round trip at a time.
-      for (let at = 0; at < rest.length; at += concurrency) {
-        const group = rest.slice(at, at + concurrency);
+          const bodies = await Promise.all(
+            group.map((chapter) =>
+              fetchChapter(lang, version, book, chapter).then(
+                (body) => ({ chapter, body }),
+                (error) => {
+                  if (error instanceof Refused) throw error;
 
-        const bodies = await Promise.all(
-          group.map(chapter =>
-            fetchChapter(lang, version, book, chapter).then(
-              body => ({ chapter, body }),
-              error => {
-                failures.push({ lang, version, book, chapter, why: String(error) });
-                return null;
-              },
+                  failures.push({
+                    lang,
+                    version,
+                    book,
+                    chapter,
+                    why: String(error),
+                  });
+                  return null;
+                },
+              ),
             ),
-          ),
-        );
+          );
 
-        bodies.filter(Boolean).forEach(({ chapter, body }) => {
-          pending.push(rowOf(lang, version, book, chapter, count, body));
-          fetched += 1;
-        });
+          bodies.filter(Boolean).forEach(({ chapter, body }) => {
+            pending.push(rowOf(lang, version, book, chapter, count, body));
+            fetched += 1;
+          });
 
-        if (pending.length >= BATCH) await flush();
+          if (pending.length >= BATCH) await flush();
+        }
+
+        say(book);
       }
-
-      say(book);
+    } finally {
+      await flush();
     }
 
-    await flush();
-    process.stdout.write('\n');
+    process.stdout.write("\n");
   }
 
   const minutes = ((Date.now() - started) / 60000).toFixed(1);
 
-  console.log(`\nfetched ${fetched}, skipped ${skipped}, stored ${stored}, failed ${failures.length} — ${minutes} min`);
+  console.log(
+    `\nfetched ${fetched}, skipped ${skipped}, stored ${stored}, failed ${failures.length} — ${minutes} min`,
+  );
 
   if (failures.length) {
-    console.log('\nnot fetched:');
-    failures.forEach(f => console.log(`  ${f.lang} / ${f.version} / book ${f.book} ch ${f.chapter} — ${f.why}`));
-    console.log('\nRun the same command again to retry only these.');
+    console.log("\nnot fetched:");
+    failures.forEach((f) =>
+      console.log(
+        `  ${f.lang} / ${f.version} / book ${f.book} ch ${f.chapter} — ${f.why}`,
+      ),
+    );
+    console.log("\nRun the same command again to retry only these.");
     process.exitCode = 1;
   }
 };
 
-await run();
+try {
+  await run();
+} catch (error) {
+  if (error instanceof Refused) {
+    console.error(`\n\nStopped: the host refused us (${error.message}).`);
+    console.error(
+      "Everything fetched up to here is stored. Leave it alone for a few hours,",
+    );
+    console.error(
+      "then run the same command again — it resumes where it stopped.",
+    );
+    process.exitCode = 1;
+  } else {
+    throw error;
+  }
+}
