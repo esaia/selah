@@ -24,7 +24,7 @@ const Preview = ({ template, title, subtitle }: { template: Template; title: str
 
 /**
  * Picks the look of a name card by showing it with the operator's own words
- * in it — "Brackets" and "Plate" mean nothing until you have seen them, and
+ * in it — "Marquee" and "Offset" mean nothing until you have seen them, and
  * less still until you have seen your own pastor's name in them.
  */
 export const NameCardPicker = ({

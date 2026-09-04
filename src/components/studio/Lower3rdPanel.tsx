@@ -219,6 +219,27 @@ export const Lower3rdPanel = () => {
             field, and the slider's thumb, which hangs half outside its own
             track when it is pushed to one end. */}
         <div className="mx-auto w-full max-w-[1100px] space-y-4 px-3 py-1.5">
+          {/* Said here as well as on the tab, because the tab's pill is a
+              label and this is the actual promise: what an operator saves is
+              safe, and it is the drawing that may still move. Nobody should
+              find that out on a Sunday. */}
+          <p
+            className="flex items-start gap-2 rounded-studio border border-studio-border bg-studio-surface px-3 py-2
+              text-[11px] leading-snug text-studio-muted"
+          >
+            <span
+              className="mt-px shrink-0 rounded-[3px] bg-studio-accent/12 px-1 py-px text-[9px] font-semibold uppercase
+                tracking-[0.08em] text-studio-accent"
+            >
+              Beta
+            </span>
+
+            <span>
+              Name cards work and the people you save are kept. The designs and the way they move are still being
+              finished, so a card may not look quite the same next month.
+            </span>
+          </p>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className="block text-xs font-semibold text-studio-text">Name</span>

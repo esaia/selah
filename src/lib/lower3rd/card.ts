@@ -16,13 +16,20 @@
  * and a console that closed cannot leave one up forever.
  */
 
-/** The five finished designs. Each is a CSS class in globals.css. */
+/**
+ * The five finished designs. Each is a CSS class in globals.css.
+ *
+ * The value is what a saved person and a live run carry, so it stays put even
+ * when a design is redrawn: renaming one here would quietly move everybody
+ * who had chosen it onto the default. The label is what the operator reads,
+ * and follows the drawing.
+ */
 export const TEMPLATES = [
-  { value: 'band', label: 'Colour band' },
-  { value: 'gradient', label: 'Gradient bar' },
-  { value: 'plate', label: 'Plate' },
-  { value: 'bracket', label: 'Brackets' },
-  { value: 'rule', label: 'Rule' },
+  { value: 'band', label: 'Slab' },
+  { value: 'gradient', label: 'Duotone' },
+  { value: 'plate', label: 'Marquee' },
+  { value: 'bracket', label: 'Offset' },
+  { value: 'rule', label: 'Edge' },
 ] as const;
 
 export type Template = (typeof TEMPLATES)[number]['value'];

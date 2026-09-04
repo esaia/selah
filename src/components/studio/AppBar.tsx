@@ -19,11 +19,19 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
 import { useStudio, type Tab } from '@/lib/studio/StudioProvider';
 
-const TABS: { id: Tab; label: string; Icon: typeof BookOpen }[] = [
+/**
+ * `beta` marks a tab that works but is not finished.
+ *
+ * It is a promise to the operator rather than a decoration: what is behind it
+ * can still move between now and the version that drops the flag, so a church
+ * can decide for itself whether to lean on it this Sunday. Take the flag off
+ * the day the tab stops changing.
+ */
+const TABS: { id: Tab; label: string; Icon: typeof BookOpen; beta?: boolean }[] = [
   { id: 'bible', label: 'Bible', Icon: BookOpen },
   { id: 'lyrics', label: 'Lyrics', Icon: Mic2 },
   { id: 'audio', label: 'Audio', Icon: Music },
-  { id: 'lower3rd', label: 'Lower3rd', Icon: Captions },
+  { id: 'lower3rd', label: 'Lower3rd', Icon: Captions, beta: true },
   { id: 'stage', label: 'Stage', Icon: MonitorPlay },
 ];
 
@@ -199,20 +207,35 @@ export const AppBar = ({ onSettings, onOpenNav }: { onSettings: () => void; onOp
         className="order-last flex items-center gap-0.5 rounded-studio border border-studio-border
           bg-studio-surface p-0.5 sm:order-none"
       >
-        {TABS.map(({ id, label, Icon }) => (
+        {TABS.map(({ id, label, Icon, beta }) => (
           <button
             key={id}
             type="button"
             aria-current={tab === id ? 'page' : undefined}
             onClick={() => setTab(id)}
             className={cn(
-              'inline-flex h-7 items-center gap-1.5 rounded-[4px] px-3 text-xs font-medium transition-colors',
+              'inline-flex h-7 items-center gap-1.5 rounded-[4px] pl-3 text-xs font-medium transition-colors',
               'duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
+              beta ? 'pr-2' : 'pr-3',
               tab === id ? 'bg-white text-studio-text shadow-studio' : 'text-studio-muted hover:text-studio-text',
             )}
           >
             <Icon className="size-3.5" />
             {label}
+
+            {/* Read out as part of the tab's name rather than hidden from it:
+                "Lower3rd, beta" is what a screen reader should say, because it
+                is what the sighted operator is being told. */}
+            {beta ? (
+              <span
+                className={cn(
+                  'rounded-[3px] px-1 py-px text-[9px] font-semibold uppercase leading-[1.4] tracking-[0.08em]',
+                  tab === id ? 'bg-studio-accent/12 text-studio-accent' : 'bg-studio-border/70 text-studio-faint',
+                )}
+              >
+                Beta
+              </span>
+            ) : null}
           </button>
         ))}
       </nav>

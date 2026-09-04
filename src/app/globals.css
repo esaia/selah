@@ -1122,73 +1122,91 @@ html[data-preview='stream'] [data-preview-only='stream'],
 html[data-preview='stage'] [data-preview-only='stage'] {
   display: block;
 }
-
 /* ---------------------------------------------------------------------------
    Name cards — who is speaking.
-   
+
    Laid over the verse bar rather than being one of its looks: a card carries
    two fixed lines with no reference and no languages, and it covers whatever
    the bar is showing rather than replacing it.
-   
+
    Unlike the bar, these move. That bar deliberately only fades, because "a
    lower third that moves pulls the eye away from the speaker every time a
    verse changes" — but a name card fires once, as a deliberate act, and wants
    to be looked at. A strap that simply appears reads as a glitch.
-   
-   Sizes are in vh rather than em: a card is never scaled by `fitText` the way
-   a verse is, because a name is short and its size should not depend on how
-   long it happens to be.
+
+   Two rules hold the whole set together:
+
+   **No shadows.** A drop shadow is what you reach for when text is floating on
+   footage with nothing behind it, and it always looks like a sticker. Every
+   design here earns its legibility from something solid instead — a panel, a
+   plate, a gradient that fades out rather than ending on a hard edge.
+
+   **Geometry comes from the custom properties below, never from raw units.**
+   A card is sized in vh so a name never depends on how long it is, but the
+   picker's tiles have no viewport to measure. Each design draws itself from
+   `--nc-pad-y`, `--nc-fs-title`, `--nc-edge` and the rest, and the tile
+   re-points those once at the bottom of this file. A design that reaches for
+   `vh` directly will look right on the stream and wrong in the picker.
    --------------------------------------------------------------------------- */
 
 .namecard {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 8vh;
+  bottom: var(--nc-bottom);
   z-index: 10;
   display: flex;
-  padding: 0 6vw;
+  padding: 0 var(--nc-side);
 
-  /* Per-design knobs, re-pointed below rather than restating the layout. */
-  --nc-accent: #178a7a;
+  /* Palette. Re-pointed per design rather than restating the layout. */
+  --nc-accent: #ff6a3d;
+  --nc-panel: rgba(10, 13, 18, 0.9);
   --nc-title: #ffffff;
-  --nc-sub: rgba(255, 255, 255, 0.88);
-  --nc-plate: rgba(8, 10, 14, 0.9);
-  --nc-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
-  --nc-in: 520ms;
-  --nc-out: 380ms;
+  --nc-sub: rgba(255, 255, 255, 0.74);
+
+  /* Geometry. Every design speaks in these; the picker re-points them. */
+  --nc-bottom: 9vh;
+  --nc-side: 6vw;
+  --nc-pad-y: 2.4vh;
+  --nc-pad-x: 3vw;
+  --nc-gap: 0.9vh;
+  --nc-fs-title: 6.4vh;
+  --nc-fs-sub: 2.8vh;
+  --nc-edge: 0.38vh;
+  --nc-bar: 0.9vw;
+  --nc-inset: 1.3vh;
+
+  --nc-in: 560ms;
+  --nc-out: 360ms;
   --nc-ease: cubic-bezier(0.16, 0.84, 0.3, 1);
 }
 
 .namecard-inner {
   min-width: 0;
-  max-width: 76%;
+  max-width: 78%;
 }
 
 .namecard-title {
   margin: 0;
-  font-size: 6.8vh;
-  font-weight: 800;
-  line-height: 1.06;
-  letter-spacing: 0.005em;
+  font-size: var(--nc-fs-title);
+  font-weight: 700;
+  line-height: 1.04;
   color: var(--nc-title);
-  text-shadow: var(--nc-shadow);
 }
 
 .namecard-subtitle {
   margin: 0;
-  font-size: 3.4vh;
-  font-weight: 500;
+  font-size: var(--nc-fs-sub);
+  font-weight: 600;
   line-height: 1.2;
   color: var(--nc-sub);
-  text-shadow: var(--nc-shadow);
 }
 
-/* Each design leaves the way it arrived, reversed: the band wipes shut, the
-   gradient sinks, the plate's letters spread back out, the brackets let go.
+/* Each design leaves the way it arrived, reversed: the slab wipes shut, the
+   duotone sinks, the marquee's letters spread back out, the frame lets go.
    A card that animates in and then simply blinks off is worse than one that
    never moved — the eye is drawn back to it at the moment it disappears.
-   
+
    Exits run faster than entrances. An arrival is an announcement and can take
    its time; a departure that lingers is just something in the way. */
 .namecard--in {
@@ -1203,56 +1221,73 @@ html[data-preview='stage'] [data-preview-only='stage'] {
   animation: nc-fade calc(var(--nc-out) * 1.4) ease-in reverse both;
 }
 
-/* --- Colour band ---------------------------------------------------------
-   A solid slab of colour with the name in the accent over a lighter role.
-   Wipes open from the leading edge, the way a broadcast strap does. */
+/* --- Slab ----------------------------------------------------------------
+   Edge to edge, the way a news strap sits: one ink panel across the whole
+   frame with a thick accent rule holding its left end, the name in white and
+   the role in the accent beneath it. The panel wipes open from that rule. */
 
 .namecard--band {
-  padding-left: 0;
-  padding-right: 0;
-  --nc-title: #f2a33c;
-  --nc-sub: #ffffff;
+  padding: 0;
+  --nc-accent: #ffb020;
 }
 
 .namecard--band .namecard-inner {
-  max-width: none;
   flex: 1;
-  padding: 2.2vh 3vw;
-  background: var(--nc-accent);
+  max-width: none;
+  padding: calc(var(--nc-pad-y) * 1.15) var(--nc-side);
+  background: var(--nc-panel);
+  border-left: var(--nc-bar) solid var(--nc-accent);
+}
+
+.namecard--band .namecard-title {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.namecard--band .namecard-subtitle {
+  margin-top: var(--nc-gap);
+  color: var(--nc-accent);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 
 .namecard--band.namecard--in .namecard-inner {
   animation: nc-wipe var(--nc-in) var(--nc-ease) both;
 }
 
-.namecard--band .namecard-title {
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/* --- Gradient bar --------------------------------------------------------
-   Two-tone bar for the name, a white plate beneath it for the role. Rises
-   into place, the plate a beat behind so the two read as one movement. */
+/* --- Duotone -------------------------------------------------------------
+   The one card with colour in it rather than under it: the name sits on a
+   raked two-tone block, the role on a white chip stepped in beneath it. Both
+   rise, the chip a beat late so they read as one movement. */
 
 .namecard--gradient {
   --nc-title: #ffffff;
-  --nc-sub: #14171c;
-  --nc-shadow: none;
+}
+
+.namecard--gradient .namecard-inner {
+  width: fit-content;
+  max-width: 92%;
 }
 
 .namecard--gradient .namecard-title {
-  padding: 1.6vh 2.4vw;
-  background: linear-gradient(96deg, #22c3f0 0%, #7b5cf0 52%, #ea4fd0 100%);
-  border-radius: 3px 3px 0 0;
+  display: block;
+  padding: var(--nc-pad-y) calc(var(--nc-pad-x) * 1.2);
+  font-weight: 800;
+  letter-spacing: -0.005em;
+  background: linear-gradient(102deg, #2a2ae0 0%, #8b34f0 54%, #f0407f 100%);
 }
 
 .namecard--gradient .namecard-subtitle {
-  padding: 1.1vh 2.4vw;
+  display: inline-block;
+  margin-top: var(--nc-gap);
+  margin-left: calc(var(--nc-pad-x) * 1.2);
+  padding: calc(var(--nc-pad-y) * 0.42) var(--nc-pad-x);
+  color: #14171f;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 0 0 3px 3px;
+  background: #ffffff;
 }
 
 .namecard--gradient.namecard--in .namecard-title {
@@ -1260,43 +1295,47 @@ html[data-preview='stage'] [data-preview-only='stage'] {
 }
 
 .namecard--gradient.namecard--in .namecard-subtitle {
-  animation: nc-rise var(--nc-in) var(--nc-ease) 90ms both;
+  animation: nc-rise var(--nc-in) var(--nc-ease) 110ms both;
 }
 
-/* --- Plate ---------------------------------------------------------------
-   Letterspaced name on a deep plate with a small badge under it, centred.
-   The letters settle in from wide, which is a title card's own gesture. */
+/* --- Marquee -------------------------------------------------------------
+   Centred and quiet: wide-tracked caps on an ink panel ruled top and bottom,
+   the role in the accent under it. A title card rather than a strap, for the
+   name that opens a service. The letters settle in from wide. */
 
 .namecard--plate {
   justify-content: center;
   text-align: center;
-  --nc-accent: #1d4ed8;
-  --nc-shadow: none;
+  --nc-accent: #e7dfd0;
+  --nc-panel: rgba(9, 11, 15, 0.88);
 }
 
 .namecard--plate .namecard-inner {
-  max-width: 80%;
+  max-width: 82%;
+  padding: calc(var(--nc-pad-y) * 1.25) calc(var(--nc-pad-x) * 1.4);
+  background: var(--nc-panel);
+  border-top: var(--nc-edge) solid var(--nc-accent);
+  border-bottom: var(--nc-edge) solid var(--nc-accent);
 }
 
 .namecard--plate .namecard-title {
-  padding: 1.8vh 3vw;
-  font-size: 5.4vh;
-  font-weight: 600;
-  letter-spacing: 0.3em;
-  /* The tracking above is applied to the right of every letter, including the
-     last, which pushes a centred line visibly off-centre without this. */
-  text-indent: 0.3em;
+  font-size: calc(var(--nc-fs-title) * 0.78);
+  font-weight: 500;
+  letter-spacing: 0.26em;
+  /* The tracking is applied to the right of every letter, including the last,
+     which pushes a centred line visibly off-centre without this. */
+  text-indent: 0.26em;
   text-transform: uppercase;
-  background: var(--nc-accent);
 }
 
 .namecard--plate .namecard-subtitle {
-  display: inline-block;
-  margin-top: 1vh;
-  padding: 0.8vh 2.2vw;
-  font-size: 2.9vh;
+  margin-top: calc(var(--nc-gap) * 1.6);
+  color: var(--nc-accent);
+  font-size: calc(var(--nc-fs-sub) * 0.92);
   font-weight: 600;
-  background: color-mix(in srgb, var(--nc-accent) 78%, #000);
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  text-transform: uppercase;
 }
 
 .namecard--plate.namecard--in .namecard-title {
@@ -1304,127 +1343,110 @@ html[data-preview='stage'] [data-preview-only='stage'] {
 }
 
 .namecard--plate.namecard--in .namecard-subtitle {
-  animation: nc-fade var(--nc-in) var(--nc-ease) 160ms both;
+  animation: nc-fade var(--nc-in) var(--nc-ease) 180ms both;
 }
 
-/* --- Brackets ------------------------------------------------------------
-   Corner brackets round a heavy name, the role offset below and overlapping
-   it. The brackets draw themselves in, then the text lands. */
+/* --- Offset --------------------------------------------------------------
+   A flat ink panel with a hairline accent outline slipped down and across it,
+   like a second impression of the same block. The role hangs off a short
+   accent dash. The outline slides into its offset as the card lands. */
 
 .namecard--bracket {
-  --nc-accent: #2fb3ae;
-  --nc-title: #ffffff;
-  --nc-sub: #0d0f12;
+  --nc-accent: #34e2a8;
 }
 
 .namecard--bracket .namecard-inner {
   position: relative;
-  /* Hugs its content so the corners frame the name rather than the column it
-     sits in — at the card's own width they floated out in open space with
-     nothing between them. */
   width: fit-content;
-  max-width: 100%;
-  padding: 3.4vh 3.2vw 4.6vh;
+  max-width: 90%;
+  padding: calc(var(--nc-pad-y) * 1.1) calc(var(--nc-pad-x) * 1.1);
+  background: var(--nc-panel);
 }
 
-/* Two elements would be cleaner than two pseudo-elements on one, but the card
-   markup is fixed at title + subtitle so the corners are drawn here. */
-.namecard--bracket .namecard-inner::before,
-.namecard--bracket .namecard-inner::after {
+/* Two elements would be cleaner than a pseudo-element, but the card markup is
+   fixed at title + subtitle, so the outline is drawn here. */
+.namecard--bracket .namecard-inner::before {
   content: '';
   position: absolute;
-  width: 4.4vh;
-  height: 4.4vh;
-  border: 0.7vh solid var(--nc-accent);
-  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.5));
-}
-
-.namecard--bracket .namecard-inner::before {
-  top: 0;
-  left: 0;
-  border-right: 0;
-  border-bottom: 0;
-}
-
-.namecard--bracket .namecard-inner::after {
-  right: 0;
-  bottom: 0;
-  border-top: 0;
-  border-left: 0;
-}
-
-.namecard--bracket.namecard--in .namecard-inner::before,
-.namecard--bracket.namecard--in .namecard-inner::after {
-  animation: nc-draw 400ms var(--nc-ease) both;
+  inset: 0;
+  border: var(--nc-edge) solid var(--nc-accent);
+  transform: translate(var(--nc-inset), var(--nc-inset));
 }
 
 .namecard--bracket .namecard-title {
-  display: inline-block;
-  padding: 1.2vh 2vw;
-  font-size: 7.6vh;
-  font-weight: 900;
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
-  background: var(--nc-accent);
+  position: relative;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .namecard--bracket .namecard-subtitle {
-  display: inline-block;
-  /* Pulled up and across so it overlaps the name's plate — the offset is the
-     look, and it is why this design needs the room the padding leaves. */
-  margin-top: -1.2vh;
-  margin-left: 14%;
-  padding: 0.7vh 1.8vw;
-  font-size: 3.9vh;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--nc-pad-x) * 0.35);
+  margin-top: var(--nc-gap);
+  color: var(--nc-accent);
+  font-weight: 700;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.94);
+}
+
+.namecard--bracket .namecard-subtitle::before {
+  content: '';
+  flex: none;
+  width: calc(var(--nc-pad-x) * 0.9);
+  height: var(--nc-edge);
+  background: var(--nc-accent);
+}
+
+.namecard--bracket.namecard--in .namecard-inner::before {
+  animation: nc-offset var(--nc-in) var(--nc-ease) both;
 }
 
 .namecard--bracket.namecard--in .namecard-title {
-  animation: nc-rise var(--nc-in) var(--nc-ease) 180ms both;
+  animation: nc-rise var(--nc-in) var(--nc-ease) 90ms both;
 }
 
 .namecard--bracket.namecard--in .namecard-subtitle {
-  animation: nc-rise var(--nc-in) var(--nc-ease) 300ms both;
+  animation: nc-rise var(--nc-in) var(--nc-ease) 200ms both;
 }
 
-/* --- Rule ----------------------------------------------------------------
-   No plate at all: a name, a thin accent rule, a role. For calm footage where
-   a slab of colour would be more graphic than the shot needs. The rule draws
-   across, which is the whole animation. */
+/* --- Edge ----------------------------------------------------------------
+   The lightest of the five: an accent bar, the name, and a panel that fades
+   out to nothing on its right rather than ending on a hard edge. For calm
+   footage where a slab of colour would be more graphic than the shot needs.
+   It slides in off the accent bar. */
 
 .namecard--rule {
-  --nc-accent: #f2a33c;
-  --nc-shadow: 0 2px 16px rgba(0, 0, 0, 0.9), 0 0 4px rgba(0, 0, 0, 0.7);
+  --nc-accent: #ff6a3d;
+}
+
+.namecard--rule .namecard-inner {
+  width: fit-content;
+  max-width: 84%;
+  padding: var(--nc-pad-y) calc(var(--nc-side) * 1.4) var(--nc-pad-y) var(--nc-pad-x);
+  border-left: var(--nc-bar) solid var(--nc-accent);
+  background: linear-gradient(90deg, var(--nc-panel) 0%, var(--nc-panel) 52%, rgba(10, 13, 18, 0) 100%);
 }
 
 .namecard--rule .namecard-title {
-  font-size: 7.2vh;
   font-weight: 700;
+  letter-spacing: -0.005em;
 }
 
-.namecard--rule .namecard-title::after {
-  content: '';
-  display: block;
-  width: 12vw;
-  height: 0.5vh;
-  margin: 1.4vh 0;
-  background: var(--nc-accent);
-  transform-origin: left center;
+.namecard--rule .namecard-subtitle {
+  margin-top: calc(var(--nc-gap) * 0.7);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
-.namecard--rule.namecard--in .namecard-title::after {
-  animation: nc-extend 460ms var(--nc-ease) 120ms both;
-}
-
-.namecard--rule.namecard--in .namecard-title {
-  animation: nc-rise var(--nc-in) var(--nc-ease) both;
+.namecard--rule.namecard--in .namecard-inner {
+  animation: nc-slide var(--nc-in) var(--nc-ease) both;
 }
 
 .namecard--rule.namecard--in .namecard-subtitle {
-  animation: nc-fade var(--nc-in) var(--nc-ease) 260ms both;
+  animation: nc-fade var(--nc-in) var(--nc-ease) 200ms both;
 }
 
 /* --- Leaving -------------------------------------------------------------
@@ -1432,13 +1454,13 @@ html[data-preview='stage'] [data-preview-only='stage'] {
    so it is source order that lets a card that is leaving override one that
    has arrived. --nc-out paces all of them. */
 
-/* The band wipes shut from the trailing edge — the wipe that opened it, run
-   the other way, so the colour retreats the way it came. */
+/* The slab wipes shut from the trailing edge — the wipe that opened it, run
+   the other way, so the panel retreats the way it came. */
 .namecard--band.namecard--out .namecard-inner {
   animation: nc-wipe var(--nc-out) ease-in reverse both;
 }
 
-/* The gradient sinks back down, the plate leading so the two do not separate. */
+/* The duotone sinks back down, the chip leading so the two do not separate. */
 .namecard--gradient.namecard--out .namecard-title {
   animation: nc-rise var(--nc-out) ease-in 60ms reverse both;
 }
@@ -1447,7 +1469,7 @@ html[data-preview='stage'] [data-preview-only='stage'] {
   animation: nc-rise var(--nc-out) ease-in reverse both;
 }
 
-/* The plate's letters spread back out as they go, which is the settle undone. */
+/* The marquee's letters spread back out as they go, the settle undone. */
 .namecard--plate.namecard--out .namecard-title {
   animation: nc-settle var(--nc-out) ease-in reverse both;
 }
@@ -1456,9 +1478,9 @@ html[data-preview='stage'] [data-preview-only='stage'] {
   animation: nc-fade calc(var(--nc-out) * 0.7) ease-in reverse both;
 }
 
-/* The brackets let go last: the text drops out from between them, then they
-   close. Reversing the order of the entrance is what makes it read as the
-   same gesture rather than a second, different one. */
+/* The offset outline lets go last: the text drops out of the panel, then the
+   outline slides back over it. Reversing the order of the entrance is what
+   makes it read as the same gesture rather than a second, different one. */
 .namecard--bracket.namecard--out .namecard-subtitle {
   animation: nc-rise calc(var(--nc-out) * 0.8) ease-in reverse both;
 }
@@ -1467,22 +1489,17 @@ html[data-preview='stage'] [data-preview-only='stage'] {
   animation: nc-rise calc(var(--nc-out) * 0.8) ease-in 60ms reverse both;
 }
 
-.namecard--bracket.namecard--out .namecard-inner::before,
-.namecard--bracket.namecard--out .namecard-inner::after {
-  animation: nc-draw calc(var(--nc-out) * 0.9) ease-in 120ms reverse both;
+.namecard--bracket.namecard--out .namecard-inner::before {
+  animation: nc-offset calc(var(--nc-out) * 0.9) ease-in 120ms reverse both;
 }
 
-/* The rule retracts to where it started, taking the role with it. */
-.namecard--rule.namecard--out .namecard-title::after {
-  animation: nc-extend calc(var(--nc-out) * 0.9) ease-in reverse both;
-}
-
-.namecard--rule.namecard--out .namecard-title {
-  animation: nc-rise var(--nc-out) ease-in 80ms reverse both;
-}
-
+/* The edge slides back onto its bar, the role going first. */
 .namecard--rule.namecard--out .namecard-subtitle {
   animation: nc-fade calc(var(--nc-out) * 0.6) ease-in reverse both;
+}
+
+.namecard--rule.namecard--out .namecard-inner {
+  animation: nc-slide var(--nc-out) ease-in reverse both;
 }
 
 /* --- The movements ------------------------------------------------------- */
@@ -1510,11 +1527,11 @@ html[data-preview='stage'] [data-preview-only='stage'] {
 @keyframes nc-settle {
   from {
     opacity: 0;
-    letter-spacing: 0.62em;
+    letter-spacing: 0.58em;
   }
   to {
     opacity: 1;
-    letter-spacing: 0.3em;
+    letter-spacing: 0.26em;
   }
 }
 
@@ -1527,23 +1544,25 @@ html[data-preview='stage'] [data-preview-only='stage'] {
   }
 }
 
-@keyframes nc-draw {
+@keyframes nc-offset {
   from {
     opacity: 0;
-    transform: scale(0.4);
+    transform: translate(0, 0);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: translate(var(--nc-inset), var(--nc-inset));
   }
 }
 
-@keyframes nc-extend {
+@keyframes nc-slide {
   from {
-    transform: scaleX(0);
+    opacity: 0;
+    transform: translateX(-1.4vw);
   }
   to {
-    transform: scaleX(1);
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -1553,96 +1572,55 @@ html[data-preview='stage'] [data-preview-only='stage'] {
   .namecard--in .namecard-inner,
   .namecard--in .namecard-title,
   .namecard--in .namecard-subtitle,
-  .namecard--in .namecard-inner::before,
-  .namecard--in .namecard-inner::after {
+  .namecard--in .namecard-inner::before {
     animation: nc-fade 200ms ease-out both;
   }
 
   .namecard--out .namecard-inner,
   .namecard--out .namecard-title,
   .namecard--out .namecard-subtitle,
-  .namecard--out .namecard-inner::before,
-  .namecard--out .namecard-inner::after {
+  .namecard--out .namecard-inner::before {
     animation: nc-fade 160ms ease-in reverse both;
+  }
+
+  /* The outline still has to sit where the design puts it. A fade that reset
+     the transform would drop it back on top of the panel. */
+  .namecard--bracket .namecard-inner::before {
+    transform: translate(var(--nc-inset), var(--nc-inset));
   }
 }
 
 /* --- In the picker -------------------------------------------------------
    The designs shrunk into a tile. They render the real markup, so a design and
-   its preview cannot drift — the same trick the bar's own picker uses. The
-   card is sized in vh, which a tile does not have, so the tile re-states the
-   sizes in its own terms rather than scaling by font-size. */
+   its preview cannot drift — the same trick the bar's own picker uses. All the
+   tile does is re-point the geometry above into units a 16:9 box has: nothing
+   here restates a design, and nothing here should have to. */
 
 .nc-preview {
   position: relative;
   overflow: hidden;
   aspect-ratio: 16 / 9;
-  background: linear-gradient(118deg, #46586b 0%, #b9c4cf 46%, #79879a 68%, #2c3540 100%);
+  /* A stand-in for footage: dark enough that a panel reads, uneven enough that
+     a design which needs its backing cannot cheat. */
+  background:
+    radial-gradient(120% 90% at 22% 18%, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 60%),
+    linear-gradient(150deg, #33414f 0%, #55636f 38%, #2b333d 72%, #171c22 100%);
 }
 
 .nc-preview .namecard {
-  bottom: 12%;
-  padding: 0 8%;
-}
-
-.nc-preview .namecard-title {
-  font-size: 11px;
-}
-
-.nc-preview .namecard-subtitle {
-  font-size: 6px;
-}
-
-.nc-preview .namecard--band .namecard-inner {
-  padding: 5% 6%;
-}
-
-.nc-preview .namecard--bracket {
-  bottom: 6%;
-}
-
-.nc-preview .namecard--bracket .namecard-inner {
-  padding: 7% 6%;
-}
-
-.nc-preview .namecard--gradient .namecard-title,
-.nc-preview .namecard--plate .namecard-title {
-  padding: 4% 6%;
-}
-
-.nc-preview .namecard--gradient .namecard-subtitle,
-.nc-preview .namecard--plate .namecard-subtitle,
-.nc-preview .namecard--bracket .namecard-subtitle {
-  padding: 3% 5%;
-}
-
-.nc-preview .namecard--plate .namecard-title {
-  font-size: 9px;
-}
-
-.nc-preview .namecard--bracket .namecard-title {
-  font-size: 9px;
-}
-
-.nc-preview .namecard--bracket .namecard-inner::before,
-.nc-preview .namecard--bracket .namecard-inner::after {
-  width: 6px;
-  height: 6px;
-  border-width: 1.5px;
-}
-
-.nc-preview .namecard--bracket .namecard-subtitle {
-  margin-top: -2px;
-}
-
-.nc-preview .namecard--rule .namecard-title {
-  font-size: 11px;
-}
-
-.nc-preview .namecard--rule .namecard-title::after {
-  width: 34%;
-  height: 1.5px;
-  margin: 3px 0;
+  /* Padding is stated in px rather than %: a percentage resolves against the
+     width of the box it is in, and half these designs size themselves to their
+     own content, which would make the padding depend on the length of a name. */
+  --nc-bottom: 11%;
+  --nc-side: 7%;
+  --nc-pad-y: 4px;
+  --nc-pad-x: 7px;
+  --nc-gap: 3px;
+  --nc-fs-title: 11px;
+  --nc-fs-sub: 5.5px;
+  --nc-edge: 1px;
+  --nc-bar: 3px;
+  --nc-inset: 3px;
 }
 
 /* A grid of tiles all playing their entrance at once is a fairground. The
@@ -1650,7 +1628,6 @@ html[data-preview='stage'] [data-preview-only='stage'] {
 .nc-preview .namecard--in .namecard-inner,
 .nc-preview .namecard--in .namecard-title,
 .nc-preview .namecard--in .namecard-subtitle,
-.nc-preview .namecard--in .namecard-inner::before,
-.nc-preview .namecard--in .namecard-inner::after {
+.nc-preview .namecard--in .namecard-inner::before {
   animation: none;
 }
