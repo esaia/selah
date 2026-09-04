@@ -65,7 +65,14 @@ domain vocabulary. This file is the working agreement on top of it.
 ## Conventions
 
 - Functional components, named exports, Tailwind 4 utilities inline. Console
-  chrome is dark, and only dark.
+  chrome is dark, and only dark — `--color-studio-*` in `globals.css` is the
+  whole palette, so no component reaches for `bg-white`, a Tailwind grey or a
+  hex of its own. Three brand colours sit under those tokens: ink `#191818`,
+  cream `#FDF7E8` and yellow `#FCDF50`. Yellow is a light colour, so anything
+  filled with `bg-studio-accent` takes `text-studio-onaccent`, never
+  `text-white`. `components/brand/Wordmark.tsx` is the only drawing of the
+  llama — the app bar, the marketing header, the login page and `app/icon.svg`
+  all come from it.
 - Typefaces the operator can pick are Tailwind class names (`font-banner`, …)
   stored verbatim in `settings.font`. They are declared in `@theme` in
   `globals.css`; adding one means adding it there, dropping the woff2 subsets

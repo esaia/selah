@@ -64,11 +64,11 @@ const LibraryRow = ({
           : 'border-transparent text-studio-muted hover:bg-studio-surface',
         // Filing a track is a commitment, so the row it would go into is filled
         // rather than outlined: it is unmistakable at a glance mid-service.
-        over && 'border-studio-accent bg-studio-accent text-white',
+        over && 'border-studio-accent bg-studio-accent text-studio-onaccent',
       )}
     >
       <button type="button" onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-2 text-left">
-        <Music className={cn('size-3.5 shrink-0', over ? 'text-white' : 'text-studio-faint')} />
+        <Music className={cn('size-3.5 shrink-0', over ? 'text-studio-onaccent' : 'text-studio-faint')} />
         <span className={cn('min-w-0 flex-1 truncate', selected && 'font-semibold')}>{label}</span>
       </button>
 
@@ -96,7 +96,7 @@ const LibraryRow = ({
               'absolute inset-0 flex items-center justify-center rounded-studio opacity-0 transition',
               'duration-150 group-hover/library:opacity-100 focus-visible:opacity-100 focus:outline-none',
               'focus-visible:ring-2 focus-visible:ring-studio-accent/40',
-              over ? 'text-white' : 'text-studio-faint hover:text-studio-danger',
+              over ? 'text-studio-onaccent' : 'text-studio-faint hover:text-studio-danger',
             )}
           >
             <Trash2 className="size-3.5" />
@@ -201,13 +201,13 @@ export const AudioPanel = () => {
             value={title}
             onChange={event => setTitle(event.target.value)}
             placeholder="Title"
-            className="border-studio-border bg-white placeholder:text-studio-faint w-20 shrink-0 rounded-studio border px-2.5 py-1.5 text-xs outline-none sm:w-32"
+            className="border-studio-border bg-studio-bg placeholder:text-studio-faint w-20 shrink-0 rounded-studio border px-2.5 py-1.5 text-xs outline-none sm:w-32"
           />
           <input
             value={url}
             onChange={event => setUrl(event.target.value)}
             placeholder="https://… (a track by URL)"
-            className="border-studio-border bg-white placeholder:text-studio-faint min-w-0 flex-1 rounded-studio border px-2.5 py-1.5 text-xs outline-none"
+            className="border-studio-border bg-studio-bg placeholder:text-studio-faint min-w-0 flex-1 rounded-studio border px-2.5 py-1.5 text-xs outline-none"
           />
           <button
             type="button"
@@ -287,7 +287,7 @@ export const AudioPanel = () => {
                 }}
                 placeholder="Library name"
                 className="border-studio-border placeholder:text-studio-faint min-w-0 flex-1 rounded-studio border
-                  bg-white px-2 py-1 text-xs outline-none"
+                  bg-studio-bg px-2 py-1 text-xs outline-none"
               />
               <button
                 type="button"
@@ -352,10 +352,10 @@ export const AudioPanel = () => {
                   title={`Play ${track.title}`}
                   aria-label={`Play ${track.title}`}
                   className={cn(
-                    'flex size-7 shrink-0 items-center justify-center rounded-studio text-white transition-colors',
+                    'flex size-7 shrink-0 items-center justify-center rounded-studio transition-colors',
                     'duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
                     'disabled:cursor-not-allowed disabled:opacity-40',
-                    isCurrent ? 'bg-studio-accent' : 'bg-studio-slide',
+                    isCurrent ? 'bg-studio-accent text-studio-onaccent' : 'bg-studio-slide text-white',
                   )}
                 >
                   <Play className="size-3.5" />

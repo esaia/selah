@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
+import { Wordmark } from '@/components/brand/Wordmark';
 import { getUser } from '@/lib/supabase/server';
 
 import { GoogleButton } from './google-button';
@@ -14,13 +15,13 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
   if (user) redirect(typeof next === 'string' ? next : '/studio');
 
   return (
-    <main className="grid min-h-dvh place-items-center px-6">
+    <main className="grid min-h-dvh place-items-center bg-studio-bg px-6">
       <div className="w-full max-w-sm">
-        <Link href="/" className="text-studio-accent text-sm tracking-[0.2em] uppercase">
-          Selah
+        <Link href="/" aria-label="LlamaPresenter — home" className="rounded-studio focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40">
+          <Wordmark className="text-lg" />
         </Link>
 
-        <h1 className="mt-6 text-3xl">Sign in</h1>
+        <h1 className="mt-6 text-3xl text-studio-text">Sign in</h1>
         <p className="text-studio-muted mt-2 text-sm">
           Your passages, songs and projector look follow your account onto whichever machine is running the service.
         </p>

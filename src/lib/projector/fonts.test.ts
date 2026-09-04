@@ -32,7 +32,7 @@ describe('resolving a stored value', () => {
   it('gives an added face a family and no class, so the two never fight', () => {
     expect(fontClassOf(valueOf(google), library)).toBe('');
     expect(fontFamilyOf(valueOf(google), library)).toBe("'Rubik', sans-serif");
-    expect(fontFamilyOf(valueOf(hosted), library)).toBe("'selah-custom-2', sans-serif");
+    expect(fontFamilyOf(valueOf(hosted), library)).toBe("'llama-custom-2', sans-serif");
   });
 
   // The ordinary way to get here: the operator deleted a font that a picker
@@ -63,8 +63,8 @@ describe('the CSS family name', () => {
 
   // Renaming a font must not orphan the @font-face already in the document.
   it('follows the id and not the label, for a hosted file', () => {
-    expect(familyNameOf(hosted)).toBe('selah-custom-2');
-    expect(familyNameOf({ ...hosted, label: 'Renamed' })).toBe('selah-custom-2');
+    expect(familyNameOf(hosted)).toBe('llama-custom-2');
+    expect(familyNameOf({ ...hosted, label: 'Renamed' })).toBe('llama-custom-2');
   });
 });
 

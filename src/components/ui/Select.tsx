@@ -31,7 +31,7 @@ export const Select = ({
     <select
       value={value}
       onChange={event => onChange(event.target.value)}
-      className="h-8 w-full appearance-none truncate rounded-studio border border-studio-border bg-white pr-8 pl-3
+      className="h-8 w-full appearance-none truncate rounded-studio border border-studio-border bg-studio-bg pr-8 pl-3
         text-xs font-medium text-studio-text transition-colors duration-150 hover:bg-studio-surface
         focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40"
       {...rest}

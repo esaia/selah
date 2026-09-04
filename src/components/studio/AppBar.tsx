@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   BookOpen,
   Captions,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/Button';
+import { Wordmark } from '@/components/brand/Wordmark';
 import { cn } from '@/lib/cn';
 import { useStudio, type Tab } from '@/lib/studio/StudioProvider';
 
@@ -75,7 +77,7 @@ const OutputRow = ({
         title={`Copy the ${label} link`}
         aria-label={`Copy the ${label} link`}
         className="inline-flex size-7 shrink-0 items-center justify-center rounded-studio text-studio-faint
-          transition-colors duration-150 hover:bg-white hover:text-studio-text focus:outline-none
+          transition-colors duration-150 hover:bg-studio-lift hover:text-studio-text focus:outline-none
           focus-visible:ring-2 focus-visible:ring-studio-accent/40"
       >
         {copied ? <Check className="size-3.5 text-studio-go" /> : <Copy className="size-3.5" />}
@@ -88,7 +90,7 @@ const OutputRow = ({
         title={`Open ${label} in a new tab`}
         aria-label={`Open ${label} in a new tab`}
         className="inline-flex size-7 shrink-0 items-center justify-center rounded-studio text-studio-faint
-          transition-colors duration-150 hover:bg-white hover:text-studio-text focus:outline-none
+          transition-colors duration-150 hover:bg-studio-lift hover:text-studio-text focus:outline-none
           focus-visible:ring-2 focus-visible:ring-studio-accent/40"
       >
         <ExternalLink className="size-3.5" />
@@ -146,7 +148,7 @@ const PresentMenu = () => {
         <div
           role="menu"
           aria-label="Present"
-          className="absolute right-0 z-40 mt-1.5 w-72 rounded-studio border border-studio-border bg-white p-1.5
+          className="absolute right-0 z-40 mt-1.5 w-72 rounded-studio border border-studio-border bg-studio-bg p-1.5
             shadow-studio"
         >
           <p className="px-2 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wide text-studio-faint">
@@ -183,7 +185,7 @@ export const AppBar = ({ onSettings, onOpenNav }: { onSettings: () => void; onOp
   return (
     <header
       className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-studio-border
-        bg-white px-3 py-2 sm:px-4 lg:h-12 lg:flex-nowrap lg:gap-4 lg:py-0"
+        bg-studio-bg px-3 py-2 sm:px-4 lg:h-12 lg:flex-nowrap lg:gap-4 lg:py-0"
     >
       <div className="flex min-w-0 items-center gap-2">
         <button
@@ -198,8 +200,16 @@ export const AppBar = ({ onSettings, onOpenNav }: { onSettings: () => void; onOp
           <Menu className="size-4" />
         </button>
 
-        <span className="truncate text-sm font-semibold text-studio-text">Selah</span>
-        <span className="hidden text-xs text-studio-faint sm:inline">Studio</span>
+        {/* Home for the console is the console. An operator mid-service who
+            clicks the logo out of habit must not land on the marketing page
+            with the running order behind them. */}
+        <Link
+          href="/studio"
+          aria-label="LlamaPresenter — the console"
+          className="rounded-studio focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40"
+        >
+          <Wordmark className="truncate text-base" />
+        </Link>
       </div>
 
       <nav
@@ -217,7 +227,7 @@ export const AppBar = ({ onSettings, onOpenNav }: { onSettings: () => void; onOp
               'inline-flex h-7 items-center gap-1.5 rounded-[4px] pl-3 text-xs font-medium transition-colors',
               'duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
               beta ? 'pr-2' : 'pr-3',
-              tab === id ? 'bg-white text-studio-text shadow-studio' : 'text-studio-muted hover:text-studio-text',
+              tab === id ? 'bg-studio-lift text-studio-text shadow-studio' : 'text-studio-muted hover:text-studio-text',
             )}
           >
             <Icon className="size-3.5" />

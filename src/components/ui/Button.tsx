@@ -4,11 +4,12 @@ import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 const VARIANTS = {
-  primary: 'bg-[#16181d] text-white hover:bg-[#2a2e37] disabled:bg-[#16181d]/40',
-  accent: 'bg-studio-accent text-white hover:bg-[#1d4ed8] disabled:bg-studio-accent/40',
-  secondary: 'bg-white text-studio-text border border-studio-border hover:bg-studio-surface disabled:text-studio-faint',
+  primary: 'bg-studio-text text-studio-bg hover:bg-white disabled:bg-studio-text/40',
+  accent: 'bg-studio-accent text-studio-onaccent hover:bg-[#ffe97a] disabled:bg-studio-accent/40',
+  secondary:
+    'bg-studio-surface text-studio-text border border-studio-border hover:bg-studio-lift disabled:text-studio-faint',
   ghost: 'bg-transparent text-studio-muted hover:bg-studio-surface hover:text-studio-text',
-  danger: 'bg-studio-danger text-white hover:bg-[#b91c1c]',
+  danger: 'bg-studio-danger text-white hover:bg-[#d94439]',
 } as const;
 
 const SIZES = {

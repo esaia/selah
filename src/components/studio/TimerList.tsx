@@ -95,7 +95,7 @@ const MenuItem = ({
       'flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium transition-colors',
       'duration-150 focus:outline-none',
       tone === 'danger'
-        ? 'text-studio-danger hover:bg-red-50 focus-visible:bg-red-50'
+        ? 'text-studio-danger hover:bg-studio-danger/15 focus-visible:bg-studio-danger/15'
         : 'text-studio-text hover:bg-studio-surface focus-visible:bg-studio-surface',
     )}
   >
@@ -205,7 +205,7 @@ const RowMenu = ({ timer }: { timer: StageTimer }) => {
           role="menu"
           className={cn(
             `absolute right-0 z-30 min-w-[148px] overflow-hidden rounded-studio border border-studio-border
-             bg-white py-1 shadow-studio-panel`,
+             bg-studio-bg py-1 shadow-studio-panel`,
             above ? 'bottom-full mb-1' : 'top-full mt-1',
           )}
         >
@@ -313,7 +313,7 @@ const Row = ({
               ? 'bg-studio-accent/[0.055]'
               : played
                 ? 'bg-studio-surface'
-                : 'bg-white hover:bg-studio-surface',
+                : 'bg-studio-bg hover:bg-studio-surface',
         // Last, so the empty berth wins over whatever the row was wearing. The
         // browser snapshots the ghost before this paints, so it lands on the
         // slot the row is holding open rather than on the one in the air.
@@ -427,7 +427,7 @@ const Row = ({
           className={cn(
             'inline-flex size-7 items-center justify-center rounded-studio text-white transition-colors duration-150',
             'focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
-            running ? 'bg-studio-danger hover:bg-[#b91c1c]' : 'bg-studio-go hover:bg-[#19643f]',
+            running ? 'bg-studio-danger hover:bg-[#d94439]' : 'bg-studio-go hover:bg-[#38bd7d]',
           )}
         >
           {running ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}

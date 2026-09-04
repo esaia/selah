@@ -1,7 +1,7 @@
 import catalogue from '@/lib/bible/languages.json';
 
 /**
- * Every language Selah can put on a screen — which is exactly the set we hold
+ * Every language LlamaPresenter can put on a screen — which is exactly the set we hold
  * our own copy of, in `bible_text`.
  *
  * It used to be everything `holybible.ge` listed, with the console falling

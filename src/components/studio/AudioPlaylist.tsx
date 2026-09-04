@@ -12,13 +12,25 @@ import { LIFTED_SLOT } from './sortable';
 import { useTrackReorder } from './trackDrag';
 
 /** Three bars, animated only on the track actually playing. */
+const BARS = [
+  { duration: 780, delay: 0, rest: 0.55 },
+  { duration: 1020, delay: 160, rest: 1 },
+  { duration: 880, delay: 340, rest: 0.7 },
+];
+
 const Equalizer = () => (
-  <span className="flex h-3 items-end gap-[2px]">
-    {[0, 150, 300].map(delay => (
+  <span className="flex h-3 items-end gap-[2px]" aria-hidden>
+    {BARS.map(({ duration, delay, rest }) => (
       <span
         key={delay}
-        className="w-[3px] animate-pulse rounded-full bg-current"
-        style={{ height: delay === 150 ? 12 : 8, animationDelay: `${delay}ms` }}
+        className="studio-equalizer h-3 w-[3px] rounded-full bg-current"
+        style={
+          {
+            '--equalizer-duration': `${duration}ms`,
+            '--equalizer-delay': `${delay}ms`,
+            '--equalizer-rest': rest,
+          } as CSSProperties
+        }
       />
     ))}
   </span>
@@ -259,9 +271,9 @@ export const AudioPlaylist = () => {
                 >
                   <span
                     className={cn(
-                      'flex size-7 shrink-0 items-center justify-center rounded-studio text-white',
+                      'flex size-7 shrink-0 items-center justify-center rounded-studio',
                       'transition-colors duration-200',
-                      isCurrent ? 'bg-studio-accent' : 'bg-studio-slide',
+                      isCurrent ? 'bg-studio-accent text-studio-onaccent' : 'bg-studio-slide text-white',
                     )}
                   >
                     {isCurrent && playing ? (

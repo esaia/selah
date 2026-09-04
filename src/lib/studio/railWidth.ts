@@ -9,8 +9,8 @@
  * only ever writes to it. Nothing re-renders when the handle is dragged either.
  */
 
-/** The width it has always been, and the narrowest the preview stays useful. */
-export const RAIL_MIN_WIDTH = 320;
+/** The narrowest the preview and the playlist under it stay useful. */
+export const RAIL_MIN_WIDTH = 346;
 
 /** Past this the rail is taking room the running order needs more. */
 export const RAIL_MAX_WIDTH = 720;

@@ -88,7 +88,7 @@ export const TypeRow = ({
               'flex size-7 items-center justify-center rounded-[4px] transition-colors duration-150',
               'focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
               align === value
-                ? 'bg-studio-accent text-white'
+                ? 'bg-studio-accent text-studio-onaccent'
                 : 'text-studio-muted hover:bg-studio-surface hover:text-studio-text',
             )}
           >
@@ -154,8 +154,8 @@ export const StyleSection = () => {
             className={cn(
               'h-8 shrink-0 rounded-studio border px-3 text-xs font-medium transition-colors duration-150',
               settings.theme === DYNAMIC_THEME
-                ? 'border-studio-accent bg-studio-accent text-white'
-                : 'border-studio-border bg-white text-studio-text hover:bg-studio-surface',
+                ? 'border-studio-accent bg-studio-accent text-studio-onaccent'
+                : 'border-studio-border bg-studio-bg text-studio-text hover:bg-studio-surface',
             )}
           >
             Use

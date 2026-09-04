@@ -21,7 +21,7 @@ export const GoogleButton = ({ next }: { next: string }) => {
       type="button"
       onClick={signIn}
       disabled={busy}
-      className="flex w-full items-center justify-center gap-3 rounded-studio border border-studio-border bg-white px-4
+      className="flex w-full items-center justify-center gap-3 rounded-studio border border-studio-border bg-studio-bg px-4
         py-3 text-sm font-medium text-studio-text transition-colors duration-150 hover:bg-studio-surface
         disabled:opacity-60"
     >

@@ -199,7 +199,7 @@ export const SongSearch = ({ onClose }: { onClose: () => void }) => {
         aria-modal="true"
         aria-label="Search the song library"
         className="pointer-events-auto flex h-fit max-h-[70vh] w-full max-w-md flex-col overflow-hidden
-          rounded-studio-lg bg-white shadow-studio-modal ring-1 ring-studio-border"
+          rounded-studio-lg bg-studio-bg shadow-studio-modal ring-1 ring-studio-border"
       >
         <div className="flex items-center gap-3 px-4 py-3">
           <HiOutlineSearch className="shrink-0 text-lg text-studio-faint" />

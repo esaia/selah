@@ -151,7 +151,7 @@ export const ProjectorLookPicker = () => {
               className={cn(
                 'h-6 rounded-[4px] px-2.5 text-[11px] font-medium transition-colors duration-150',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
-                target === id ? 'bg-white text-studio-text shadow-studio' : 'text-studio-muted hover:text-studio-text',
+                target === id ? 'bg-studio-lift text-studio-text shadow-studio' : 'text-studio-muted hover:text-studio-text',
               )}
             >
               {label}
@@ -191,7 +191,7 @@ export const ProjectorLookPicker = () => {
             <span
               className={cn(
                 'block truncate px-1.5 py-1 text-[11px] font-medium',
-                selected === look.value ? 'bg-studio-accent text-white' : 'bg-white text-studio-muted',
+                selected === look.value ? 'bg-studio-accent text-studio-onaccent' : 'bg-studio-bg text-studio-muted',
               )}
             >
               {look.label}

@@ -1,7 +1,7 @@
 /**
  * Name cards: who is speaking, strapped across the bottom of the stream.
  *
- * The one graphic a church broadcast uses constantly and Selah could not draw —
+ * The one graphic a church broadcast uses constantly and LlamaPresenter could not draw —
  * a speaker's name and role, up for a few seconds as they come to the front.
  *
  * A card belongs to the stream alone. It is not a slide: it goes up while a

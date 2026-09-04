@@ -309,7 +309,7 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
 
       <div className="studio-scroll min-w-0 pr-4 pl-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         {error ? (
-          <p className="mb-3 rounded-studio border border-studio-danger/30 bg-red-50 px-3 py-2 text-xs text-studio-danger">
+          <p className="mb-3 rounded-studio border border-studio-danger/30 bg-studio-danger/10 px-3 py-2 text-xs text-studio-danger">
             {error}
           </p>
         ) : null}

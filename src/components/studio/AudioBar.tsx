@@ -47,7 +47,7 @@ export const AudioBar = () => {
   if (!current) return null;
 
   return (
-    <div className="flex h-12 shrink-0 items-center gap-2 border-t border-studio-border bg-white px-3 sm:gap-3 sm:px-4">
+    <div className="flex h-12 shrink-0 items-center gap-2 border-t border-studio-border bg-studio-bg px-3 sm:gap-3 sm:px-4">
       <IconButton label={playing ? 'Fade out' : 'Play'} onClick={togglePlay}>
         {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
       </IconButton>
@@ -90,7 +90,7 @@ export const AudioBar = () => {
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
           repeat === 'off'
             ? 'text-studio-muted hover:bg-studio-surface hover:text-studio-text'
-            : 'bg-studio-accent text-white',
+            : 'bg-studio-accent text-studio-onaccent',
         )}
       >
         {repeat === 'one' ? <Repeat1 className="size-4" /> : <Repeat className="size-4" />}
@@ -110,29 +110,58 @@ export const AudioBar = () => {
         >
           {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
         </button>
+        {/* The slider reads what is coming out, so muted it reads zero rather
+            than leaving the handle parked at the old level on an empty track —
+            which says the sound is set to 80 and looks broken.
+
+            The two ends work the way every other player's do: dragging to zero
+            mutes, and moving off zero unmutes to wherever it was dropped.
+            Dragging to zero deliberately does not write a volume of 0 — mute
+            rides on the element, so the level behind it survives and unmuting
+            comes back to it. */}
         <input
           type="range"
           min={0}
           max={100}
           step={1}
-          value={Math.round(volume * 100)}
+          value={muted ? 0 : Math.round(volume * 100)}
           aria-label="Volume"
-          aria-valuetext={`${Math.round(volume * 100)} percent`}
-          title={`Volume ${Math.round(volume * 100)}`}
-          onChange={event => setVolume(Number(event.target.value) / 100)}
+          aria-valuetext={muted ? 'Muted' : `${Math.round(volume * 100)} percent`}
+          title={muted ? 'Muted — drag to unmute' : `Volume ${Math.round(volume * 100)}`}
+          onChange={event => {
+            const next = Number(event.target.value);
+
+            if (next === 0) {
+              if (!muted) toggleMute();
+
+              return;
+            }
+
+            setVolume(next / 100);
+
+            if (muted) toggleMute();
+          }}
           style={{ '--range-fill': `${muted ? 0 : Math.round(volume * 100)}%` } as CSSProperties}
           className="studio-range h-1.5 w-24 cursor-pointer appearance-none rounded-full bg-studio-border"
         />
 
         {/* The number, not just the handle: a level is something an operator
-            sets back to what it was last week, and reads out to the desk. */}
+            sets back to what it was last week, and reads out to the desk.
+
+            It reads what is coming out, so it agrees with the handle beside it
+            — muted, both say zero. The level behind the mute is not shown at
+            all: a number disagreeing with the handle was the confusing part,
+            and unmuting still comes back to it. Dimmed while muted, never
+            struck through — at this size a strikethrough stopped it reading as
+            a number. Wide enough for three digits: 100 is a level like any
+            other. */}
         <span
           className={cn(
-            'w-6 shrink-0 text-right text-[11px] tabular-nums',
-            muted ? 'text-studio-faint line-through' : 'text-studio-muted',
+            'w-7 shrink-0 text-right text-[11px] tabular-nums',
+            muted ? 'text-studio-faint' : 'text-studio-muted',
           )}
         >
-          {Math.round(volume * 100)}
+          {muted ? 0 : Math.round(volume * 100)}
         </span>
       </span>
 

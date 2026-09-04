@@ -4,7 +4,7 @@ import { cn } from '@/lib/cn';
 
 const TONES = {
   default: 'text-studio-muted hover:bg-studio-surface hover:text-studio-text',
-  danger: 'text-studio-muted hover:bg-red-50 hover:text-studio-danger',
+  danger: 'text-studio-muted hover:bg-studio-danger/15 hover:text-studio-danger',
   onDark: 'text-white/60 hover:bg-white/10 hover:text-white',
 } as const;
 

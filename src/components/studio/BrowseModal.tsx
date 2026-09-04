@@ -38,7 +38,7 @@ const Breadcrumb = ({ parts }: { parts: Crumb[] }) => (
 );
 
 const STATES = {
-  idle: 'border-studio-border bg-white text-studio-text hover:border-studio-faint hover:bg-studio-surface',
+  idle: 'border-studio-border bg-studio-bg text-studio-text hover:border-studio-faint hover:bg-studio-surface',
   edge: 'border-studio-text bg-studio-surface font-semibold text-studio-text',
   inside: 'border-studio-border bg-studio-surface font-semibold text-studio-text',
 } as const;
@@ -207,9 +207,9 @@ export const BrowseModal = ({
   const rangeLabel = range ? (range.to > range.from ? `${range.from}-${range.to}` : `${range.from}`) : '';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" onClick={onClose}>
       <div
-        className="flex max-h-[86vh] w-full max-w-3xl flex-col overflow-hidden rounded-studio-lg bg-white shadow-studio-modal"
+        className="flex max-h-[86vh] w-full max-w-3xl flex-col overflow-hidden rounded-studio-lg bg-studio-bg shadow-studio-modal"
         onClick={event => event.stopPropagation()}
       >
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-studio-border px-5 py-3">
@@ -252,7 +252,7 @@ export const BrowseModal = ({
                       pickBook(matches[0]);
                     }
                   }}
-                  className="h-9 w-full rounded-studio border border-studio-border bg-white pr-3 pl-9 text-sm
+                  className="h-9 w-full rounded-studio border border-studio-border bg-studio-bg pr-3 pl-9 text-sm
                     text-studio-text placeholder:text-studio-faint focus:outline-none focus-visible:ring-2
                     focus-visible:ring-studio-accent/40"
                 />

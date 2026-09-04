@@ -19,7 +19,7 @@ import { familyNameOf, googleCssUrl, type CustomFont } from '@/lib/projector/fon
  */
 
 /** Marks the nodes we own, so a face that leaves the list takes its rule with it. */
-const OWNED = 'data-selah-font';
+const OWNED = 'data-llama-font';
 
 /**
  * Never the operator's `source` for a Google family — that is a name we put in

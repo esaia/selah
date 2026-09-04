@@ -130,6 +130,7 @@ interface StudioValue {
   settings: Settings;
   update: (patch: Partial<Settings>) => void;
   setLangOrder: (order: Lang[]) => void;
+  setAdminLang: (lang: Lang) => void;
   addLang: (lang: Lang) => void;
   removeLang: (lang: Lang) => void;
   setLocalBackground: (file: LocalFileMeta | null) => void;
@@ -690,6 +691,31 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   /** The stacking order on the projector, as the operator dragged it. */
   const setLangOrder = useCallback((order: Lang[]) => {
     setSettings(current => (order.length === current.langOrder.length ? { ...current, langOrder: order } : current));
+  }, []);
+
+  /**
+   * Switch the language the cards are read in, carrying a translation that
+   * belongs to it.
+   *
+   * `adminVersion` is a translation id, and an id means nothing outside its own
+   * language — so it cannot survive a change of `adminLang` on its own. Left
+   * alone it points at the previous language's translation, every verse 404s,
+   * and the cards keep showing what they showed before while the dropdown
+   * beside them displays its first option as though it were selected. Setting
+   * both together is the only way the pair is ever meaningful.
+   */
+  const setAdminLang = useCallback((lang: Lang) => {
+    setSettings(current =>
+      current.adminLang === lang
+        ? current
+        : {
+            ...current,
+            adminLang: lang,
+            // An armed language reads in whatever the projector carries; only
+            // an unarmed one needs a browsing translation of its own.
+            adminVersion: current.versions[lang] || defaultVersionOf(lang),
+          },
+    );
   }, []);
 
   /**
@@ -1269,6 +1295,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       settings,
       update,
       setLangOrder,
+      setAdminLang,
       addLang,
       removeLang,
       setLocalBackground,
@@ -1371,6 +1398,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       saveCard,
       setCardDraft,
       setLangOrder,
+      setAdminLang,
       toggleBlackout,
       showCard,
       addLang,

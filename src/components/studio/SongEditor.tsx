@@ -45,7 +45,7 @@ const Seam = ({ label, onInsert }: { label: string; onInsert: () => void }) => (
       <span className="h-px flex-1 bg-studio-accent/40" />
 
       <span
-        className="mx-1 flex size-4 items-center justify-center rounded-full bg-studio-accent text-white
+        className="mx-1 flex size-4 items-center justify-center rounded-full bg-studio-accent text-studio-onaccent
           shadow-studio"
       >
         <Plus className="size-2.5" />
@@ -78,7 +78,7 @@ const Card = ({
       // Not `overflow-hidden`, however tidy that would be for the stripe: the
       // group menu opens out of the card, and a card that clips its own
       // children clips the menu to a couple of rows.
-      'group relative flex items-stretch rounded-studio border bg-white transition-colors',
+      'group relative flex items-stretch rounded-studio border bg-studio-bg transition-colors',
       'duration-150 border-studio-border focus-within:border-studio-accent/50',
       sortable.lifted === slide.id && LIFTED_SLOT,
     )}

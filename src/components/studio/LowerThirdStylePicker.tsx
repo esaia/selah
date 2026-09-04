@@ -140,7 +140,7 @@ export const LowerThirdStylePicker = () => {
                 "h-6 rounded-[4px] px-2.5 text-[11px] font-medium transition-colors duration-150",
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40",
                 target === id
-                  ? "bg-white text-studio-text shadow-studio"
+                  ? "bg-studio-lift text-studio-text shadow-studio"
                   : "text-studio-muted hover:text-studio-text",
               )}
             >
@@ -156,7 +156,7 @@ export const LowerThirdStylePicker = () => {
           : "How Bible slides sit on the stream."}
       </p>
 
-      <div className="mt-2 grid grid-cols-3 gap-2">
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {VARIANTS.map(({ value, label }) => (
           <button
             key={value}
@@ -184,8 +184,8 @@ export const LowerThirdStylePicker = () => {
               className={cn(
                 "block truncate px-1.5 py-1 text-[11px] font-medium",
                 selected === value
-                  ? "bg-studio-accent text-white"
-                  : "bg-white text-studio-muted",
+                  ? "bg-studio-accent text-studio-onaccent"
+                  : "bg-studio-bg text-studio-muted",
               )}
             >
               {label}

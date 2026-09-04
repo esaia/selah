@@ -88,7 +88,7 @@ export const Modal = ({
   return (
     <div
       className={cn(
-        'fixed inset-0 z-[100] flex items-center justify-center bg-black/30 p-6',
+        'fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-6',
         leaving ? 'studio-veil-out' : 'studio-veil-in',
       )}
       onClick={() => close()}
@@ -98,7 +98,7 @@ export const Modal = ({
         aria-modal="true"
         onClick={event => event.stopPropagation()}
         className={cn(
-          'flex max-h-[86vh] w-full flex-col overflow-hidden rounded-studio-lg bg-white shadow-studio-modal',
+          'flex max-h-[86vh] w-full flex-col overflow-hidden rounded-studio-lg bg-studio-bg shadow-studio-modal',
           leaving ? 'studio-modal-out' : 'studio-modal-in',
           width,
         )}

@@ -114,7 +114,7 @@ export const GroupPicker = ({
           role="menu"
           className={cn(
             `studio-scroll absolute left-0 z-50 max-h-64 w-40 overflow-y-auto rounded-studio border
-              border-studio-border bg-white p-1 shadow-studio-modal`,
+              border-studio-border bg-studio-bg p-1 shadow-studio-modal`,
             above ? 'bottom-full mb-1' : 'top-full mt-1',
           )}
         >

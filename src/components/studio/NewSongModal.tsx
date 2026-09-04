@@ -33,7 +33,7 @@ const MIN_TERM = 2;
 const SETTLE_MS = 300;
 
 const INPUT =
-  'w-full rounded-studio border border-studio-border bg-white py-2 text-sm text-studio-text outline-none ' +
+  'w-full rounded-studio border border-studio-border bg-studio-bg py-2 text-sm text-studio-text outline-none ' +
   'placeholder:text-studio-faint focus:border-studio-accent focus-visible:ring-2 focus-visible:ring-studio-accent/40';
 
 /** A draft's id, until the database mints a real one on save. */
@@ -69,7 +69,7 @@ const Choice = ({
     onClick={onClick}
     className="flex aspect-square flex-col items-center justify-center gap-2 rounded-studio border
       border-studio-border bg-studio-surface px-3 text-center transition-colors duration-150
-      hover:border-studio-accent hover:bg-white focus:outline-none focus-visible:ring-2
+      hover:border-studio-accent hover:bg-studio-lift focus:outline-none focus-visible:ring-2
       focus-visible:ring-studio-accent/40 disabled:cursor-not-allowed disabled:opacity-40
       disabled:hover:border-studio-border disabled:hover:bg-studio-surface"
   >
@@ -345,7 +345,7 @@ export const NewSongModal = ({ onClose, onDraft }: { onClose: () => void; onDraf
         )}
 
         {error ? (
-          <p className="rounded-studio border border-studio-danger/30 bg-red-50 px-3 py-2 text-xs text-studio-danger">
+          <p className="rounded-studio border border-studio-danger/30 bg-studio-danger/10 px-3 py-2 text-xs text-studio-danger">
             {error}
           </p>
         ) : null}

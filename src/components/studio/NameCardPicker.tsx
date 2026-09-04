@@ -58,7 +58,7 @@ export const NameCardPicker = ({
         <span
           className={cn(
             'block truncate px-1.5 py-1 text-[11px] font-medium',
-            value === template ? 'bg-studio-accent text-white' : 'bg-white text-studio-muted',
+            value === template ? 'bg-studio-accent text-studio-onaccent' : 'bg-studio-bg text-studio-muted',
           )}
         >
           {label}

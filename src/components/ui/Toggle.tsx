@@ -26,8 +26,10 @@ export const Toggle = ({
   >
     <span
       className={cn(
-        'absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-studio transition-all duration-150',
-        checked ? 'left-[18px]' : 'left-0.5',
+        'absolute top-0.5 h-4 w-4 rounded-full shadow-studio transition-all duration-150',
+        // The track is yellow when armed and near-black when it is not, so the
+        // knob takes the other end of the scale rather than a fixed colour.
+        checked ? 'left-[18px] bg-studio-onaccent' : 'left-0.5 bg-studio-muted',
       )}
     />
   </button>

@@ -30,7 +30,13 @@ const Strong = ({ children }: { children: ReactNode }) => (
   <strong className="font-semibold text-studio-text">{children}</strong>
 );
 
-/** A value to be carried into OBS, with the copy button next to it. */
+/**
+ * A value to be carried into OBS, with the copy button next to it.
+ *
+ * `label` names the value for the copy button's accessible name only — the
+ * field it sits in already says what the value is in type the operator can
+ * read, and a second "URL" beside it was furniture.
+ */
 export const CopyField = ({ label, value }: { label: string; value: string }) => {
   const [copied, setCopied] = useState(false);
 
@@ -46,8 +52,6 @@ export const CopyField = ({ label, value }: { label: string; value: string }) =>
 
   return (
     <div className="flex items-center gap-1.5">
-      <span className="w-10 shrink-0 text-[11px] text-studio-faint">{label}</span>
-
       <input
         readOnly
         value={value}
@@ -62,7 +66,7 @@ export const CopyField = ({ label, value }: { label: string; value: string }) =>
         aria-label={copied ? 'Copied' : `Copy the ${label.toLowerCase()}`}
         title={copied ? 'Copied' : `Copy the ${label.toLowerCase()}`}
         className={cn(
-          'flex size-8 shrink-0 items-center justify-center rounded-studio border bg-white transition-colors',
+          'flex size-8 shrink-0 items-center justify-center rounded-studio border bg-studio-bg transition-colors',
           'duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
           copied
             ? 'border-studio-go text-studio-go'

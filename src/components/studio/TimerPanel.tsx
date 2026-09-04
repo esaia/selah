@@ -40,8 +40,8 @@ const ToggleButton = ({
       active
         ? tone === 'danger'
           ? 'border-studio-danger bg-studio-danger text-white'
-          : 'border-studio-accent bg-studio-accent text-white'
-        : 'border-studio-border bg-white text-studio-text hover:bg-studio-surface',
+          : 'border-studio-accent bg-studio-accent text-studio-onaccent'
+        : 'border-studio-border bg-studio-bg text-studio-text hover:bg-studio-surface',
     )}
   >
     {children}
@@ -153,8 +153,8 @@ export const TimerPanel = () => {
                 'transition-colors duration-150 focus:outline-none focus-visible:ring-2',
                 'focus-visible:ring-studio-accent/40 md:px-3',
                 live
-                  ? 'border-studio-border bg-white text-studio-text hover:bg-studio-surface'
-                  : 'cursor-not-allowed border-studio-border/60 bg-white text-studio-faint',
+                  ? 'border-studio-border bg-studio-bg text-studio-text hover:bg-studio-surface'
+                  : 'cursor-not-allowed border-studio-border/60 bg-studio-bg text-studio-faint',
               )}
             >
               <X className="size-3.5" />
@@ -165,7 +165,7 @@ export const TimerPanel = () => {
               type="button"
               title="Flash every timer screen once, to catch an eye"
               onClick={() => updateTimer(current => ({ ...current, flashAt: Date.now() }))}
-              className="inline-flex h-8 items-center gap-1.5 rounded-studio border border-studio-border bg-white
+              className="inline-flex h-8 items-center gap-1.5 rounded-studio border border-studio-border bg-studio-bg
                 px-2.5 text-xs font-medium text-studio-text transition-colors duration-150 hover:bg-studio-surface
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40 md:px-3"
             >

@@ -73,7 +73,7 @@ export const RightRail = ({ onSettings }: { onSettings: (tab: string) => void })
   return (
     <aside
       style={{ width: `var(${RAIL_WIDTH_VAR}, ${RAIL_MIN_WIDTH}px)` }}
-      className="relative hidden shrink-0 flex-col border-l border-studio-border bg-white lg:flex"
+      className="relative hidden shrink-0 flex-col border-l border-studio-border bg-studio-bg lg:flex"
     >
       <div
         role="separator"

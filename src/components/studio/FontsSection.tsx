@@ -213,7 +213,7 @@ export const FontsSection = () => {
               type="submit"
               disabled={busy || full || !source.trim()}
               className="h-8 shrink-0 rounded-studio border border-studio-accent bg-studio-accent px-3 text-xs
-                font-medium text-white transition-colors duration-150 disabled:cursor-not-allowed
+                font-medium text-studio-onaccent transition-colors duration-150 disabled:cursor-not-allowed
                 disabled:border-studio-border disabled:bg-studio-border disabled:text-studio-faint"
             >
               {busy ? 'Checking…' : 'Add'}
@@ -231,7 +231,7 @@ export const FontsSection = () => {
 
       <Field
         label="Built-in fonts"
-        hint="Bundled with Selah, so they render with no internet. Only the first five cover
+        hint="Bundled with LlamaPresenter, so they render with no internet. Only the first five cover
           Georgian."
       >
         <ul className="space-y-2">

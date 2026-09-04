@@ -49,7 +49,7 @@ export const AccountSection = () => {
               type="button"
               onClick={() => void go('/api/stripe/checkout')}
               disabled={busy}
-              className="bg-studio-accent text-white hover:bg-studio-accent rounded-studio px-3 py-1.5 text-xs font-medium transition disabled:opacity-60"
+              className="bg-studio-accent text-studio-onaccent hover:bg-studio-accent rounded-studio px-3 py-1.5 text-xs font-medium transition disabled:opacity-60"
             >
               Upgrade to Pro
             </button>

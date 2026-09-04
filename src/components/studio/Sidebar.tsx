@@ -140,7 +140,7 @@ const DestRadio = ({
  * sits one click away in the settings dialog, summarised at the foot.
  */
 export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) => {
-  const { settings, update, setLangOrder, addLang, removeLang } = useStudio();
+  const { settings, update, setLangOrder, setAdminLang, addLang, removeLang } = useStudio();
 
   // The translation the cards are printed in. An armed language reads in
   // whatever the projector is carrying; only an unarmed one has a browsing
@@ -162,13 +162,13 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
   const spare = LANGS.filter(lang => !settings.langOrder.includes(lang));
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-white">
+    <div className="flex h-full min-h-0 flex-col bg-studio-bg">
       <div className="studio-scroll min-h-0 flex-1 overflow-y-auto">
         <Section title="Browsing in" hint="The language you read on the cards below.">
           <div className="space-y-2">
             <Select
               value={settings.adminLang}
-              onChange={value => update({ adminLang: value as Lang })}
+              onChange={value => setAdminLang(value as Lang)}
               options={settings.langOrder.map(lang => ({ value: lang, label: LANG_LABELS[lang] }))}
               className="w-full"
             />

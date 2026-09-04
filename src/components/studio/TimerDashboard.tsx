@@ -22,9 +22,9 @@ import {
 } from '@/lib/timer/model';
 
 const TONES = {
-  default: 'bg-[#2a2e37] text-white hover:bg-[#3a3f4a]',
-  go: 'bg-studio-go text-white hover:bg-[#19643f]',
-  stop: 'bg-studio-danger text-white hover:bg-[#b91c1c]',
+  default: 'bg-white/10 text-white hover:bg-white/20',
+  go: 'bg-studio-go text-white hover:bg-[#38bd7d]',
+  stop: 'bg-studio-danger text-white hover:bg-[#d94439]',
 } as const;
 
 const KEY_BASE =
@@ -139,7 +139,7 @@ const AdjustGroup = ({ sign }: { sign: 1 | -1 }) => {
           role="menu"
           className={cn(
             'absolute top-full z-30 mt-1 min-w-[92px] overflow-hidden rounded-studio border border-studio-border',
-            'bg-white py-1 shadow-studio-panel',
+            'bg-studio-bg py-1 shadow-studio-panel',
             sign > 0 ? 'left-0' : 'right-0',
           )}
         >
@@ -249,7 +249,7 @@ export const TimerDashboard = () => {
           <button
             type="button"
             onClick={() => updateTimer(resetRun)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-studio border border-studio-border bg-white px-3
+            className="inline-flex h-8 items-center gap-1.5 rounded-studio border border-studio-border bg-studio-bg px-3
               text-xs font-medium text-studio-text transition-colors duration-150 hover:bg-studio-surface
               focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40"
           >

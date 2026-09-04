@@ -362,37 +362,55 @@
   --font-ui:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Georgian', 'Helvetica Neue', Arial, sans-serif;
 
-  /* The console's design system: light only, carried over from the studio.
-     The one dark surface is the slide itself — a verse card is a scale model
-     of the projector, so it is black with white text like the real output. */
-  --color-studio-bg: #ffffff;
-  --color-studio-surface: #f7f8fa;
-  --color-studio-bar: #1b1f27;
-  --color-studio-border: #e5e7eb;
-  --color-studio-divider: #eef0f3;
-  --color-studio-text: #111318;
-  --color-studio-muted: #6b7280;
-  --color-studio-faint: #9ca3af;
-  --color-studio-accent: #2563eb;
-  --color-studio-live: #ef4444;
-  --color-studio-go: #1f7a4d;
-  /* The same green, for the dark bars. #1f7a4d is mixed for white behind it
-     and goes muddy on the output preview's own black — and a lamp that says
+  /* The console's design system. Dark only: the operator sits in a dark booth
+     with a lit screen in front of them, and a white console is a lamp pointed
+     at their face for the length of a service.
+
+     Three colours carry the brand — ink #191818, cream #FDF7E8, yellow #FCDF50
+     — and every token below is one of them or a step between two of them. The
+     one surface that is not on that scale is the slide itself: a verse card is
+     a scale model of the projector, so it stays true black with white text
+     like the real output. */
+  --color-brand-ink: #191818;
+  --color-brand-cream: #fdf7e8;
+  --color-brand-yellow: #fcdf50;
+
+  --color-studio-bg: #101010;
+  --color-studio-surface: #232120;
+  /* One step above a surface: what a hover, a dragged-over drop zone or a
+     raised control reaches for. On white this was simply `white`. */
+  --color-studio-lift: #2e2b28;
+  --color-studio-bar: #100f0f;
+  --color-studio-border: #35312d;
+  --color-studio-divider: #262322;
+  --color-studio-text: #fdf7e8;
+  --color-studio-muted: #a49b8d;
+  --color-studio-faint: #6f675e;
+  --color-studio-accent: #fcdf50;
+  /* Yellow is a light colour: anything sitting on the accent is ink, never
+     white. Every filled accent control reaches for this rather than guessing. */
+  --color-studio-onaccent: #191818;
+  --color-studio-live: #f2564b;
+  --color-studio-go: #2fa36a;
+  /* The same green, for the dark bars. #2fa36a is mixed for the console's own
+     ground and goes muddy on the output preview's black — and a lamp that says
      an output is live has to read from across a booth. */
-  --color-studio-on: #22c55e;
-  --color-studio-danger: #dc2626;
+  --color-studio-on: #3ed17e;
+  --color-studio-danger: #f2564b;
   --color-studio-slide: #000000;
 
   --radius-studio: 6px;
   --radius-studio-lg: 10px;
 
-  --shadow-studio: 0 1px 2px rgba(16, 24, 40, 0.05);
-  --shadow-studio-modal: 0 12px 32px rgba(16, 24, 40, 0.16);
-  --shadow-studio-panel: 0 8px 24px rgba(16, 24, 40, 0.12);
+  /* On a dark ground a shadow cannot be a soft grey haze — it has to be black
+     enough to read as depth against #101010. */
+  --shadow-studio: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-studio-modal: 0 16px 40px rgba(0, 0, 0, 0.6);
+  --shadow-studio-panel: 0 10px 28px rgba(0, 0, 0, 0.5);
 }
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
@@ -533,15 +551,45 @@ body {
   }
 }
 
+/* The three bars on the track that is playing. They move in height, because
+   that is the one thing a level meter has ever done — the previous pulse was
+   opacity, which at 3px wide read as a flicker rather than as sound. Scaled
+   rather than resized so the browser animates it on the compositor, and each
+   bar is given its own duration as well as its own delay: three bars on the
+   same clock at staggered offsets march, and a meter does not march. */
+@keyframes studio-equalizer {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@utility studio-equalizer {
+  transform-origin: bottom;
+  animation: studio-equalizer var(--equalizer-duration, 900ms) ease-in-out infinite;
+  animation-delay: var(--equalizer-delay, 0ms);
+
+  /* Still a meter, just a still one: the bars hold at uneven heights rather
+     than collapsing to a flat line that says nothing is playing. */
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    transform: scaleY(var(--equalizer-rest, 0.7));
+  }
+}
+
 /* Verse HTML from the API carries its own search highlight markup. */
 .markedText {
-  background-color: rgb(254, 238, 114);
-  color: rgb(56, 54, 54);
+  background-color: var(--color-brand-yellow);
+  color: var(--color-brand-ink);
 }
 
 @utility studio-scroll {
   scrollbar-width: thin;
-  scrollbar-color: #d0d5dd transparent;
+  scrollbar-color: #423d38 transparent;
 
   &::-webkit-scrollbar {
     width: 8px;
@@ -553,7 +601,7 @@ body {
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #d0d5dd;
+    background: #423d38;
     border: 2px solid transparent;
     background-clip: content-box;
     border-radius: 9999px;
@@ -584,11 +632,11 @@ body {
     width: 14px;
     height: 14px;
     border-radius: 9999px;
-    background: #ffffff;
+    background: var(--color-brand-cream);
     border: 0;
     box-shadow:
-      0 0 0 1px rgba(16, 24, 40, 0.12),
-      0 1px 4px rgba(16, 24, 40, 0.25);
+      0 0 0 1px rgba(0, 0, 0, 0.5),
+      0 1px 4px rgba(0, 0, 0, 0.45);
     cursor: pointer;
     transition:
       transform 120ms ease,
@@ -599,11 +647,11 @@ body {
     width: 14px;
     height: 14px;
     border-radius: 9999px;
-    background: #ffffff;
+    background: var(--color-brand-cream);
     border: 0;
     box-shadow:
-      0 0 0 1px rgba(16, 24, 40, 0.12),
-      0 1px 4px rgba(16, 24, 40, 0.25);
+      0 0 0 1px rgba(0, 0, 0, 0.5),
+      0 1px 4px rgba(0, 0, 0, 0.45);
     cursor: pointer;
     transition:
       transform 120ms ease,
@@ -623,15 +671,15 @@ body {
   &:active:not(:disabled)::-webkit-slider-thumb,
   &:focus-visible::-webkit-slider-thumb {
     box-shadow:
-      0 0 0 1px rgba(16, 24, 40, 0.12),
-      0 0 0 5px color-mix(in oklab, var(--color-studio-accent) 22%, transparent);
+      0 0 0 1px rgba(0, 0, 0, 0.5),
+      0 0 0 5px color-mix(in oklab, var(--color-studio-accent) 30%, transparent);
   }
 
   &:active:not(:disabled)::-moz-range-thumb,
   &:focus-visible::-moz-range-thumb {
     box-shadow:
-      0 0 0 1px rgba(16, 24, 40, 0.12),
-      0 0 0 5px color-mix(in oklab, var(--color-studio-accent) 22%, transparent);
+      0 0 0 1px rgba(0, 0, 0, 0.5),
+      0 0 0 5px color-mix(in oklab, var(--color-studio-accent) 30%, transparent);
   }
 
   &:focus {
@@ -1244,6 +1292,10 @@ body {
   position: relative;
   overflow: hidden;
   aspect-ratio: 16 / 9;
+  /* The tile is the unit the text inside it is sized against, so a wider grid
+     column gives a bigger picture of the same look rather than the same words
+     at a fixed size floating in more space. */
+  container-type: inline-size;
   /* Stands in for the video the overlay composites over. Deliberately carries
      both a bright and a dark region, so a white plate and a black one are each
      visibly doing something. */
@@ -1252,7 +1304,7 @@ body {
 
 .l3-preview .lower3rd-bar {
   padding: 7% 8% 9%;
-  font-size: 7px;
+  font-size: 4.7cqw;
 }
 
 .l3-preview .lower3rd-bar--top {

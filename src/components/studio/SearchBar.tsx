@@ -102,7 +102,7 @@ export const SearchBar = ({
             onChange={event => setInput(event.target.value)}
             placeholder="Search a passage, e.g. John 3:16-18"
             aria-label="Passage reference"
-            className="h-9 w-full rounded-studio border border-studio-border bg-white pr-3 pl-9 text-sm
+            className="h-9 w-full rounded-studio border border-studio-border bg-studio-bg pr-3 pl-9 text-sm
               text-studio-text placeholder:text-studio-faint focus:border-studio-accent focus:outline-none
               focus-visible:ring-2 focus-visible:ring-studio-accent/40"
           />

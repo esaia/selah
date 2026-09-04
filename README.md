@@ -1,4 +1,4 @@
-# Selah
+# LlamaPresenter
 
 The console churches use to put scripture and song lyrics on a projector and a
 livestream — in up to three languages at the same time, picked from everything

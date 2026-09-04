@@ -46,7 +46,7 @@ const CopyRow = ({ label, url }: { label: string; url: string }) => {
           );
         }}
         className={cn(
-          'flex h-8 w-9 shrink-0 items-center justify-center rounded-studio border bg-white transition-colors',
+          'flex h-8 w-9 shrink-0 items-center justify-center rounded-studio border bg-studio-bg transition-colors',
           'duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
           copied
             ? 'border-studio-go text-studio-go'

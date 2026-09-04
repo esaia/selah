@@ -80,7 +80,7 @@ export const valueOf = (font: CustomFont) => `${CUSTOM_PREFIX}${font.id}`;
  * with the label would orphan the `@font-face` already in the document.
  */
 export const familyNameOf = (font: CustomFont) =>
-  font.kind === 'google' ? font.source.trim() : `selah-${font.id}`;
+  font.kind === 'google' ? font.source.trim() : `llama-${font.id}`;
 
 export const findCustomFont = (value: string, fonts: CustomFont[]): CustomFont | null => {
   const id = customIdOf(value);

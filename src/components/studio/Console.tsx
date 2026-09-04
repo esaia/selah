@@ -125,8 +125,8 @@ export const Console = () => {
 
         {navOpen ? (
           <div className="fixed inset-0 z-40 flex lg:hidden">
-            <div className="flex-1 bg-black/30" onClick={() => setNavOpen(false)} />
-            <div className="w-[18rem] max-w-[85vw] border-l border-studio-border bg-white shadow-studio-panel">
+            <div className="flex-1 bg-black/70" onClick={() => setNavOpen(false)} />
+            <div className="w-[18rem] max-w-[85vw] border-l border-studio-border bg-studio-bg shadow-studio-panel">
               <div className="flex h-12 items-center justify-between border-b border-studio-border px-3">
                 <span className="text-sm font-semibold">Setup</span>
                 <IconButton label="Close setup" onClick={() => setNavOpen(false)}>
@@ -148,7 +148,7 @@ export const Console = () => {
         <main className="flex min-w-0 flex-1 flex-col">
           {tab === 'bible' ? (
             <>
-              <div className="shrink-0 border-b border-studio-border bg-white px-4 py-3">
+              <div className="shrink-0 border-b border-studio-border bg-studio-bg px-4 py-3">
                 <SearchBar browsing={browsing} onBrowse={setBrowsing} />
               </div>
 
@@ -180,7 +180,7 @@ export const Console = () => {
               {/* h-9, the same as the audio rail's fade bar beside it — the
                   two foot the same screen and a three-pixel step between them
                   reads as a mistake. */}
-              <div className="flex h-9 shrink-0 items-center justify-end gap-3 border-t border-studio-border bg-white px-4">
+              <div className="flex h-9 shrink-0 items-center justify-end gap-3 border-t border-studio-border bg-studio-bg px-4">
                 <label className="flex items-center gap-3 text-xs text-studio-muted">
                   Card size
                   <input

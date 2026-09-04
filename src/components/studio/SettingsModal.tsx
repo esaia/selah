@@ -33,9 +33,9 @@ export const SettingsModal = ({ tab: opened, onClose }: { tab: string; onClose: 
   const [tab, setTab] = useState<SettingsTab>(isTab(opened) ? opened : 'projector');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-3 sm:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-6" onClick={onClose}>
       <div
-        className="flex h-full max-h-[44rem] w-full max-w-6xl flex-col overflow-hidden rounded-studio-lg bg-white
+        className="flex h-full max-h-[44rem] w-full max-w-6xl flex-col overflow-hidden rounded-studio-lg bg-studio-bg
           shadow-studio-modal sm:flex-row"
         onClick={event => event.stopPropagation()}
       >
@@ -52,7 +52,7 @@ export const SettingsModal = ({ tab: opened, onClose }: { tab: string; onClose: 
                 'shrink-0 rounded-studio px-4 py-2 text-left text-sm whitespace-nowrap transition-colors duration-150',
                 'sm:w-full sm:rounded-none',
                 tab === name
-                  ? 'bg-white font-medium text-studio-text shadow-studio'
+                  ? 'bg-studio-lift font-medium text-studio-text shadow-studio'
                   : 'text-studio-muted hover:text-studio-text',
               )}
             >

@@ -81,7 +81,7 @@ const Card = ({
         // width, same padding, so nothing under it moves when it goes up.
         message.visible
           ? "border-studio-accent bg-studio-accent/[0.06]"
-          : "border-studio-border bg-white focus-within:border-studio-accent/50",
+          : "border-studio-border bg-studio-bg focus-within:border-studio-accent/50",
         // The browser snapshots the ghost before this paints, so the empty
         // berth lands on the slot the card is holding open rather than on the
         // one in the air.
@@ -185,7 +185,7 @@ const Card = ({
               "transition-colors duration-150 focus:outline-none",
               message.visible
                 ? "border-studio-bar bg-studio-bar text-white"
-                : "border-studio-border bg-white text-studio-text hover:bg-studio-surface",
+                : "border-studio-border bg-studio-bg text-studio-text hover:bg-studio-surface",
             )}
           >
             {/* The label never moves; only the tally lights. */}
@@ -211,10 +211,10 @@ const Card = ({
               "-ml-px inline-flex h-7 w-8 items-center justify-center rounded-r-studio border",
               "transition-colors duration-150 focus:outline-none",
               message.fullScreen
-                ? "border-studio-accent bg-studio-accent text-white"
+                ? "border-studio-accent bg-studio-accent text-studio-onaccent"
                 : message.visible
                   ? "border-studio-bar bg-studio-bar text-white/70 hover:text-white"
-                  : "border-studio-border bg-white text-studio-muted hover:bg-studio-surface hover:text-studio-text",
+                  : "border-studio-border bg-studio-bg text-studio-muted hover:bg-studio-surface hover:text-studio-text",
             )}
           >
             <Expand className="size-3.5" />

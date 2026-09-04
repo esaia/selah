@@ -120,7 +120,7 @@ const DurationInput = ({
         }
       }}
       className={cn(
-        'h-8 rounded-studio border border-studio-border bg-white px-2 text-center text-sm font-semibold',
+        'h-8 rounded-studio border border-studio-border bg-studio-bg px-2 text-center text-sm font-semibold',
         'tabular-nums text-studio-text transition-colors duration-150 focus:outline-none focus-visible:ring-2',
         'focus-visible:ring-studio-accent/40',
         className,
@@ -139,7 +139,7 @@ const Field = ({ label, children }: { label: string; children: ReactNode }) => (
 );
 
 const INPUT =
-  'w-full rounded-studio border border-studio-border bg-white px-2.5 py-1.5 text-sm text-studio-text ' +
+  'w-full rounded-studio border border-studio-border bg-studio-bg px-2.5 py-1.5 text-sm text-studio-text ' +
   'transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40';
 
 /**
@@ -240,7 +240,7 @@ const Panel = ({
       className={cn(
         // The console's ordinary radius, not the larger one: a corner that
         // round left the arrow standing off on its own with nothing to meet.
-        'absolute left-0 z-40 rounded-studio border border-studio-border bg-white p-3 shadow-studio-modal',
+        'absolute left-0 z-40 rounded-studio border border-studio-border bg-studio-bg p-3 shadow-studio-modal',
         above ? 'bottom-full mb-2' : 'top-full mt-2',
         width,
       )}
@@ -251,7 +251,7 @@ const Panel = ({
       <span
         aria-hidden="true"
         className={cn(
-          'absolute left-3 size-2 rotate-45 border-studio-border bg-white',
+          'absolute left-3 size-2 rotate-45 border-studio-border bg-studio-bg',
           above ? '-bottom-[5px] border-r border-b' : '-top-[5px] border-t border-l',
         )}
       />
@@ -329,7 +329,7 @@ export const TimerLength = ({ timer, onClose }: { timer: StageTimer; onClose: ()
             <DurationInput
               value={timer.wrapUp}
               label="Wrap-up warning — with this much left the digits turn amber"
-              className="w-[88px] border-amber-300 text-amber-600"
+              className="w-[88px] border-studio-accent/50 text-studio-accent"
               onCommit={wrapUp => patch({ wrapUp })}
             />
           </Field>
@@ -338,7 +338,7 @@ export const TimerLength = ({ timer, onClose }: { timer: StageTimer; onClose: ()
             <DurationInput
               value={timer.finalAt}
               label="The last stretch — with this much left the digits turn red and beat out the seconds"
-              className="w-[88px] border-red-300 text-studio-danger"
+              className="w-[88px] border-studio-danger/50 text-studio-danger"
               onCommit={finalAt => patch({ finalAt })}
             />
           </Field>

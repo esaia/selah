@@ -14,5 +14,5 @@ export const save = async <T extends PromiseLike<{ error: { message: string } | 
 ): Promise<void> => {
   const { error } = await query;
 
-  if (error) console.error(`[selah] could not save ${what}: ${error.message}`);
+  if (error) console.error(`[llama] could not save ${what}: ${error.message}`);
 };

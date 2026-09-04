@@ -6,7 +6,7 @@ import { railWidthScript } from '@/lib/studio/railWidth';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: { default: 'Selah', template: '%s · Selah' },
+  title: { default: 'LlamaPresenter', template: '%s · LlamaPresenter' },
   description: 'Put scripture on the screen — in up to three languages at once, on any machine in the room.',
 };
 

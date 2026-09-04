@@ -7,7 +7,7 @@ export const metadata = { title: 'Pricing' };
 export default function PricingPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-24">
-      <h1 className="text-4xl">Pricing</h1>
+      <h1 className="text-4xl text-studio-text">Pricing</h1>
       <p className="text-studio-muted mt-4">
         Free covers a congregation putting verses on a screen. Pro is for teams running the whole service.
       </p>
@@ -18,14 +18,14 @@ export default function PricingPage() {
             key={plan.id}
             className={
               plan.id === 'pro'
-                ? 'border-studio-accent/50 bg-white rounded-studio-lg border p-6'
-                : 'border-studio-divider rounded-studio-lg border p-6'
+                ? 'rounded-studio-lg border border-studio-accent/50 bg-studio-surface p-6 shadow-studio-panel'
+                : 'rounded-studio-lg border border-studio-divider p-6'
             }
           >
-            <h2 className="text-sm tracking-[0.2em] uppercase">{plan.name}</h2>
+            <h2 className="text-sm tracking-[0.2em] text-studio-muted uppercase">{plan.name}</h2>
 
             <p className="mt-4">
-              <span className="text-4xl">{plan.price}</span>
+              <span className="text-4xl text-studio-text">{plan.price}</span>
               <span className="text-studio-muted ml-2 text-sm">{plan.cadence}</span>
             </p>
 
@@ -44,8 +44,8 @@ export default function PricingPage() {
               href="/login"
               className={
                 plan.id === 'pro'
-                  ? 'bg-studio-accent text-white hover:bg-studio-accent mt-8 block rounded-studio px-4 py-2.5 text-center text-sm font-medium transition'
-                  : 'border-studio-border hover:border-studio-faint mt-8 block rounded-studio border px-4 py-2.5 text-center text-sm transition'
+                  ? 'mt-8 block rounded-studio bg-studio-accent px-4 py-2.5 text-center text-sm font-medium text-studio-onaccent transition-colors duration-150 hover:bg-[#ffe97a]'
+                  : 'mt-8 block rounded-studio border border-studio-border px-4 py-2.5 text-center text-sm text-studio-text transition-colors duration-150 hover:border-studio-faint hover:bg-studio-surface'
               }
             >
               {plan.id === 'pro' ? 'Start with Pro' : 'Start free'}
