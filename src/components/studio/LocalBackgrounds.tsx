@@ -98,8 +98,10 @@ export const LocalBackgrounds = () => {
                 onClick={() => setLocalBackground(record)}
                 title={record.name}
                 className={cn(
-                  'ring-offset-white h-12 w-full rounded bg-cover bg-center ring-offset-2 transition',
-                  selected === record.id ? 'ring-studio-accent ring-2' : 'hover:ring-studio-border hover:ring-1',
+                  'h-12 w-full rounded-[4px] bg-cover bg-center transition-shadow duration-150 focus:outline-none',
+                  selected === record.id
+                    ? 'ring-2 ring-studio-accent'
+                    : 'ring-1 ring-studio-border hover:ring-studio-faint',
                 )}
                 style={{ backgroundImage: urls[record.id] ? `url(${urls[record.id]})` : undefined }}
               />
@@ -108,7 +110,9 @@ export const LocalBackgrounds = () => {
                 type="button"
                 onClick={() => void remove(record)}
                 aria-label={`Remove ${record.name}`}
-                className="bg-white/80 text-studio-text hover:text-studio-danger absolute -top-1 -right-1 hidden rounded p-0.5 group-hover:block"
+                className="absolute -top-1 -right-1 hidden rounded-[4px] border border-studio-border
+                  bg-studio-bar/90 p-0.5 text-studio-muted transition hover:border-studio-danger
+                  hover:text-studio-danger group-hover:block"
               >
                 <Trash2 className="size-3" />
               </button>

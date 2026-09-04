@@ -141,47 +141,6 @@ export const FontsSection = () => {
   return (
     <div className="space-y-6">
       <Field
-        label="Your fonts"
-        hint="Added from the web rather than uploaded, so they cost nothing to keep. A hall
-          with no internet falls back to the faces below."
-      >
-        {settings.customFonts.length === 0 ? (
-          <p className="rounded-studio border border-dashed border-studio-border px-3 py-4 text-center text-xs text-studio-faint">
-            No fonts of your own yet.
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {settings.customFonts.map(font => (
-              <li
-                key={font.id}
-                className="flex items-center gap-3 rounded-studio border border-studio-border bg-studio-surface px-3 py-2"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-medium text-studio-text">{font.label}</p>
-                  <p className="truncate text-[11px] text-studio-faint">
-                    {font.kind === 'google' ? `Google Fonts · ${font.source}` : font.source}
-                  </p>
-                  <div className="mt-1.5">
-                    <Specimen value={valueOf(font)} fonts={settings.customFonts} langs={langs} />
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => remove(font)}
-                  aria-label={`Remove ${font.label}`}
-                  title={`Remove ${font.label}`}
-                  className="shrink-0 rounded p-1 text-studio-muted transition-colors duration-150 hover:text-studio-danger"
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Field>
-
-      <Field
         label="Add a font"
         hint="Paste the address of a Google Fonts page — fonts.google.com/specimen/Merriweather —
           or a direct link to a .woff2, .woff, .ttf or .otf file."
@@ -227,6 +186,47 @@ export const FontsSection = () => {
             </p>
           ) : null}
         </form>
+      </Field>
+
+      <Field
+        label="Your fonts"
+        hint="Added from the web rather than uploaded, so they cost nothing to keep. A hall
+          with no internet falls back to the faces below."
+      >
+        {settings.customFonts.length === 0 ? (
+          <p className="rounded-studio border border-dashed border-studio-border px-3 py-4 text-center text-xs text-studio-faint">
+            No fonts of your own yet.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {settings.customFonts.map(font => (
+              <li
+                key={font.id}
+                className="flex items-center gap-3 rounded-studio border border-studio-border bg-studio-surface px-3 py-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-studio-text">{font.label}</p>
+                  <p className="truncate text-[11px] text-studio-faint">
+                    {font.kind === 'google' ? `Google Fonts · ${font.source}` : font.source}
+                  </p>
+                  <div className="mt-1.5">
+                    <Specimen value={valueOf(font)} fonts={settings.customFonts} langs={langs} />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => remove(font)}
+                  aria-label={`Remove ${font.label}`}
+                  title={`Remove ${font.label}`}
+                  className="shrink-0 rounded p-1 text-studio-muted transition-colors duration-150 hover:text-studio-danger"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Field>
 
       <Field
