@@ -47,6 +47,17 @@ domain vocabulary. This file is the working agreement on top of it.
   showing — the projector and the stage never see one. Its hold travels as
   `firedAt` + `holdMs` and is counted down by each reader, never over the wire.
   `lib/lower3rd/card.ts` is pure and tested; put new cases there.
+- **A font the operator adds is a link, never a file.** `settings.customFonts`
+  holds `{ id, label, kind, source }` — a Google Fonts family, or an https link
+  to a woff2/woff/ttf/otf — and the pickers store it as `custom:<id>`. Nothing
+  about a typeface goes through the peer-asset path a background does: an
+  output already has the network, so it fetches the face itself. Only the faces
+  a slide actually names ride in the payload, and `lib/projector/fonts.ts` is
+  the one place that turns a stored value into a class or a family — it is
+  pure, it is tested, and a value naming a font that has since been deleted
+  falls back there rather than on the wall. Third-party CSS is never injected:
+  a Google URL is one we build, and a pasted link is wrapped in our own
+  `@font-face`.
 - **Media is never uploaded.** Backgrounds and music stay in IndexedDB; the
   database holds metadata only. Do not "simplify" this into Supabase Storage
   without asking — it is a deliberate cost decision.
@@ -57,8 +68,9 @@ domain vocabulary. This file is the working agreement on top of it.
   chrome is dark, and only dark.
 - Typefaces the operator can pick are Tailwind class names (`font-banner`, …)
   stored verbatim in `settings.font`. They are declared in `@theme` in
-  `globals.css`; adding one means adding it there and to `FONTS` in
-  `SettingsModal`.
+  `globals.css`; adding one means adding it there, dropping the woff2 subsets
+  in `public/fonts`, and adding a row to `BUILT_IN_FONTS` in
+  `lib/projector/fonts.ts`.
 - Server components load data; client components hold state. The console is
   handed everything it needs as `initial` props rather than fetching after
   paint — opening it mid-service and watching a spinner is the thing to avoid.

@@ -6,12 +6,14 @@ import { useSearchParams } from 'next/navigation';
 import { openLiveChannel } from '@/lib/live/channel';
 import { asCardRun, isShowing, remainingOf, withSkew, type CardRun } from '@/lib/lower3rd/card';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
+import { DEFAULT_FONT, fontStyleOf } from '@/lib/projector/fonts';
 import { keepSame } from '@/lib/projector/keepSame';
 import { apiBookName } from '@/lib/bible/passage';
 import { asTimerState, withSkew as withTimerSkew, type TimerState } from '@/lib/timer/model';
 import { emptyShowData, LANGS, REQUIRED_LANG, type Align, type Lang, type ShowData, type StreamStyle } from '@/lib/types';
 
 import { TimerScreen } from './TimerScreen';
+import { useCustomFonts } from './useCustomFonts';
 
 const ALIGN_CLASS: Record<Align, string> = { left: 'text-left', center: 'text-center', right: 'text-right' };
 
@@ -40,9 +42,9 @@ const FONT_DIVISOR = { verse: 26, lyrics: 28 };
 const MAX_HEIGHT_RATIO = 0.34;
 
 const defaultStyle: StreamStyle = {
-  font: 'font-banner',
+  font: DEFAULT_FONT,
   align: 'left',
-  lyricsFont: 'font-banner',
+  lyricsFont: DEFAULT_FONT,
   lyricsAlign: 'left',
   order: [REQUIRED_LANG],
   enabled: { [REQUIRED_LANG]: true },
@@ -51,6 +53,7 @@ const defaultStyle: StreamStyle = {
   variant: 'scrim',
   lyricsVariant: 'scrim',
   hidden: false,
+  fonts: [],
 };
 
 /** Is there anything on this slide worth putting on screen? */
@@ -198,7 +201,13 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
 
   const { showData, style } = onScreen;
   const lyrics = showData?.lyrics;
+  const type = fontStyleOf(lyrics ? style.lyricsFont : style.font, style.fonts);
   const blanked = slide.style.hidden;
+
+  // Fetched from the incoming slide rather than the one on screen, so the face
+  // is in the document before the crossfade hands it any text to draw.
+  useCustomFonts(slide.style.fonts ?? []);
+
   const shown = !blanked && hasContent(slide.showData, slide.style.enabled);
 
   // Mid-transition is "a new slide has arrived and is not on screen yet".
@@ -335,7 +344,7 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
   const timerShowing = !blanked && !cardShowing && timer.onStream;
 
   return (
-    <div className={`lower3rd-stage ${lyrics ? style.lyricsFont : style.font}`}>
+    <div className={`lower3rd-stage ${type.className}`} style={type.style ? { fontFamily: type.style } : undefined}>
       {card ? <NameCard run={card} visible={cardShowing} /> : null}
 
       {timerShowing ? (

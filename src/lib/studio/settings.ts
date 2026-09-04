@@ -1,4 +1,5 @@
 import { defaultVersionOf, isLang, MAX_LANGS, REQUIRED_LANG, specOf, type Lang } from '@/lib/bible/languages';
+import { asCustomFonts, DEFAULT_FONT, fontsUsedBy, type CustomFont } from '@/lib/projector/fonts';
 import {
   asScaleMode,
   clampTextSize,
@@ -43,6 +44,11 @@ export interface Settings {
   streamAlign: Align;
   streamLyricsFont: string;
   streamLyricsAlign: Align;
+  /**
+   * Typefaces the operator added themselves, held whole here and narrowed to
+   * what is in use on the way out. See `lib/projector/fonts.ts`.
+   */
+  customFonts: CustomFont[];
   projectorLook: string;
   projectorLyricsLook: string;
   lyricsScale: ScaleMode;
@@ -110,17 +116,18 @@ export const fromRow = (row: SettingsRow): Settings => {
     theme: row.theme || '1',
     dynamicImage: row.dynamic_image || '',
     localImage: (row.local_image as LocalFileMeta | null) ?? null,
-    font: row.font || 'font-banner',
+    font: row.font || DEFAULT_FONT,
     align: asAlign(row.align),
-    lyricsFont: row.lyrics_font || row.font || 'font-banner',
+    lyricsFont: row.lyrics_font || row.font || DEFAULT_FONT,
     lyricsAlign: asAlign(row.lyrics_align ?? row.align),
     // Empty is a row written before the stream had type of its own, and it
     // reads as the projector's — which is what the stream was drawn in until
     // now, so nothing moves under an operator who never opens the panel.
-    streamFont: row.stream_font || row.font || 'font-banner',
+    streamFont: row.stream_font || row.font || DEFAULT_FONT,
     streamAlign: asAlign(row.stream_align || row.align),
-    streamLyricsFont: row.stream_lyrics_font || row.lyrics_font || row.font || 'font-banner',
+    streamLyricsFont: row.stream_lyrics_font || row.lyrics_font || row.font || DEFAULT_FONT,
     streamLyricsAlign: asAlign(row.stream_lyrics_align || row.lyrics_align || row.align),
+    customFonts: asCustomFonts(row.custom_fonts),
     projectorLook: row.projector_look || DEFAULT_VERSE_LOOK,
     // 'steady' was a layout before song text got its own scaling control; it
     // said "hold the size still", which is now a mode rather than a look.
@@ -157,6 +164,7 @@ export const toRow = (settings: Settings) => ({
   stream_align: settings.streamAlign,
   stream_lyrics_font: settings.streamLyricsFont,
   stream_lyrics_align: settings.streamLyricsAlign,
+  custom_fonts: settings.customFonts,
   projector_look: settings.projectorLook,
   projector_lyrics_look: settings.projectorLyricsLook,
   lyrics_scale: settings.lyricsScale,
@@ -187,6 +195,7 @@ export const projectorStyle = (settings: Settings): ProjectorStyle => ({
   order: settings.langOrder,
   enabled: settings.enabled,
   transitionMs: settings.transitionMs,
+  fonts: fontsUsedBy([settings.font, settings.lyricsFont], settings.customFonts),
 });
 
 /** The armed languages, in the order the operator has them. */
@@ -233,5 +242,6 @@ export const streamStyle = (settings: Settings): StreamStyle => {
     variant: settings.lowerThirdVariant,
     lyricsVariant: settings.lyricsVariant,
     hidden: settings.obsHidden,
+    fonts: fontsUsedBy([settings.streamFont, settings.streamLyricsFont], settings.customFonts),
   };
 };

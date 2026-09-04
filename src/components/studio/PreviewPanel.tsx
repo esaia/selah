@@ -6,6 +6,7 @@ import { HiOutlinePencil } from 'react-icons/hi';
 import { cn } from '@/lib/cn';
 import { SCREEN_LABELS } from '@/lib/live/blackout';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
+import { sameVerse } from '@/lib/projector/keepSame';
 import { fitTo, lookOf } from '@/lib/projector/looks';
 import { DYNAMIC_THEME, LOCAL_THEME, themeSrc } from '@/lib/projector/themes';
 import { loadLocalFile } from '@/lib/media/localMedia';
@@ -174,8 +175,17 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
   const [displayed, setDisplayed] = useState<ShowData>(showData);
 
   const cut = fadeMs === 0;
-  const onScreen = cut ? showData : displayed;
-  const visible = cut || showData === displayed;
+
+  // Disarming a language rebuilds the slide without it, and the words that
+  // remain are the ones already on screen. That is a line being dropped, not a
+  // slide being changed, so it goes up at once: read as a new slide it would
+  // crossfade out and back, which from the back of a hall is the projector
+  // blinking because the operator touched a switch.
+  const restyled = showData !== displayed && sameVerse(displayed, showData);
+
+  const onScreen = cut || restyled ? showData : displayed;
+  const visible = cut || restyled || showData === displayed;
+
 
   useEffect(() => {
     if (visible) return;
@@ -199,7 +209,12 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
   // Same fit as the projector, in proportion to the panel: the look supplies
   // the bounds as fractions of the screen height, so a slide that fills the
   // projector fills the preview too.
-  useEffect(() => {
+  // A layout effect, not an effect: fitting after the frame is painted means
+  // the panel shows one frame of the outgoing size — disarming a language
+  // leaves the remaining text briefly at the size it had when it was sharing
+  // the slide, and only then jumps. Measured and set before the paint, there
+  // is nothing to see in between.
+  useLayoutEffect(() => {
     const refit = () => {
       const height = screenRef.current?.clientHeight ?? 0;
       const { available, min, max } = fitTo(look, height, {

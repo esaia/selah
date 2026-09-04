@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { Select } from '@/components/ui/Select';
 import { Toggle } from '@/components/ui/Toggle';
 import { cn } from '@/lib/cn';
+import { fontLabelOf } from '@/lib/projector/fonts';
 import { THEMES } from '@/lib/projector/themes';
 import { stageLangOf, streamLangOf } from '@/lib/studio/settings';
 import { useStudio } from '@/lib/studio/StudioProvider';
@@ -301,7 +302,7 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
         <SummaryRow
           icon={<MonitorPlay className="size-4" />}
           label="Projector look"
-          value={`${theme?.label ?? 'Custom image'} · ${settings.font.replace('font-', '')}`}
+          value={`${theme?.label ?? 'Custom image'} · ${fontLabelOf(settings.font, settings.customFonts)}`}
           thumb={theme?.src}
           onClick={() => onSettings('projector')}
         />

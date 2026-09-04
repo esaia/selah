@@ -1,3 +1,5 @@
+import { LANGS, type ShowData } from '@/lib/types';
+
 /**
  * Identity, kept across a payload that says nothing new.
  *
@@ -12,6 +14,33 @@
  * and the transition never starts.
  */
 export const keepSame = <T>(current: T, next: T): T => (equal(current, next) ? current : next);
+
+/**
+ * Is this the same verse, wearing a different set of languages?
+ *
+ * `keepSame` covers a payload that says nothing new. This covers the next case
+ * along: the operator disarms a language, the slide is rebuilt without it, and
+ * the words that remain are word for word the ones already on the wall. That
+ * is a line being dropped, not a slide being changed — the screen should let
+ * it go without crossfading out and back, which reads from the back of a hall
+ * as the projector having blinked.
+ *
+ * True only when every language the two slides share is identical. If any
+ * shared language reads differently the verse itself moved, and that is a
+ * change the room should see the transition for. Songs never qualify: a lyric
+ * slide has no languages to arm, so its text changing is always a new slide.
+ */
+export const sameVerse = (current: ShowData, next: ShowData): boolean => {
+  if (!current || !next || current.lyrics || next.lyrics) return false;
+
+  const langs = LANGS.filter(lang => current[lang]?.length && next[lang]?.length);
+
+  // Nothing in common is not "the same verse with less of it" — it is a blank
+  // screen, or a different passage, and both deserve the transition.
+  if (langs.length === 0) return false;
+
+  return langs.every(lang => equal(current[lang], next[lang]));
+};
 
 const equal = (a: unknown, b: unknown): boolean => {
   if (Object.is(a, b)) return true;

@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { HiOutlineLink, HiOutlineScissors, HiOutlineX } from 'react-icons/hi';
 
 import { cn } from '@/lib/cn';
+import { fontStyleOf, type CustomFont } from '@/lib/projector/fonts';
 import { fitText } from '@/lib/projector/fitText';
 import { plain, verseRef } from '@/lib/studio/text';
 import type { Align, Lang, Verse } from '@/lib/types';
@@ -37,6 +38,7 @@ export const VerseCard = ({
   lang,
   isLive,
   font,
+  fonts,
   align = 'left',
   size = 190,
   onGoLive,
@@ -48,6 +50,7 @@ export const VerseCard = ({
   lang: Lang;
   isLive: boolean;
   font: string;
+  fonts: CustomFont[];
   align?: Align;
   size?: number;
   onGoLive: () => void;
@@ -70,6 +73,7 @@ export const VerseCard = ({
 
   const text = verses.map(item => plain(item.bv)).join(' ');
   const refSize = clamp(Math.round(size / 24), 7, 14);
+  const type = fontStyleOf(font, fonts);
 
   useLayoutEffect(() => {
     if (bodyRef.current) {
@@ -113,11 +117,12 @@ export const VerseCard = ({
         className={cn(
           'flex aspect-video w-full flex-col justify-between rounded-[4px] bg-studio-slide p-2 text-left',
           'transition-shadow duration-150 focus:outline-none',
-          font,
+          type.className,
           isLive
             ? 'ring-4 ring-studio-live'
             : 'ring-1 ring-transparent hover:ring-2 hover:ring-studio-accent focus-visible:ring-2 focus-visible:ring-studio-accent',
         )}
+        style={type.style ? { fontFamily: type.style } : undefined}
       >
         <span ref={bodyRef} className="flex flex-1 items-center justify-center overflow-hidden">
           <span ref={textRef} className={cn('w-full leading-snug font-semibold text-white', ALIGN_CLASS[align])}>

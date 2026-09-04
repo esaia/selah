@@ -83,6 +83,7 @@ export interface Database {
         stream_align: string;
         stream_lyrics_font: string;
         stream_lyrics_align: string;
+        custom_fonts: Json;
         projector_look: string;
         projector_lyrics_look: string;
         lyrics_scale: string;

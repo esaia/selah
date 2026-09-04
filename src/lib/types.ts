@@ -12,6 +12,7 @@ export {
 export type { Lang, LangSpec } from '@/lib/bible/languages';
 
 import type { Lang } from '@/lib/bible/languages';
+import type { CustomFont } from '@/lib/projector/fonts';
 import type { ScaleMode } from '@/lib/projector/looks';
 
 /**
@@ -70,6 +71,12 @@ export interface ProjectorStyle {
   order: Lang[];
   enabled: Partial<Record<Lang, boolean>>;
   transitionMs: number;
+  /**
+   * The added faces this slide actually names, so the output can fetch them.
+   * Only the ones in use travel: the library is the operator's, and a slide is
+   * not the place to carry it.
+   */
+  fonts: CustomFont[];
 }
 
 /**
@@ -88,6 +95,8 @@ export interface StreamStyle {
   variant: string;
   lyricsVariant: string;
   hidden: boolean;
+  /** As on `ProjectorStyle`: the added faces this overlay draws, and no more. */
+  fonts: CustomFont[];
 }
 
 /** Identity of a file living in the operator's own browser, not on a server. */

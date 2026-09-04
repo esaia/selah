@@ -112,6 +112,7 @@ export const SlideGrid = ({
               index={index}
               size={cardSize}
               font={settings.lyricsFont}
+              fonts={settings.customFonts}
               align={settings.lyricsAlign}
               isLive={onScreen && live.slideIndex === index}
               onGoLive={() => selectLyric(song, index)}

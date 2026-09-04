@@ -6,7 +6,8 @@ import { asBlackout } from '@/lib/live/blackout';
 import { newPeerId, openLiveChannel, type LiveChannel } from '@/lib/live/channel';
 import type { SignalTransport, SlidePayload } from '@/lib/live/protocol';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
-import { keepSame } from '@/lib/projector/keepSame';
+import { DEFAULT_FONT } from '@/lib/projector/fonts';
+import { keepSame, sameVerse } from '@/lib/projector/keepSame';
 import { DEFAULT_LYRIC_LOOK, DEFAULT_TEXT_SIZE, DEFAULT_VERSE_LOOK, fitTo, lookOf } from '@/lib/projector/looks';
 import { DYNAMIC_THEME, LOCAL_THEME, themeSrc } from '@/lib/projector/themes';
 import { asTimerState, withSkew, type TimerState } from '@/lib/timer/model';
@@ -14,6 +15,7 @@ import { emptyShowData, REQUIRED_LANG, type ProjectorStyle, type ShowData } from
 
 import { Slide } from './Slide';
 import { TimerScreen } from './TimerScreen';
+import { useCustomFonts } from './useCustomFonts';
 import { useLocalBackground } from './useLocalBackground';
 
 const MIN_FONT_SIZE = 12;
@@ -24,9 +26,9 @@ const defaultStyle: ProjectorStyle = {
   theme: '1',
   dynamicImage: '',
   localImage: null,
-  font: 'font-banner',
+  font: DEFAULT_FONT,
   align: 'left',
-  lyricsFont: 'font-banner',
+  lyricsFont: DEFAULT_FONT,
   lyricsAlign: 'left',
   look: DEFAULT_VERSE_LOOK,
   lyricsLook: DEFAULT_LYRIC_LOOK,
@@ -35,6 +37,7 @@ const defaultStyle: ProjectorStyle = {
   order: [REQUIRED_LANG],
   enabled: { [REQUIRED_LANG]: true },
   transitionMs: 320,
+  fonts: [],
 };
 
 export interface ProjectorInitial {
@@ -106,6 +109,11 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
 
   const localUrl = useLocalBackground(style.theme === LOCAL_THEME ? style.localImage : null, transport);
 
+  // The operator's own typefaces, fetched by this page rather than served to
+  // it: a font is a link, which is why it needs none of the peer machinery a
+  // background does.
+  useCustomFonts(style.fonts ?? []);
+
   const background = useMemo(() => {
     if (style.theme === LOCAL_THEME) return localUrl;
     if (style.theme === DYNAMIC_THEME) return style.dynamicImage;
@@ -119,11 +127,19 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
   const cut = style.transitionMs === 0;
   // A hard cut has nothing to fade, so it draws the incoming slide directly and
   // the screen never blanks, however briefly.
-  const onScreen = cut ? showData : displayed;
+  // Disarming a language rebuilds the slide without it, and the words that
+  // remain are the ones already on screen. That is a line being dropped, not a
+  // slide being changed, so it goes up at once: read as a new slide it would
+  // crossfade out and back, which from the back of a hall is the projector
+  // blinking because the operator touched a switch.
+  const restyled = showData !== displayed && sameVerse(displayed, showData);
+
+  const onScreen = cut || restyled ? showData : displayed;
 
   // Mid-crossfade is exactly "a new slide has arrived and is not on screen
   // yet", so visibility is read off that rather than tracked separately.
-  const visible = cut || showData === displayed;
+  const visible = cut || restyled || showData === displayed;
+
 
   useEffect(() => {
     if (visible) return;

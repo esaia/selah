@@ -61,12 +61,20 @@ export const fitText = (
 };
 
 /**
- * Run `refit` again once web fonts have swapped in.
+ * Run `refit` again whenever web fonts swap in.
  *
  * On a cold load the first measurement happens with fallback-font metrics,
  * which are narrower than BPG Banner Caps — the fit comes out too large and
  * the text is clipped until something else (a resize, a new verse) triggers a
- * remeasure. Returns a cleanup that cancels the pending callback.
+ * remeasure.
+ *
+ * `document.fonts.ready` settles once and covers that cold load. It does not
+ * cover a face the operator adds mid-service: a font fetched from a CDN lands
+ * long after the promise resolved, swaps in under already-fitted text, and
+ * leaves it clipped with nothing to trigger a remeasure. `loadingdone` fires
+ * for each of those, so both are watched.
+ *
+ * Returns a cleanup that cancels the pending callback and drops the listener.
  */
 export const refitOnFontLoad = (refit: () => void) => {
   if (!document.fonts?.ready) {
@@ -74,14 +82,29 @@ export const refitOnFontLoad = (refit: () => void) => {
   }
 
   let cancelled = false;
+  let frame = 0;
 
-  document.fonts.ready.then(() => {
-    if (!cancelled) {
-      refit();
-    }
-  });
+  // Coalesced to one refit a frame. `loadingdone` fires per batch the browser
+  // finishes, and a page holding a dozen families fetches their subsets in
+  // bursts — the console draws a specimen of every face it offers. Refitting
+  // per event re-measures and resizes the text several times in as many
+  // frames, which reads as a flicker rather than as a fit.
+  const onDone = () => {
+    if (cancelled || frame) return;
+
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+
+      if (!cancelled) refit();
+    });
+  };
+
+  document.fonts.ready.then(onDone);
+  document.fonts.addEventListener('loadingdone', onDone);
 
   return () => {
     cancelled = true;
+    cancelAnimationFrame(frame);
+    document.fonts.removeEventListener('loadingdone', onDone);
   };
 };

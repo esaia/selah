@@ -5,6 +5,7 @@ import { HiOutlinePencil } from 'react-icons/hi';
 
 import { IconButton } from '@/components/ui/IconButton';
 import { cn } from '@/lib/cn';
+import { fontStyleOf, type CustomFont } from '@/lib/projector/fonts';
 import { colorOf } from '@/lib/lyrics/groups';
 import { fitText } from '@/lib/projector/fitText';
 import type { Align, SongSlide } from '@/lib/types';
@@ -21,6 +22,7 @@ export const LyricCard = ({
   index,
   isLive,
   font,
+  fonts,
   align = 'center',
   size = 190,
   onGoLive,
@@ -31,6 +33,7 @@ export const LyricCard = ({
   index: number;
   isLive: boolean;
   font: string;
+  fonts: CustomFont[];
   align?: Align;
   size?: number;
   onGoLive: () => void;
@@ -39,6 +42,7 @@ export const LyricCard = ({
 }) => {
   const bodyRef = useRef<HTMLSpanElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
+  const type = fontStyleOf(font, fonts);
 
   useLayoutEffect(() => {
     if (bodyRef.current) {
@@ -93,11 +97,12 @@ export const LyricCard = ({
         className={cn(
           'flex aspect-video w-full flex-col justify-center rounded-[4px] bg-studio-slide p-2 text-left',
           'transition-shadow duration-150 focus:outline-none',
-          font,
+          type.className,
           isLive
             ? 'ring-4 ring-studio-live'
             : 'ring-1 ring-transparent hover:ring-2 hover:ring-studio-accent focus-visible:ring-2 focus-visible:ring-studio-accent',
         )}
+        style={type.style ? { fontFamily: type.style } : undefined}
       >
         <span ref={bodyRef} className="flex flex-1 items-center justify-center overflow-hidden">
           <span ref={textRef} className={cn('w-full leading-snug font-semibold text-white', ALIGN_CLASS[align])}>

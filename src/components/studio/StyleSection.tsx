@@ -5,6 +5,7 @@ import { MdFormatAlignCenter, MdFormatAlignLeft, MdFormatAlignRight } from 'reac
 
 import { Select } from '@/components/ui/Select';
 import { cn } from '@/lib/cn';
+import { fontOptions, type CustomFont } from '@/lib/projector/fonts';
 import {
   asScaleMode,
   clampTextSize,
@@ -25,18 +26,6 @@ const ALIGNMENTS = [
   { value: 'center' as Align, label: 'Align center', Icon: MdFormatAlignCenter },
   { value: 'right' as Align, label: 'Align right', Icon: MdFormatAlignRight },
 ];
-
-// Only the first two are Georgian-only / Latin-only; the rest cover Georgian,
-// Latin, Cyrillic and Georgian, so one typeface serves most language sets.
-export const FONTS = [
-  { value: 'font-banner', label: 'BPG Banner Caps (Georgian)' },
-  { value: 'font-valera', label: 'Varela Round (Latin)' },
-  { value: 'font-firago', label: 'FiraGO' },
-  { value: 'font-notosans', label: 'Noto Sans' },
-  { value: 'font-notoserif', label: 'Noto Serif' },
-];
-
-export const fontLabel = (value: string) => FONTS.find(font => font.value === value)?.label ?? value;
 
 /** A titled block inside the settings dialog. */
 export const Field = ({
@@ -68,6 +57,7 @@ export const TypeRow = ({
   label,
   hint,
   font,
+  fonts,
   setFont,
   align,
   setAlign,
@@ -75,13 +65,15 @@ export const TypeRow = ({
   label: string;
   hint: string;
   font: string;
+  /** The operator's own faces, offered below the ones we ship. */
+  fonts: CustomFont[];
   setFont: (value: string) => void;
   align: Align;
   setAlign: (value: Align) => void;
 }) => (
   <Field label={label} hint={hint}>
     <div className="flex items-center gap-1.5">
-      <Select className="min-w-0 flex-1" value={font} onChange={setFont} options={FONTS} />
+      <Select className="min-w-0 flex-1" value={font} onChange={setFont} options={fontOptions(fonts)} />
 
       <div className="flex shrink-0 items-center gap-0.5 rounded-studio border border-studio-border p-0.5">
         {ALIGNMENTS.map(({ value, label: title, Icon }) => (
@@ -219,6 +211,7 @@ export const StyleSection = () => {
           label="Verse type"
           hint="Typeface and alignment for Bible slides."
           font={settings.font}
+          fonts={settings.customFonts}
           setFont={value => update({ font: value })}
           align={settings.align}
           setAlign={value => update({ align: value })}
@@ -228,6 +221,7 @@ export const StyleSection = () => {
           label="Lyric type"
           hint="Song slides get their own look."
           font={settings.lyricsFont}
+          fonts={settings.customFonts}
           setFont={value => update({ lyricsFont: value })}
           align={settings.lyricsAlign}
           setAlign={value => update({ lyricsAlign: value })}

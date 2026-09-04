@@ -126,6 +126,7 @@ export const StreamSection = () => {
           label="Verse type"
           hint="Typeface and alignment for Bible slides on the stream."
           font={settings.streamFont}
+          fonts={settings.customFonts}
           setFont={value => update({ streamFont: value })}
           align={settings.streamAlign}
           setAlign={value => update({ streamAlign: value })}
@@ -135,6 +136,7 @@ export const StreamSection = () => {
           label="Lyric type"
           hint="Song slides on the stream get their own look."
           font={settings.streamLyricsFont}
+          fonts={settings.customFonts}
           setFont={value => update({ streamLyricsFont: value })}
           align={settings.streamLyricsAlign}
           setAlign={value => update({ streamLyricsAlign: value })}

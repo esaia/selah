@@ -200,6 +200,7 @@ export const PassageBlock = ({
                     items={groupVerses(block, lang, group)}
                     lang={lang}
                     font={settings.font}
+                    fonts={settings.customFonts}
                     align={settings.align}
                     size={cardSize}
                     isLive={live?.kind !== 'lyrics' && live?.blockId === block.id && live?.verseIndex === groupIndex}

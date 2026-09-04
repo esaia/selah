@@ -2,6 +2,7 @@ import type { RefObject } from 'react';
 
 import { apiBookName } from '@/lib/bible/passage';
 import { cn } from '@/lib/cn';
+import { fontStyleOf } from '@/lib/projector/fonts';
 import { DEFAULT_LYRIC_LOOK, DEFAULT_VERSE_LOOK } from '@/lib/projector/looks';
 import type { Align, Lang, ProjectorStyle, ShowData, Verse } from '@/lib/types';
 
@@ -78,16 +79,22 @@ export const Slide = ({
     ? style.lyricsLook || DEFAULT_LYRIC_LOOK
     : style.look || DEFAULT_VERSE_LOOK;
 
+  // A shipped face is a class and nothing else; one the operator added has no
+  // class and is named inline instead. `fontStyleOf` decides which, so a font
+  // deleted from the library falls back here rather than on the wall.
+  const type = fontStyleOf(lyrics ? style.lyricsFont : style.font, style.fonts);
+
   return (
     <div
       ref={ref}
       className={cn(
         'show-slide',
         `show-slide--${look}`,
-        lyrics ? style.lyricsFont : style.font,
+        type.className,
         ALIGN_CLASS[lyrics ? style.lyricsAlign : style.align],
         className,
       )}
+      style={type.style ? { fontFamily: type.style } : undefined}
     >
       {lyrics ? (
         // A song slide is one block of text: no reference, no language stack,

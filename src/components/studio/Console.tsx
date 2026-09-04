@@ -3,6 +3,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { X } from 'lucide-react';
 
+import { useCustomFonts } from '@/components/projector/useCustomFonts';
 import { IconButton } from '@/components/ui/IconButton';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import { toggleRun } from '@/lib/timer/model';
@@ -29,7 +30,13 @@ import { TimerPanel } from './TimerPanel';
  * during a service the operator's hand is not on the mouse.
  */
 export const Console = () => {
-  const { blocks, stepLive, cardSize, setCardSize, tab, loading, updateTimer, orderBlocks } = useStudio();
+  const { blocks, stepLive, cardSize, setCardSize, tab, loading, updateTimer, orderBlocks, settings } = useStudio();
+
+  // The console draws its own copies of the slide — the preview panel, every
+  // card, the specimens in the settings dialog — so the operator's own faces
+  // have to be in this document too. The whole library and not just what is
+  // live, because a face is being looked at here before it is chosen.
+  useCustomFonts(settings.customFonts);
 
   // The running order of passages. Every block folds while one is in the air —
   // see `PassageBlock` — so the whole order fits on screen as it is rearranged.
