@@ -83,14 +83,10 @@ export const SlideGrid = ({
           className="sticky top-0 z-20 mb-3 -ml-1 -mr-4 flex items-center justify-between gap-2 border-b
             border-studio-border bg-studio-surface py-1.5 pr-4 pl-1"
         >
-          <span className="flex min-w-0 items-center gap-2">
-            {/* A dot, and nothing more: enough to find the song that is up
-                while scrolling past it, quiet enough not to be read as the
-                live card itself. */}
-            {onScreen ? <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-studio-live" /> : null}
-
-            <span className="truncate text-sm font-semibold text-studio-text">{song.title}</span>
-          </span>
+          {/* Nothing here marks the live song. The card that is on the
+              projector already says so, and a second red mark in the strip
+              above it only competes with the first. */}
+          <span className="truncate text-sm font-semibold text-studio-text">{song.title}</span>
 
           <span className="shrink-0 text-[11px] text-studio-faint tabular-nums">
             {song.slides.length} slide{song.slides.length === 1 ? '' : 's'}

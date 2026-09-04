@@ -47,6 +47,16 @@ export const Console = () => {
         target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)),
       );
 
+      // Escape puts the finder away wherever the operator's hands are. Each
+      // panel takes Escape itself, but only while the caret is still in its
+      // box — after a click into the results the key had nowhere to land.
+      if (event.key === 'Escape' && (searching || browsing)) {
+        event.preventDefault();
+        setSearching(false);
+        setBrowsing(false);
+        return;
+      }
+
       // Find, meaning "find me something to put up" — which is a different
       // thing on each tab: the songs on the lyrics tab, and the books on the
       // Bible tab, where the operator wants the whole list and not the box
@@ -86,7 +96,7 @@ export const Console = () => {
     window.addEventListener('keydown', onKey);
 
     return () => window.removeEventListener('keydown', onKey);
-  }, [stepLive, tab, updateTimer]);
+  }, [browsing, searching, stepLive, tab, updateTimer]);
 
   return (
     <div className="flex h-dvh flex-col bg-studio-bg">

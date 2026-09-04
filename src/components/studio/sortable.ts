@@ -97,6 +97,12 @@ const ghostOf = (event: DragEvent<HTMLElement>) => {
   requestAnimationFrame(() => copy.remove());
 };
 
+/**
+ * How far a row has to be entered before it gives up its place, as a share of
+ * the row along the direction of travel.
+ */
+const GIVE = 0.2;
+
 export const LIFTED_SLOT =
   'bg-studio-surface bg-none outline-1 -outline-offset-1 outline-dashed outline-studio-border ' +
   '[&>*]:invisible before:hidden';
@@ -220,22 +226,32 @@ export const useSortable = <T>(
 
         if (index < 0 || index === from) return;
 
-        // The row only gives way once the pointer is past its middle, and only
-        // in the direction of travel. Swapping on the first pixel of overlap
-        // put two rows in a loop, each handing the slot back to the other.
+        // The row gives way once the pointer is a little way into it from the
+        // edge it came in by — not on the first pixel of overlap, which put two
+        // rows in a loop each handing the slot back to the other, and not only
+        // at the middle, which made the operator push a card most of the way
+        // over its neighbour before the list would admit what they meant.
         //
-        // "Past its middle" is along the reading order: down a column, and
-        // across a card the pointer is level with in a grid. Judged by the
-        // pointer being inside the card's own band rather than by counting
-        // columns, so it holds however the grid has wrapped at this width.
+        // GIVE is how far in, as a share of the row along the direction of
+        // travel. Anything above zero is enough to break the loop: the swap
+        // leaves the neighbour in the berth behind the pointer, not under it.
+        //
+        // The direction is the reading order: down a column, and across a card
+        // the pointer is level with in a grid. Judged by the pointer being
+        // inside the card's own band rather than by counting columns, so it
+        // holds however the grid has wrapped at this width.
         const box = event.currentTarget.getBoundingClientRect();
         const level = grid && event.clientY > box.top && event.clientY < box.bottom;
 
-        const before = level
-          ? event.clientX < box.left + box.width / 2
-          : event.clientY < box.top + box.height / 2;
+        const at = level ? event.clientX : event.clientY;
+        const near = level ? box.left : box.top;
+        const span = level ? box.width : box.height;
 
-        if (index < from ? !before : before) return;
+        // How far past the leading edge the pointer has come: measured from the
+        // near edge going forward, from the far edge coming back.
+        const into = index > from ? at - near : near + span - at;
+
+        if (into < span * GIVE) return;
 
         const next = [...ids];
         const [moved] = next.splice(from, 1);
