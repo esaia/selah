@@ -9,6 +9,12 @@ import { cn } from '@/lib/cn';
  * console around them. The shades are one shape sitting under the head, so the
  * coat's own outline is what gives them their edges.
  *
+ * `inverted` trades the plate and the coat — ink plate, cream llama — for the
+ * light pages, where a cream plate on paper is no plate at all. `bare` drops
+ * the plate altogether and leaves the ink llama standing on the page. The
+ * shades stay yellow through all of it: they are the one part of the drawing
+ * that is not one of the other two colours.
+ *
  * `app/icon.svg` is the same drawing with the hexes written out, because a
  * favicon is loaded as a file and has no theme to read. Change one and change
  * the other.
@@ -19,24 +25,60 @@ const LLAMA = {
   ear: 'M481.74,96.42q-7.67,3-15.93,14.93c-1.78,2.58-7.94,12.86-13.64,22.83-17.37,30.22-23.82,39.69-36.57,53.59-5.46,5.9-5.51,5.4,1.09,6.45a13.46,13.46,0,0,1,3.57.89c-.05.5-7.39,9.63-9.92,12.31a8.53,8.53,0,0,0-1.89,2.48,59.17,59.17,0,0,0,5.91.74c11,1,23.77,3.47,32.2,6.25,2.23.75,2.68,1.09,2.53,1.89-.25,1.54-3.08,5.11-7.19,9.13a43.82,43.82,0,0,0-3.68,3.77c.1,0,1.74.35,3.63.69a67.85,67.85,0,0,1,8,2.14L454.5,236l2.78-2.09c18.65-14.44,33.14-39.59,41.53-72.19,7-27.19,5.8-51.46-3.08-61.83A12.4,12.4,0,0,0,481.74,96.42Z',
 };
 
-export const LlamaMark = ({ className }: { className?: string }) => (
+export const LlamaMark = ({
+  className,
+  inverted,
+  bare,
+}: {
+  className?: string;
+  inverted?: boolean;
+  /** No plate: the llama alone, standing on whatever is behind it. */
+  bare?: boolean;
+}) => (
   <svg viewBox="0 0 720 720" className={className} aria-hidden focusable="false">
-    <rect width="720" height="720" rx="202.5" fill="var(--color-brand-cream)" />
+    {bare ? null : (
+      <rect
+        width="720"
+        height="720"
+        rx="202.5"
+        fill={inverted ? 'var(--color-brand-ink)' : 'var(--color-brand-cream)'}
+      />
+    )}
     <polygon points={LLAMA.shades} fill="var(--color-brand-yellow)" />
-    <g fill="var(--color-brand-ink)">
+    <g fill={inverted && !bare ? 'var(--color-brand-cream)' : 'var(--color-brand-ink)'}>
       <path d={LLAMA.coat} />
       <path d={LLAMA.ear} />
     </g>
   </svg>
 );
 
-/** Mark and name together, at whatever size the caller sets the text to. */
-export const Wordmark = ({ className, markClassName }: { className?: string; markClassName?: string }) => (
+/**
+ * Mark and name together, at whatever size the caller sets the text to.
+ *
+ * `on` is the ground it sits on, not a theme.
+ *
+ * On the console's black the name is cream and `Presenter` is the yellow. On
+ * paper neither of those can be read, and the yellow is the one that cannot be
+ * rescued: #FCDF50 on the page's cream is about 1.4:1, and no weight or size
+ * fixes a colour. So on light the mark inverts — ink plate, cream llama — and
+ * the name goes ink throughout, leaving the yellow where it still works, in
+ * the shades on the plate beside it. The brand colour is present; it is simply
+ * not asked to be type.
+ */
+export const Wordmark = ({
+  className,
+  markClassName,
+  on = 'dark',
+}: {
+  className?: string;
+  markClassName?: string;
+  on?: 'dark' | 'light';
+}) => (
   <span className={cn('inline-flex items-center gap-2 font-semibold tracking-tight', className)}>
-    <LlamaMark className={cn('size-[1.75em] shrink-0', markClassName)} />
+    <LlamaMark inverted={on === 'light'} className={cn('size-[1.75em] shrink-0', markClassName)} />
     <span className="whitespace-nowrap">
-      <span className="text-studio-text">Llama</span>
-      <span className="text-studio-accent">Presenter</span>
+      <span className={on === 'light' ? 'text-site-ink' : 'text-studio-text'}>Llama</span>
+      <span className={on === 'light' ? 'text-site-ink' : 'text-studio-accent'}>Presenter</span>
     </span>
   </span>
 );

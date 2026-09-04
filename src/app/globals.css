@@ -1922,3 +1922,65 @@ html[data-preview='stage'] [data-preview-only='stage'] {
 .nc-preview .namecard--in .namecard-inner::before {
   animation: none;
 }
+
+/* ---------------------------------------------------------------------------
+ * The marketing site.
+ *
+ * The console is dark and only dark, for a reason `--color-studio-*` explains.
+ * The pages a visitor sees before they sign in are the opposite: they are read
+ * in daylight, on a phone, once. So they get their own light scale — the same
+ * three brand colours, arranged the other way up.
+ *
+ * The point of the light ground is the dark screens on it: every product
+ * surface quoted on a marketing page keeps its real console colours, and the
+ * paper around it is what makes them read as screens. Nothing in `app/(app)`
+ * may reach for a `site-*` token, and nothing under `(marketing)` may reach for
+ * a `studio-*` one except inside a frame that is deliberately showing product.
+ * ------------------------------------------------------------------------- */
+@theme {
+  --color-site-bg: #fbf9f3;
+  /* The cream, for the bands that break the page up. One step off the ground,
+     never a box: the change of paper is the divider. */
+  --color-site-band: #f1ecde;
+  --color-site-surface: #ffffff;
+  --color-site-rule: #e2dbc9;
+  --color-site-ink: #191818;
+  --color-site-muted: #57524a;
+  --color-site-faint: #8b857a;
+  --color-site-accent: #fcdf50;
+  --color-site-onaccent: #191818;
+
+  /* One shadow, spent on the hero frame. A soft grey haze under every card is
+     the look this page is trying not to have. */
+  --shadow-site-frame: 0 32px 64px -24px rgba(25, 24, 24, 0.35), 0 4px 12px -4px rgba(25, 24, 24, 0.12);
+}
+
+/* Scoped rather than global: the console still owns `body`. */
+.site {
+  color-scheme: light;
+  background: var(--color-site-bg);
+  color: var(--color-site-ink);
+}
+
+/* So an overscroll bounce shows paper rather than the console's black. */
+body:has(.site) {
+  background: var(--color-site-bg);
+}
+
+/* A name card inside a marketing frame. The designs are drawn in `vh`/`vw`
+   because an overlay fills a browser source; on a page the same card would be
+   sized to the whole window. Re-pointed to the frame's own box, the way
+   `.nc-preview` re-points it to a tile — the frame sets `container-type: size`,
+   and the drawing above is untouched. */
+.nc-site {
+  --nc-bottom: 9cqh;
+  --nc-side: 6cqi;
+  --nc-pad-y: 2.4cqh;
+  --nc-pad-x: 3cqi;
+  --nc-gap: 0.9cqh;
+  --nc-fs-title: 6.4cqh;
+  --nc-fs-sub: 2.8cqh;
+  --nc-edge: 0.38cqh;
+  --nc-bar: 0.9cqi;
+  --nc-inset: 1.3cqh;
+}
