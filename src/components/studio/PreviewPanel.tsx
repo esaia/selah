@@ -60,7 +60,7 @@ const LOOK_TABS = [
 
 const MODE_LABELS: Record<PreviewMode, string> = {
   projector: 'Projector',
-  stream: 'Lower third',
+  stream: 'Stream',
   stage: 'Stage',
 };
 
@@ -306,7 +306,7 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
           aria-hidden={mode !== 'stream'}
           className="preview-alpha absolute inset-0 overflow-hidden"
         >
-          {settings.obsHidden ? <Blanked label="Lower third" /> : null}
+          {settings.obsHidden ? <Blanked label="Stream" /> : null}
 
           {/* The real /lower3rd page, scaled down, rather than a second
               rendering of the same design: it joins the session's channel like

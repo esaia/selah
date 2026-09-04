@@ -146,6 +146,14 @@ export interface TimerState {
   /** Armed onto the projector, where it takes the slide's place. */
   onProjector: boolean;
   /**
+   * Armed onto the stream overlay, where it takes the lower third's place.
+   *
+   * A second screen for the same face, like the projector: the people watching
+   * at home are owed the count the room is being given, and the strap and the
+   * digits cannot both have the band.
+   */
+  onStream: boolean;
+  /**
    * Up on the stage display, where it takes the slides' place.
    *
    * A flag rather than something read off the run, because stopping a timer is
@@ -214,6 +222,7 @@ export const emptyTimerState = (): TimerState => {
     messages: [newMessage()],
     flashAt: 0,
     onProjector: false,
+    onStream: false,
     onStage: false,
     sentAt: 0,
   };
@@ -313,6 +322,7 @@ export const asTimerState = (raw: unknown): TimerState => {
     messages: messages.length ? messages : [newMessage()],
     flashAt: Math.max(0, num(input.flashAt, 0)),
     onProjector: Boolean(input.onProjector),
+    onStream: Boolean(input.onStream),
     // A row written before the stage had a flag of its own says nothing about
     // it. A run that was going at the time was on the stage screen by the only
     // rule there was then, so that is what it is read back as — otherwise the
@@ -816,7 +826,10 @@ export const visibleMessages = (state: TimerState): TimerMessage[] =>
 
 /** Whether the timer is putting anything in front of the room. */
 export const onOutputs = (state: TimerState): boolean =>
-  state.onProjector || state.onStage || visibleMessages(state).length > 0;
+  state.onProjector ||
+  state.onStream ||
+  state.onStage ||
+  visibleMessages(state).length > 0;
 
 /**
  * Whether the stage screen gives itself over to the run.
@@ -843,7 +856,7 @@ export const runUnderWay = (state: TimerState): boolean =>
 
 /**
  * Take the timer off the outputs: off the stage screen, disarmed from the
- * projector, every note down, and the run itself back to the top.
+ * projector and the stream, every note down, and the run itself back to the top.
  *
  * The run goes with it because Clear is the end of a segment and not a pause in
  * one — the operator who pressed it is done with this count, and a transport
@@ -857,6 +870,7 @@ export const clearOutputs = (state: TimerState): TimerState =>
     ? {
         ...resetRun(state),
         onProjector: false,
+        onStream: false,
         onStage: false,
         messages: state.messages.map((message) =>
           message.visible ? { ...message, visible: false } : message,

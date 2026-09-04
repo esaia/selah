@@ -1,6 +1,6 @@
 'use client';
 
-import { MonitorPlay, Tv, X, Zap } from 'lucide-react';
+import { MonitorPlay, Radio, Tv, X, Zap } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
@@ -102,6 +102,21 @@ export const TimerPanel = () => {
               </ToggleButton>
             ) : null}
 
+            {/* The stream is the other second screen, and it goes with the
+                stage for the same reason: the overlay's band is the lower
+                third's, and handing it to the digits is a decision about which
+                face the timer is wearing, not a separate one. */}
+            {timer.onStage ? (
+              <ToggleButton
+                active={timer.onStream}
+                label="Put the timer on the stream, in place of the lower third"
+                onClick={() => updateTimer(current => ({ ...current, onStream: !current.onStream }))}
+              >
+                <Radio className="size-3.5" />
+                On stream
+              </ToggleButton>
+            ) : null}
+
             {/* Which face the stage is showing. Starting a count no longer
                 decides it: with the slides up a run appears in the box at the
                 foot of the stage's rail, and the person standing there keeps
@@ -117,6 +132,7 @@ export const TimerPanel = () => {
                   // with it, and a timer left on the wall with no way to take
                   // it down is not a state to leave an operator in.
                   onProjector: current.onStage ? false : current.onProjector,
+                  onStream: current.onStage ? false : current.onStream,
                 }))
               }
             >

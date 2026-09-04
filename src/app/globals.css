@@ -695,6 +695,24 @@ body {
   --l3-dir: to bottom;
 }
 
+/* The stage timer, armed onto the stream. It takes the whole frame, the way it
+   takes the projector: arming it is a decision to give the broadcast over to
+   the count, not to strap a number under the shot. Hence the plate — this is
+   the one thing on this page that is not meant to composite over the camera,
+   and digits alone over live video are unreadable. */
+.lower3rd-timer {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 8, 12, 0.94);
+
+  /* Off the operator's chosen typeface and onto the console's own, as on the
+     projector. The digits are sized from a table of assumed glyph widths, so a
+     face wider than that table — a banner caps, most of them — has them
+     overrun the frame and lose a digit off each end. Nothing here is the
+     lower third's text anyway. */
+  font-family: var(--font-ui);
+}
+
 /* The bar hugs its content, so this centres nothing in the usual case — it is
    here for the looks that give the block a floor of their own, where a single
    line would otherwise sit at the top of it. */

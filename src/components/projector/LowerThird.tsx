@@ -8,7 +8,10 @@ import { asCardRun, isShowing, remainingOf, withSkew, type CardRun } from '@/lib
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
 import { keepSame } from '@/lib/projector/keepSame';
 import { apiBookName } from '@/lib/bible/passage';
+import { asTimerState, withSkew as withTimerSkew, type TimerState } from '@/lib/timer/model';
 import { emptyShowData, LANGS, REQUIRED_LANG, type Align, type Lang, type ShowData, type StreamStyle } from '@/lib/types';
+
+import { TimerScreen } from './TimerScreen';
 
 const ALIGN_CLASS: Record<Align, string> = { left: 'text-left', center: 'text-center', right: 'text-right' };
 
@@ -91,6 +94,8 @@ export interface LowerThirdInitial {
   style: Partial<StreamStyle>;
   /** The name card that was up when this page opened, if any. */
   card: unknown;
+  /** The run as it stood when this page opened, armed onto the stream or not. */
+  timer: TimerState;
 }
 
 /**
@@ -147,6 +152,11 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
    * make the verse underneath blink.
    */
   const [card, setCard] = useState<CardRun | null>(() => withSkew(asCardRun(initial.card)));
+
+  // The run, which takes the band when the console arms it onto the stream.
+  // Held apart from the slide for the same reason the card is: arming the
+  // timer must not make the verse underneath crossfade.
+  const [timer, setTimer] = useState<TimerState>(initial.timer);
 
   // Whether the console has taken the card down. Held apart from the card
   // itself so the element stays mounted while it leaves: an exit animation
@@ -220,6 +230,10 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
       // A payload that only carries a new timer shape must not restart the
       // crossfade: keeping the old object leaves `slide === displayed`.
       setSlide(current => keepSame(current, next));
+
+      // Skew-corrected, like the card: this page is a reader, and the digits
+      // it draws have to agree with the ones on the stage.
+      setTimer(withTimerSkew(asTimerState(payload.timer)));
 
       // The card rides beside the slide, so a verse change carries it along
       // unchanged and it neither restarts nor disappears. Skew-corrected here
@@ -314,9 +328,23 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
   // only covered. Two straps stacked on one shot is the thing to avoid.
   const cardShowing = !blanked && !cleared && isShowing(card);
 
+  // The run over the whole frame, when the console has armed it onto the
+  // stream — the projector's rule, on the projector's grounds: a timer given
+  // an output *is* that output for as long as it is armed. A card fired over
+  // it still wins, the way it wins over a verse.
+  const timerShowing = !blanked && !cardShowing && timer.onStream;
+
   return (
     <div className={`lower3rd-stage ${lyrics ? style.lyricsFont : style.font}`}>
       {card ? <NameCard run={card} visible={cardShowing} /> : null}
+
+      {timerShowing ? (
+        <div className="lower3rd-timer">
+          {/* No wall clock, as on the projector: the room and the people
+              watching it are being given a count, not a clock. */}
+          <TimerScreen state={timer} showClock={false} />
+        </div>
+      ) : null}
 
       <div
         className={`lower3rd-bar lower3rd-bar--${(lyrics ? style.lyricsVariant : style.variant) || 'scrim'} ${
@@ -326,7 +354,7 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
         // that moves pulls the eye away from the speaker every time a verse
         // changes — a fade lets the words swap without the frame shifting.
         style={{
-          opacity: visible && !cardShowing ? 1 : 0,
+          opacity: visible && !cardShowing && !timerShowing ? 1 : 0,
           transition: transitionMs === 0 ? 'none' : `opacity ${transitionMs / 2}ms ease-in-out`,
         }}
       >

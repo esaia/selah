@@ -63,7 +63,7 @@ export const OutputBar = () => {
     { id: 'projector', label: SCREEN_LABELS.audience, blanked: blackout.audience, toggle: () => toggleBlackout('audience') },
     {
       id: 'stream',
-      label: 'Lower third',
+      label: 'Stream',
       blanked: settings.obsHidden,
       // The same switch that used to sit in the sidebar under "Stream".
       // Blanking the overlay keeps OBS connected, which is exactly what

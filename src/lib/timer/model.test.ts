@@ -324,20 +324,33 @@ describe("finishAction", () => {
   });
 });
 
+describe("the stream arm", () => {
+  it("counts as an output of its own", () => {
+    expect(onOutputs({ ...state(), onStream: true })).toBe(true);
+  });
+
+  it("reads back as off for a row written before the field existed", () => {
+    expect(asTimerState({ timers: [{ id: "a" }] }).onStream).toBe(false);
+    expect(asTimerState({ timers: [{ id: "a" }], onStream: true }).onStream).toBe(true);
+  });
+});
+
 describe("clearOutputs", () => {
   const showing = (): TimerState => ({
     ...state(),
     onProjector: true,
+    onStream: true,
     messages: [
       newMessage({ id: "up", text: "Wrap up", visible: true }),
       newMessage({ id: "down", text: "Five minutes" }),
     ],
   });
 
-  it("takes the timer off the projector and every message down", () => {
+  it("takes the timer off the projector and the stream, and every message down", () => {
     const cleared = clearOutputs(showing());
 
     expect(cleared.onProjector).toBe(false);
+    expect(cleared.onStream).toBe(false);
     expect(visibleMessages(cleared)).toEqual([]);
     expect(onOutputs(cleared)).toBe(false);
   });
