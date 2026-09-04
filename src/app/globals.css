@@ -863,13 +863,17 @@ body {
 }
 
 /* Reversed so the reference — second in the markup, for reading order — sits
-   to the left of the verse. */
+   to the left of the verse.
+
+   The row is this look's own doing; how the words sit inside it is the
+   operator's, so nothing here sets `text-align`. It used to, which quietly
+   overrode the alignment they had picked — on a song slide, where there is no
+   reference beside the words, that left the whole look ignoring the setting. */
 .lower3rd-bar--split .lower3rd-block {
   display: flex;
   flex-direction: row-reverse;
   align-items: flex-start;
   gap: 0.85em;
-  text-align: left;
 }
 
 .lower3rd-bar--split .lower3rd-text {

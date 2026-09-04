@@ -57,8 +57,14 @@ export const Field = ({
   </div>
 );
 
-/** Typeface and alignment for one kind of slide: verses, or song lyrics. */
-const TypeRow = ({
+/**
+ * Typeface and alignment for one kind of slide: verses, or song lyrics.
+ *
+ * Exported, because the stream sets the same two things about its own output
+ * and an operator who has learned this control on the projector panel should
+ * not have to learn a second one on the stream panel.
+ */
+export const TypeRow = ({
   label,
   hint,
   font,

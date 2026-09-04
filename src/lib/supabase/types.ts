@@ -77,6 +77,10 @@ export interface Database {
         align: string;
         lyrics_font: string;
         lyrics_align: string;
+        stream_font: string;
+        stream_align: string;
+        stream_lyrics_font: string;
+        stream_lyrics_align: string;
         projector_look: string;
         projector_lyrics_look: string;
         lyrics_scale: string;

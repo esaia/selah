@@ -31,6 +31,18 @@ export interface Settings {
   align: Align;
   lyricsFont: string;
   lyricsAlign: Align;
+  /**
+   * The lower third's own type, which is not the projector's.
+   *
+   * A projector is a wall of text read from the back of a room; a lower third
+   * is two lines over a camera shot. They were one setting until an operator
+   * wanted the stream centred and the wall ragged-left, which is a reasonable
+   * thing to want and was impossible to say.
+   */
+  streamFont: string;
+  streamAlign: Align;
+  streamLyricsFont: string;
+  streamLyricsAlign: Align;
   projectorLook: string;
   projectorLyricsLook: string;
   lyricsScale: ScaleMode;
@@ -102,6 +114,13 @@ export const fromRow = (row: SettingsRow): Settings => {
     align: asAlign(row.align),
     lyricsFont: row.lyrics_font || row.font || 'font-banner',
     lyricsAlign: asAlign(row.lyrics_align ?? row.align),
+    // Empty is a row written before the stream had type of its own, and it
+    // reads as the projector's — which is what the stream was drawn in until
+    // now, so nothing moves under an operator who never opens the panel.
+    streamFont: row.stream_font || row.font || 'font-banner',
+    streamAlign: asAlign(row.stream_align || row.align),
+    streamLyricsFont: row.stream_lyrics_font || row.lyrics_font || row.font || 'font-banner',
+    streamLyricsAlign: asAlign(row.stream_lyrics_align || row.lyrics_align || row.align),
     projectorLook: row.projector_look || DEFAULT_VERSE_LOOK,
     // 'steady' was a layout before song text got its own scaling control; it
     // said "hold the size still", which is now a mode rather than a look.
@@ -134,6 +153,10 @@ export const toRow = (settings: Settings) => ({
   align: settings.align,
   lyrics_font: settings.lyricsFont,
   lyrics_align: settings.lyricsAlign,
+  stream_font: settings.streamFont,
+  stream_align: settings.streamAlign,
+  stream_lyrics_font: settings.streamLyricsFont,
+  stream_lyrics_align: settings.streamLyricsAlign,
   projector_look: settings.projectorLook,
   projector_lyrics_look: settings.projectorLyricsLook,
   lyrics_scale: settings.lyricsScale,
@@ -199,10 +222,10 @@ export const streamStyle = (settings: Settings): StreamStyle => {
   const chosen = streamLangOf(settings);
 
   return {
-    font: settings.font,
-    align: settings.align,
-    lyricsFont: settings.lyricsFont,
-    lyricsAlign: settings.lyricsAlign,
+    font: settings.streamFont,
+    align: settings.streamAlign,
+    lyricsFont: settings.streamLyricsFont,
+    lyricsAlign: settings.streamLyricsAlign,
     order: settings.langOrder,
     enabled: Object.fromEntries(settings.langOrder.map(lang => [lang, lang === chosen])),
     transitionMs: settings.transitionMs,

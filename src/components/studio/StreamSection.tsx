@@ -11,7 +11,7 @@ import { LANG_LABELS, type Lang } from '@/lib/types';
 
 import { LowerThirdStylePicker } from './LowerThirdStylePicker';
 import { CopyField, ObsHelpModal } from './ObsHelpModal';
-import { Field } from './StyleSection';
+import { Field, TypeRow } from './StyleSection';
 
 const POSITIONS = [
   { value: 'bottom' as const, label: 'Bottom', Icon: MdArrowDownward },
@@ -92,6 +92,7 @@ export const StreamSection = () => {
       <div className="space-y-6">
         <LowerThirdStylePicker />
 
+
         <Field label="Position on screen">
           <div className="grid grid-cols-2 gap-2">
             {POSITIONS.map(({ value, label, Icon }) => (
@@ -114,6 +115,30 @@ export const StreamSection = () => {
             ))}
           </div>
         </Field>
+      </div>
+
+      {/* Across the dialog rather than down one column of it. Its own type, not
+          the projector's — the wall and the camera shot are read from different
+          distances and almost never want the same setting — and a typeface name
+          needs the room to be read as one. */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
+        <TypeRow
+          label="Verse type"
+          hint="Typeface and alignment for Bible slides on the stream."
+          font={settings.streamFont}
+          setFont={value => update({ streamFont: value })}
+          align={settings.streamAlign}
+          setAlign={value => update({ streamAlign: value })}
+        />
+
+        <TypeRow
+          label="Lyric type"
+          hint="Song slides on the stream get their own look."
+          font={settings.streamLyricsFont}
+          setFont={value => update({ streamLyricsFont: value })}
+          align={settings.streamLyricsAlign}
+          setAlign={value => update({ streamLyricsAlign: value })}
+        />
       </div>
 
       {helping ? <ObsHelpModal sourceUrl={url} onClose={() => setHelping(false)} /> : null}
