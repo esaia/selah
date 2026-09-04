@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { HiOutlinePlay, HiOutlinePlus, HiOutlineStop, HiOutlineTrash } from 'react-icons/hi';
+import { Play, Square, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -74,7 +74,6 @@ export const Lower3rdPanel = () => {
 
   const ready = draft.title.trim().length > 0;
   const live = cardRun?.card ?? null;
-  const dirty = Boolean(draft.title || draft.subtitle);
 
   const patch = (change: Partial<CardDraft>) => setCardDraft(current => ({ ...current, ...change }));
 
@@ -125,10 +124,6 @@ export const Lower3rdPanel = () => {
 
     try {
       await removeCard(card.id);
-
-      // The form was showing somebody who no longer exists. Keeping their name
-      // in it would offer to save them straight back.
-      if (draft.id === card.id) blank();
     } catch (problem) {
       setError((problem as Error).message);
     }
@@ -138,19 +133,9 @@ export const Lower3rdPanel = () => {
     <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-3 lg:flex-row">
       {/* ------------------------------------------------ saved people */}
       <div className="flex min-h-0 shrink-0 flex-col lg:w-56 xl:w-64">
-        <div className="flex items-center justify-between gap-2 px-1">
-          <h2 className="text-[11px] font-semibold tracking-wider text-studio-faint uppercase">
-            People · {cards.length}
-          </h2>
-
-          {/* An empty form is how you start somebody new. Without this the only
-              way out of an opened person was to clear their name by hand. */}
-          {dirty ? (
-            <IconButton label="Start a new person" onClick={blank}>
-              <HiOutlinePlus className="size-4" />
-            </IconButton>
-          ) : null}
-        </div>
+        <h2 className="px-1 text-[11px] font-semibold tracking-wider text-studio-faint uppercase">
+          People · {cards.length}
+        </h2>
 
         <div className="studio-scroll mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto px-1 py-0.5">
           {cards.length === 0 ? (
@@ -181,21 +166,15 @@ export const Lower3rdPanel = () => {
                     />
                   ) : null}
 
-                  {/* Clicking a person loads their name and role into the form,
-                      so a typo is a correction rather than a retype. Nothing
-                      reaches the stream until the operator says so: a click
-                      that went live would make editing a broadcast. The design
-                      and hold are untouched — they belong to the console. */}
-                  <button
-                    type="button"
-                    onClick={() => setCardDraft(current => ({ ...card, holdMs: current.holdMs }))}
-                    title={`Load ${card.title}`}
-                    aria-pressed={draft.id === card.id}
-                    className="relative min-w-0 flex-1 rounded-studio text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40"
-                  >
+                  {/* The row is a label, not a control. A saved person used to
+                      load into the form on click, which quietly overwrote
+                      whatever the operator was part-way through typing. The
+                      form belongs to the next person; the buttons beside the
+                      name are what act on this one. */}
+                  <div className="relative min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-studio-text">{card.title}</span>
                     <span className="block truncate text-[11px] text-studio-faint">{card.subtitle}</span>
-                  </button>
+                  </div>
 
                   {/* Only the live row counts: the hold is the console's, and
                       printing it against every name would say otherwise. */}
@@ -215,7 +194,7 @@ export const Lower3rdPanel = () => {
                       isLive ? 'text-studio-live' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
                     )}
                   >
-                    {isLive ? <HiOutlineStop className="size-4" /> : <HiOutlinePlay className="size-4" />}
+                    {isLive ? <Square className="size-4" /> : <Play className="size-4" />}
                   </IconButton>
 
                   <IconButton
@@ -224,7 +203,7 @@ export const Lower3rdPanel = () => {
                     onClick={() => setConfirming(card)}
                     className="relative opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
                   >
-                    <HiOutlineTrash className="size-4" />
+                    <Trash2 className="size-4" />
                   </IconButton>
                 </div>
               );
@@ -312,7 +291,7 @@ export const Lower3rdPanel = () => {
 
               <Button
                 variant="accent"
-                icon={<HiOutlinePlay className="size-4" />}
+                icon={<Play className="size-4" />}
                 onClick={() => fire(draft)}
                 disabled={!ready}
               >

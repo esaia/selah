@@ -804,7 +804,9 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
           data,
         };
 
-        setWorkspace(current => ({ ...current, blocks: [...current.blocks, block] }));
+        // Newest at the top: the operator adds the passage they are about to
+        // use, and the list is read from the top down.
+        setWorkspace(current => ({ ...current, blocks: [block, ...current.blocks] }));
 
         return block;
       } finally {

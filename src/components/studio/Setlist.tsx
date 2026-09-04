@@ -69,7 +69,12 @@ export const Setlist = ({ onEdit }: { onEdit: (song: Song) => void }) => {
   // release. A song arriving from the library is a different thing and still
   // lands on the slot the line marks — the two never see each other's drags,
   // since the sortable answers only while it has a row of its own in the air.
-  const sortable = useSortable(items, song => song.id, orderSetlist);
+  //
+  // Carried by the whole row rather than by the rail alone: a running order is
+  // reordered often enough that aiming at a 16px strip is the wrong ask. The
+  // number still turns into a grip on hover, so where to take hold is still
+  // said — it just is not the only place that answers.
+  const sortable = useSortable(items, song => song.id, orderSetlist, { byHandle: false });
 
   const handleDrop = (index: number) => (event: DragEvent<HTMLElement>) => {
     const songId = readDragged(event);
