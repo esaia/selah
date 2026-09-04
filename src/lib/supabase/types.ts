@@ -51,6 +51,7 @@ export interface Database {
         stage_lang: string;
         timer: Json;
         card: Json;
+        blackout: Json;
         updated_at: string;
       }>;
       session_workspace: Row<{
@@ -62,6 +63,7 @@ export interface Database {
         song_scope: string;
         tab: string;
         card_size: number;
+        card_draft: Json | null;
         updated_at: string;
       }>;
       settings: Row<{

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 
 import { Projector, type ProjectorInitial } from '@/components/projector/Projector';
+import { asBlackout } from '@/lib/live/blackout';
 import { admin } from '@/lib/supabase/admin';
 import { asTimerState } from '@/lib/timer/model';
 import { emptyShowData, type ProjectorStyle, type ShowData } from '@/lib/types';
@@ -24,7 +25,7 @@ export default async function ShowPage({ params }: PageProps<'/show/[key]'>) {
 
   const { data: state } = await db
     .from('session_state')
-    .select('show_data, projector, timer')
+    .select('show_data, projector, timer, blackout')
     .eq('session_id', session.id)
     .maybeSingle();
 
@@ -32,6 +33,8 @@ export default async function ShowPage({ params }: PageProps<'/show/[key]'>) {
     showData: (state?.show_data as ShowData) ?? emptyShowData(),
     projector: (state?.projector as Partial<ProjectorStyle>) ?? {},
     timer: asTimerState(state?.timer),
+    // A projector that reloads while the room is dark comes back dark.
+    black: asBlackout(state?.blackout).audience,
   };
 
   return <Projector outputKey={key} initial={initial} />;

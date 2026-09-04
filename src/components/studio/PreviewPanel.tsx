@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } fr
 import { HiOutlinePencil } from 'react-icons/hi';
 
 import { cn } from '@/lib/cn';
+import { SCREEN_LABELS } from '@/lib/live/blackout';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
 import { fitTo, lookOf } from '@/lib/projector/looks';
 import { DYNAMIC_THEME, LOCAL_THEME, themeSrc } from '@/lib/projector/themes';
@@ -23,11 +24,39 @@ import { TimerScreen } from '@/components/projector/TimerScreen';
 import { useStudio } from '@/lib/studio/StudioProvider';
 
 import { ClearBar } from './ClearBar';
+import { OutputBar } from './OutputBar';
 import type { ShowData } from '@/lib/types';
 
 /** The frame the lower third is authored against; the iframe is scaled from it. */
 const STREAM_W = 1920;
 const STREAM_H = 1080;
+
+/**
+ * What the panel shows for an output that has been blanked.
+ *
+ * The output itself is nothing at all, and so is this — but the panel is the
+ * one place an operator finds out *why* a screen has gone dark, so it says so
+ * quietly rather than looking like a preview that has stopped working.
+ */
+const Blanked = ({ label }: { label: string }) => (
+  <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/90">
+    <span className="rounded-[4px] bg-black/70 px-2 py-1 text-[10px] font-medium tracking-wide text-white/45 uppercase">
+      {label} blanked
+    </span>
+  </div>
+);
+
+/**
+ * Which previews have a look to edit, and where that look is set.
+ *
+ * The stage has none of its own — it is drawn from the projector's type and
+ * the language chosen for it — so it gets no pencil rather than one that opens
+ * somebody else's settings.
+ */
+const LOOK_TABS = [
+  { mode: 'projector', tab: 'projector', label: 'Edit the projector look' },
+  { mode: 'stream', tab: 'stream', label: 'Edit the lower third look' },
+] as const;
 
 const MODE_LABELS: Record<PreviewMode, string> = {
   projector: 'Projector',
@@ -73,7 +102,15 @@ const modeStore = {
  * the operator judges here cannot disagree with what the room sees.
  */
 export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void }) => {
-  const { settings, showData, nextShowData, session, timer } = useStudio();
+  const { settings, showData, nextShowData, session, timer, blackout } = useStudio();
+
+  // Which outputs are blanked, so the tabs can mark the ones the operator is
+  // not looking at. The switches themselves are in the strip below.
+  const blanked: Record<PreviewMode, boolean> = {
+    projector: blackout.audience,
+    stream: settings.obsHidden,
+    stage: blackout.stage,
+  };
 
   // The panel runs the projector's own crossfade, at the operator's setting, so
   // the preview lies about nothing — timing included.
@@ -199,8 +236,8 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
       {/* Dark, so the bar reads as the edge of the output rather than as more
           console furniture, and the screen under it is not fighting a white
           strip. */}
-      <div className="flex h-9 items-center justify-between gap-2 bg-studio-bar px-2">
-        <div className="flex items-center gap-0.5">
+      <div className="@container flex h-9 items-center justify-between gap-2 bg-studio-bar px-2">
+        <div className="flex shrink-0 items-center gap-0.5">
           {PREVIEW_MODES.map(value => (
             <button
               key={value}
@@ -208,10 +245,15 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
               data-preview-tab={value}
               aria-pressed={mode === value}
               onClick={() => modeStore.set(value)}
+              title={blanked[value] ? `${MODE_LABELS[value]} — blanked` : undefined}
               className={cn(
-                'rounded-[4px] px-2 py-1 text-[11px] font-medium text-white/75 transition-colors duration-150',
+                'rounded-[4px] px-2 py-1 text-[11px] font-medium transition-colors duration-150',
                 'hover:bg-white/10 hover:text-white',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
+                // Dimmed rather than marked: the outputs strip below names
+                // every blanked output already, and a second indicator on the
+                // tabs only made the bar noisy.
+                blanked[value] ? 'text-white/40' : 'text-white/75',
               )}
             >
               {MODE_LABELS[value]}
@@ -219,23 +261,27 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* The look of the lower third is set in Settings, but it is judged
-              here — so the way back to it sits on the preview it changes. */}
-          <button
-            type="button"
-            data-preview-only="stream"
-            aria-label="Edit the lower third look"
-            title="Edit the lower third look"
-            onClick={() => onSettings('stream')}
-            className="rounded-[4px] p-1 text-white/70 opacity-0 transition duration-150 group-hover/preview:opacity-100
-              hover:bg-white/10 hover:text-white focus:opacity-100 focus:outline-none focus-visible:ring-2
-              focus-visible:ring-studio-accent/40"
-          >
-            <HiOutlinePencil className="size-3.5" />
-          </button>
+        <div className="flex min-w-0 items-center gap-1">
+          {/* A look is set in Settings and judged here, so the way back to it
+              sits on the preview it changes — one per output, each hidden
+              until its own tab is up. */}
+          {LOOK_TABS.map(({ mode: only, tab, label }) => (
+            <button
+              key={only}
+              type="button"
+              data-preview-only={only}
+              aria-label={label}
+              title={label}
+              onClick={() => onSettings(tab)}
+              className="rounded-[4px] p-1 text-white/70 opacity-0 transition duration-150 group-hover/preview:opacity-100
+                hover:bg-white/10 hover:text-white focus:opacity-100 focus:outline-none focus-visible:ring-2
+                focus-visible:ring-studio-accent/40"
+            >
+              <HiOutlinePencil className="size-3.5" />
+            </button>
+          ))}
 
-          <span className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wide text-white/80">
+          <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-semibold tracking-wide text-white/80">
             <span className={cn('size-1.5 rounded-full', isLive ? 'bg-studio-live' : 'bg-white/30')} />
             {isLive ? 'LIVE' : 'IDLE'}
           </span>
@@ -249,13 +295,19 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
           was blank for a moment each time. Hidden with `visibility`, not
           `display`, so the box keeps its size and the scale below stays right
           for the frame it comes back on. */}
-      <div className="relative aspect-video w-full overflow-hidden">
+      {/* `isolate`: the panes stack against each other — the blanked cover
+          over the timer over the slide — and without a stacking context of
+          their own those z-indexes compete with the whole console. A blanked
+          projector was painting its cover over the Present menu. */}
+      <div className="relative isolate aspect-video w-full overflow-hidden">
         <div
           ref={streamRef}
           data-preview-pane="stream"
           aria-hidden={mode !== 'stream'}
           className="preview-alpha absolute inset-0 overflow-hidden"
         >
+          {settings.obsHidden ? <Blanked label="Lower third" /> : null}
+
           {/* The real /lower3rd page, scaled down, rather than a second
               rendering of the same design: it joins the session's channel like
               any other output, and its vh/vw padding resolves against its own
@@ -288,6 +340,8 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
           aria-hidden={mode !== 'stage'}
           className="absolute inset-0 overflow-hidden bg-black"
         >
+          {blackout.stage ? <Blanked label={SCREEN_LABELS.stage} /> : null}
+
           {timerIsLive(timer) ? (
             <TimerScreen state={timer} />
           ) : (
@@ -309,6 +363,8 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
           style={background ? { backgroundImage: `url(${background})` } : undefined}
         >
           <div className="absolute inset-0 bg-black/55" />
+
+          {blackout.audience ? <Blanked label={SCREEN_LABELS.audience} /> : null}
 
           {/* The timer takes the projector when it is armed, so the panel has
               to show that: an operator who arms it and sees the verse still
@@ -334,6 +390,8 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
           </div>
         </div>
       </div>
+
+      <OutputBar />
 
       <ClearBar slideLive={isLive} />
     </div>

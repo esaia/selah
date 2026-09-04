@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState, type MouseEvent as MouseEvent_, type ReactNode } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type MouseEvent as MouseEvent_, type ReactNode } from 'react';
 import {
   ArrowDown,
   ArrowUp,
@@ -119,6 +119,42 @@ const RowMenu = ({ timer }: { timer: StageTimer }) => {
 
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+
+  // Which side of the button it hangs from. Under it by default, over it for
+  // the last rows of a long running order, where a menu opening downwards runs
+  // off the bottom of the console and the operator has to scroll to answer it.
+  // Measured before the browser paints, so it never opens down and jumps.
+  const [above, setAbove] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    const place = () => {
+      const panel = menu.current;
+      const anchor = box.current?.getBoundingClientRect();
+
+      if (!panel || !anchor) return;
+
+      const under = window.innerHeight - anchor.bottom;
+
+      // Only flips when the other side is genuinely roomier: squeezed both
+      // ways, hanging down is the arrangement the operator expects.
+      setAbove(under < panel.offsetHeight + 8 && anchor.top > under);
+    };
+
+    place();
+
+    window.addEventListener('resize', place);
+    // Captured, so the menu follows a scroll of the list it is in and not only
+    // one of the window.
+    window.addEventListener('scroll', place, true);
+
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -165,9 +201,13 @@ const RowMenu = ({ timer }: { timer: StageTimer }) => {
         // Hung off the right edge: the menu is at the end of the row, and one
         // opening leftwards would run off the panel on a narrow console.
         <div
+          ref={menu}
           role="menu"
-          className="absolute top-full right-0 z-30 mt-1 min-w-[148px] overflow-hidden rounded-studio
-            border border-studio-border bg-white py-1 shadow-studio-panel"
+          className={cn(
+            `absolute right-0 z-30 min-w-[148px] overflow-hidden rounded-studio border border-studio-border
+             bg-white py-1 shadow-studio-panel`,
+            above ? 'bottom-full mb-1' : 'top-full mt-1',
+          )}
         >
           <MenuItem
             icon={<ArrowUp className="size-3.5 text-studio-muted" />}

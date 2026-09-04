@@ -1,3 +1,4 @@
+import type { Blackout } from '@/lib/live/blackout';
 import type { CardRun } from '@/lib/lower3rd/card';
 import type { TimerState } from '@/lib/timer/model';
 import type { Lang, ProjectorStyle, ShowData, StreamStyle } from '@/lib/types';
@@ -55,6 +56,16 @@ export interface SlidePayload {
    * own clock.
    */
   card: CardRun | null;
+  /**
+   * Which screens the operator has taken to black.
+   *
+   * It rides with the slide rather than clearing one: the verse underneath is
+   * still live and comes straight back when the key is pressed again. Each
+   * output reads its own flag and ignores the other's; the stream overlay has
+   * no flag at all, because it is not a screen anybody in the room is looking
+   * at.
+   */
+  blackout: Blackout;
 }
 
 /**

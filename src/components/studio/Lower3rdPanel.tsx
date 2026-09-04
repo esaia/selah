@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { HiOutlinePlay, HiOutlineTrash } from 'react-icons/hi';
+import { HiOutlinePlay, HiOutlinePlus, HiOutlineStop, HiOutlineTrash } from 'react-icons/hi';
 
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -10,13 +10,13 @@ import { cn } from '@/lib/cn';
 import {
   HOLD_STEP_MS,
   isLiveCard,
-  isSaved,
   MAX_HOLD_MS,
   MIN_HOLD_MS,
   newCard,
   PINNED,
+  progressOf,
   remainingOf,
-  templateLabel,
+  type CardDraft,
   type NameCard,
   type Template,
 } from '@/lib/lower3rd/card';
@@ -27,6 +27,7 @@ import { NameCardPicker } from './NameCardPicker';
 /** What the designs are previewed with before the operator has typed anything. */
 const PLACEHOLDER = { title: 'Pastor Name', subtitle: 'Lead Pastor' };
 
+/** A hold, said the way the operator set it. */
 /**
  * The Lower3rd tab: who is speaking.
  *
@@ -35,11 +36,14 @@ const PLACEHOLDER = { title: 'Pastor Name', subtitle: 'Lead Pastor' };
  * the room can see. The preview in the right rail is the only way to watch it,
  * which is why firing one is a single obvious button rather than a click on a
  * card in a grid: there is no second screen to check it against.
+ *
+ * And because nobody can see it, the console has to say what is up and how
+ * long is left of it. That is the draining bar: a strap timed to eight seconds
+ * gives the operator no other way to know whether to wait or to cut.
  */
 export const Lower3rdPanel = () => {
-  const { cards, cardRun, cardHoldMs, setCardHoldMs, showCard, clearCard, saveCard, removeCard } = useStudio();
+  const { cards, cardRun, cardDraft: draft, setCardDraft, showCard, clearCard, saveCard, removeCard } = useStudio();
 
-  const [draft, setDraft] = useState<NameCard>(() => newCard());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<NameCard | null>(null);
@@ -64,10 +68,24 @@ export const Lower3rdPanel = () => {
   // Before the first tick `now` is 0, so the card reads as freshly fired —
   // which it is. Reading the clock here instead would make the same render
   // give two different answers.
-  const left = cardRun ? remainingOf(cardRun, Math.max(now, cardRun.firedAt)) : 0;
+  const at = cardRun ? Math.max(now, cardRun.firedAt) : 0;
+  const left = remainingOf(cardRun, at);
+  const fill = progressOf(cardRun, at);
 
   const ready = draft.title.trim().length > 0;
   const live = cardRun?.card ?? null;
+  const dirty = Boolean(draft.title || draft.subtitle);
+
+  const patch = (change: Partial<CardDraft>) => setCardDraft(current => ({ ...current, ...change }));
+
+  /** A fresh form. The design and the hold stay: they are not the person's. */
+  const blank = () => setCardDraft(current => ({ ...newCard(), template: current.template, holdMs: current.holdMs }));
+
+  const trimmed = <T extends NameCard>(card: T): T => ({
+    ...card,
+    title: card.title.trim(),
+    subtitle: card.subtitle.trim(),
+  });
 
   const fire = (card: NameCard) => {
     // Firing the card that is already up takes it down, the same toggle a
@@ -77,7 +95,10 @@ export const Lower3rdPanel = () => {
       return;
     }
 
-    showCard(card);
+    // Whoever goes up wears the look the console is set to. A name in the list
+    // is a name; the design and the hold are the operator's, picked once for
+    // the stream and applied to everybody.
+    showCard({ ...trimmed(card), template: draft.template }, draft.holdMs);
   };
 
   const save = async () => {
@@ -87,11 +108,11 @@ export const Lower3rdPanel = () => {
     setError(null);
 
     try {
-      await saveCard({ ...draft, title: draft.title.trim(), subtitle: draft.subtitle.trim() });
+      await saveCard(trimmed(draft));
 
-      // A person loaded from the list stays loaded after being saved — the
-      // edit was to them, and clearing the form would read as having lost it.
-      if (!isSaved(draft.id)) setDraft(newCard({ template: draft.template }));
+      // The form clears, because a saved name is now a row in the list and the
+      // form's job is the next one. The look stays where it was set.
+      blank();
     } catch (problem) {
       setError((problem as Error).message);
     } finally {
@@ -104,6 +125,10 @@ export const Lower3rdPanel = () => {
 
     try {
       await removeCard(card.id);
+
+      // The form was showing somebody who no longer exists. Keeping their name
+      // in it would offer to save them straight back.
+      if (draft.id === card.id) blank();
     } catch (problem) {
       setError((problem as Error).message);
     }
@@ -112,14 +137,24 @@ export const Lower3rdPanel = () => {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-3 lg:flex-row">
       {/* ------------------------------------------------ saved people */}
-      <div className="flex min-h-0 shrink-0 flex-col lg:w-52 xl:w-60">
-        <h2 className="px-1 text-[11px] font-semibold tracking-wider text-studio-faint uppercase">
-          People · {cards.length}
-        </h2>
+      <div className="flex min-h-0 shrink-0 flex-col lg:w-56 xl:w-64">
+        <div className="flex items-center justify-between gap-2 px-1">
+          <h2 className="text-[11px] font-semibold tracking-wider text-studio-faint uppercase">
+            People · {cards.length}
+          </h2>
 
-        <div className="studio-scroll mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto">
+          {/* An empty form is how you start somebody new. Without this the only
+              way out of an opened person was to clear their name by hand. */}
+          {dirty ? (
+            <IconButton label="Start a new person" onClick={blank}>
+              <HiOutlinePlus className="size-4" />
+            </IconButton>
+          ) : null}
+        </div>
+
+        <div className="studio-scroll mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto px-1 py-0.5">
           {cards.length === 0 ? (
-            <p className="px-1 py-2 text-xs leading-relaxed text-studio-muted">
+            <p className="py-2 text-xs leading-relaxed text-studio-muted">
               Nobody saved yet. Fill in a name on the right and save it — your regular preachers and worship leaders
               are one click each on a Sunday.
             </p>
@@ -131,27 +166,44 @@ export const Lower3rdPanel = () => {
                 <div
                   key={card.id}
                   className={cn(
-                    'group flex items-center gap-1 rounded-studio border px-2 py-1.5 transition-colors duration-150',
+                    'group relative flex items-center gap-1 overflow-hidden rounded-studio border px-2 py-1.5',
+                    'transition-colors duration-150',
                     isLive ? 'border-studio-live bg-studio-live/5' : 'border-transparent hover:bg-studio-surface',
                   )}
                 >
-                  {/* Clicking a person loads them — name, role and the design
-                      they were saved with, so the picker moves to it. Nothing
-                      reaches the stream until the operator says so: this list
-                      is also how you edit someone, and a click that went live
-                      would make correcting a typo a broadcast. */}
+                  {/* The hold, draining. Nobody in the room can see this output,
+                      so the list itself has to show the strap running out. */}
+                  {isLive ? (
+                    <span
+                      aria-hidden
+                      style={{ width: `${fill * 100}%` }}
+                      className="pointer-events-none absolute inset-y-0 left-0 bg-studio-live/10 transition-[width] duration-300 ease-linear"
+                    />
+                  ) : null}
+
+                  {/* Clicking a person loads their name and role into the form,
+                      so a typo is a correction rather than a retype. Nothing
+                      reaches the stream until the operator says so: a click
+                      that went live would make editing a broadcast. The design
+                      and hold are untouched — they belong to the console. */}
                   <button
                     type="button"
-                    onClick={() => setDraft({ ...card })}
+                    onClick={() => setCardDraft(current => ({ ...card, holdMs: current.holdMs }))}
                     title={`Load ${card.title}`}
                     aria-pressed={draft.id === card.id}
-                    className="min-w-0 flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40"
+                    className="relative min-w-0 flex-1 rounded-studio text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40"
                   >
                     <span className="block truncate text-sm font-medium text-studio-text">{card.title}</span>
-                    <span className="block truncate text-[11px] text-studio-faint">
-                      {card.subtitle || templateLabel(card.template)}
-                    </span>
+                    <span className="block truncate text-[11px] text-studio-faint">{card.subtitle}</span>
                   </button>
+
+                  {/* Only the live row counts: the hold is the console's, and
+                      printing it against every name would say otherwise. */}
+                  {isLive && cardRun?.holdMs !== PINNED ? (
+                    <span className="relative shrink-0 text-[10px] tabular-nums text-studio-live">
+                      {Math.ceil(left / 1000)}s
+                    </span>
+                  ) : null}
 
                   {/* Straight to the stream, for the Sunday where the person is
                       already right and the only thing wanted is the strap. */}
@@ -159,19 +211,18 @@ export const Lower3rdPanel = () => {
                     label={isLive ? `Take ${card.title} off the stream` : `Put ${card.title} on the stream`}
                     onClick={() => fire(card)}
                     className={cn(
-                      'transition-opacity',
-                      isLive
-                        ? 'text-studio-live'
-                        : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+                      'relative transition-opacity',
+                      isLive ? 'text-studio-live' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
                     )}
                   >
-                    <HiOutlinePlay className="size-4" />
+                    {isLive ? <HiOutlineStop className="size-4" /> : <HiOutlinePlay className="size-4" />}
                   </IconButton>
 
                   <IconButton
                     label={`Delete ${card.title}`}
+                    tone="danger"
                     onClick={() => setConfirming(card)}
-                    className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                    className="relative opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
                   >
                     <HiOutlineTrash className="size-4" />
                   </IconButton>
@@ -184,13 +235,17 @@ export const Lower3rdPanel = () => {
 
       {/* ------------------------------------------------ the card itself */}
       <div className="studio-scroll min-h-0 min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-[1100px] space-y-4">
+        {/* The padding is not decoration: this is a scroll container, and it
+            clips whatever reaches its edge — the focus ring on the first
+            field, and the slider's thumb, which hangs half outside its own
+            track when it is pushed to one end. */}
+        <div className="mx-auto w-full max-w-[1100px] space-y-4 px-3 py-1.5">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className="block text-xs font-semibold text-studio-text">Name</span>
               <input
                 value={draft.title}
-                onChange={event => setDraft(current => ({ ...current, title: event.target.value }))}
+                onChange={event => patch({ title: event.target.value })}
                 placeholder={PLACEHOLDER.title}
                 className="mt-1 h-9 w-full rounded-studio border border-studio-border px-3 text-sm text-studio-text
                   placeholder:text-studio-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40"
@@ -201,7 +256,7 @@ export const Lower3rdPanel = () => {
               <span className="block text-xs font-semibold text-studio-text">Role</span>
               <input
                 value={draft.subtitle}
-                onChange={event => setDraft(current => ({ ...current, subtitle: event.target.value }))}
+                onChange={event => patch({ subtitle: event.target.value })}
                 placeholder={PLACEHOLDER.subtitle}
                 className="mt-1 h-9 w-full rounded-studio border border-studio-border px-3 text-sm text-studio-text
                   placeholder:text-studio-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40"
@@ -218,7 +273,7 @@ export const Lower3rdPanel = () => {
 
             <NameCardPicker
               value={draft.template}
-              onChange={(template: Template) => setDraft(current => ({ ...current, template }))}
+              onChange={(template: Template) => patch({ template })}
               title={draft.title.trim() || PLACEHOLDER.title}
               subtitle={draft.subtitle.trim() || PLACEHOLDER.subtitle}
             />
@@ -227,31 +282,38 @@ export const Lower3rdPanel = () => {
           <div className="flex flex-wrap items-end gap-3 border-t border-studio-divider pt-4">
             <label className="block">
               <span className="block text-xs font-semibold text-studio-text">
-                Hold for {cardHoldMs === PINNED ? 'as long as I leave it' : `${cardHoldMs / 1000}s`}
+                Hold for {draft.holdMs === PINNED ? 'as long as I leave it' : `${draft.holdMs / 1000}s`}
               </span>
               <input
                 type="range"
                 min={MIN_HOLD_MS}
                 max={MAX_HOLD_MS + HOLD_STEP_MS}
                 step={HOLD_STEP_MS}
-                value={cardHoldMs === PINNED ? MAX_HOLD_MS + HOLD_STEP_MS : cardHoldMs}
-                aria-label="How long a card stays on the stream"
+                value={draft.holdMs === PINNED ? MAX_HOLD_MS + HOLD_STEP_MS : draft.holdMs}
+                aria-label="How long this card stays on the stream"
                 // One past the end is "stay up", so pinning a card is the same
                 // gesture as making it last longer rather than a separate switch.
                 onChange={event =>
-                  setCardHoldMs(Number(event.target.value) > MAX_HOLD_MS ? PINNED : Number(event.target.value))
+                  patch({ holdMs: Number(event.target.value) > MAX_HOLD_MS ? PINNED : Number(event.target.value) })
                 }
                 className="studio-range mt-2 h-1.5 w-56 cursor-pointer appearance-none rounded-full bg-studio-border"
               />
+              {/* Said plainly, because the picker above looks like it belongs
+                  to the name in the form and does not. */}
+              <span className="mt-1 block text-[11px] text-studio-faint">
+                This design and hold go with everybody you put up.
+              </span>
             </label>
 
             <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
-              <Button variant="secondary" onClick={save} disabled={!ready || saving}>
-                {saving ? 'Saving…' : 'Save person'}
+              <Button variant="secondary" onClick={save} disabled={!ready} loading={saving}>
+                Save person
               </Button>
 
               <Button
-                onClick={() => fire({ ...draft, title: draft.title.trim(), subtitle: draft.subtitle.trim() })}
+                variant="accent"
+                icon={<HiOutlinePlay className="size-4" />}
+                onClick={() => fire(draft)}
                 disabled={!ready}
               >
                 Show on stream
@@ -262,15 +324,21 @@ export const Lower3rdPanel = () => {
           {/* What is up and how long it has left. The only readout there is:
               nobody in the room sees this output, so the console has to say. */}
           {live ? (
-            <div className="flex items-center gap-2 rounded-studio border border-studio-live bg-studio-live/5 px-3 py-2">
-              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-studio-live" />
+            <div className="relative flex items-center gap-2 overflow-hidden rounded-studio border border-studio-live bg-studio-live/5 px-3 py-2">
+              <span
+                aria-hidden
+                style={{ width: `${fill * 100}%` }}
+                className="pointer-events-none absolute inset-y-0 left-0 bg-studio-live/10 transition-[width] duration-300 ease-linear"
+              />
 
-              <span className="min-w-0 flex-1 truncate text-sm text-studio-text">
+              <span aria-hidden className="relative size-1.5 shrink-0 rounded-full bg-studio-live" />
+
+              <span className="relative min-w-0 flex-1 truncate text-sm text-studio-text">
                 <strong className="font-medium">{live.title}</strong>
                 {live.subtitle ? ` · ${live.subtitle}` : ''}
               </span>
 
-              <span className="shrink-0 text-[11px] tabular-nums text-studio-muted">
+              <span className="relative shrink-0 text-[11px] tabular-nums text-studio-muted">
                 {cardRun?.holdMs === PINNED ? 'until you clear it' : `${Math.ceil(left / 1000)}s`}
               </span>
 

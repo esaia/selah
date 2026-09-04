@@ -1,6 +1,6 @@
 'use client';
 
-import { Ban, MonitorPlay, Tv, X, Zap } from 'lucide-react';
+import { MonitorPlay, Tv, X, Zap } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
@@ -70,7 +70,7 @@ export const TimerPanel = () => {
   return (
     <div className="studio-scroll min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-[1440px] px-4 py-4">
-        {/* Pinned: Blackout, Flash and Clear are what an operator reaches for
+        {/* Pinned: Flash and Clear are what an operator reaches for
             without looking, and scrolling down the running order used to take
             them off the screen. It bleeds through the column's own padding so
             nothing shows past its edges as the list runs under it. */}
@@ -89,6 +89,19 @@ export const TimerPanel = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            {/* The projector is a second screen for the same face, so it is
+                only on offer once the stage is showing it. */}
+            {timer.onStage ? (
+              <ToggleButton
+                active={timer.onProjector}
+                label="Put the timer on the projector, in place of the slide"
+                onClick={() => updateTimer(current => ({ ...current, onProjector: !current.onProjector }))}
+              >
+                <Tv className="size-3.5" />
+                On projector
+              </ToggleButton>
+            ) : null}
+
             {/* Which face the stage is showing. Starting a count no longer
                 decides it: with the slides up a run appears in the box at the
                 foot of the stage's rail, and the person standing there keeps
@@ -111,19 +124,6 @@ export const TimerPanel = () => {
               Timer on stage
             </ToggleButton>
 
-            {/* The projector is a second screen for the same face, so it is
-                only on offer once the stage is showing it. */}
-            {timer.onStage ? (
-              <ToggleButton
-                active={timer.onProjector}
-                label="Put the timer on the projector, in place of the slide"
-                onClick={() => updateTimer(current => ({ ...current, onProjector: !current.onProjector }))}
-              >
-                <Tv className="size-3.5" />
-                On projector
-              </ToggleButton>
-            ) : null}
-
             {/* What takes the timer back off the screens and the run back to
                 the top. Nothing about the run itself does it — pausing a count
                 is not the same as being finished with it. */}
@@ -144,16 +144,6 @@ export const TimerPanel = () => {
               <X className="size-3.5" />
               Clear timer
             </button>
-
-            <ToggleButton
-              tone="danger"
-              active={timer.blackout}
-              label="Black the timer screens without stopping the run"
-              onClick={() => updateTimer(current => ({ ...current, blackout: !current.blackout }))}
-            >
-              <Ban className="size-3.5" />
-              Blackout
-            </ToggleButton>
 
             <button
               type="button"

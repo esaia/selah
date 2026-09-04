@@ -289,9 +289,6 @@ export const TimerScreen = ({
     Math.min(frame.width / widthInEms(text), digitsHeight),
   );
 
-  if (state.blackout)
-    return <div className={cn("size-full bg-black", className)} />;
-
   // A full-screen message is the whole output for as long as it is up: the
   // person on stage should not have to find it under the digits.
   if (takeover.length > 0)

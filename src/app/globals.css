@@ -155,6 +155,10 @@
   --color-studio-accent: #2563eb;
   --color-studio-live: #ef4444;
   --color-studio-go: #1f7a4d;
+  /* The same green, for the dark bars. #1f7a4d is mixed for white behind it
+     and goes muddy on the output preview's own black — and a lamp that says
+     an output is live has to read from across a booth. */
+  --color-studio-on: #22c55e;
   --color-studio-danger: #dc2626;
   --color-studio-slide: #000000;
 
@@ -1105,12 +1109,17 @@ html[data-preview='stage'] [data-preview-tab='stage'] {
   color: #fff;
 }
 
-/* The pencil belongs to the lower third, so it goes with that tab. */
-[data-preview-only='stream'] {
+/* The way into a look is drawn on the preview of that look, so each of these
+   belongs to one tab and hides on the others. Same attribute the panes use,
+   and read the same way: whatever is stamped on <html> decides, before React
+   has run. */
+[data-preview-only] {
   display: none;
 }
 
-html[data-preview='stream'] [data-preview-only='stream'] {
+html[data-preview='projector'] [data-preview-only='projector'],
+html[data-preview='stream'] [data-preview-only='stream'],
+html[data-preview='stage'] [data-preview-only='stage'] {
   display: block;
 }
 

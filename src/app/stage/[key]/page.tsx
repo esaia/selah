@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 
 import { StageOutput, type StageInitial } from '@/components/projector/StageOutput';
+import { asBlackout } from '@/lib/live/blackout';
 import { admin } from '@/lib/supabase/admin';
 import { asTimerState } from '@/lib/timer/model';
 import { LANGS, emptyShowData, type Lang, type ProjectorStyle, type ShowData } from '@/lib/types';
@@ -24,7 +25,7 @@ export default async function StagePage({ params }: PageProps<'/stage/[key]'>) {
 
   const { data: state } = await db
     .from('session_state')
-    .select('show_data, next_show_data, projector, stage_lang, timer')
+    .select('show_data, next_show_data, projector, stage_lang, timer, blackout')
     .eq('session_id', session.id)
     .maybeSingle();
 
@@ -34,6 +35,8 @@ export default async function StagePage({ params }: PageProps<'/stage/[key]'>) {
     projector: (state?.projector as Partial<ProjectorStyle>) ?? {},
     stageLang: LANGS.includes(state?.stage_lang as Lang) ? (state?.stage_lang as Lang) : undefined,
     timer: asTimerState(state?.timer),
+    // A monitor switched back on while the stage is black stays black.
+    black: asBlackout(state?.blackout).stage,
   };
 
   return <StageOutput outputKey={key} initial={initial} />;

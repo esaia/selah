@@ -138,7 +138,7 @@ const PresentMenu = () => {
         <div
           role="menu"
           aria-label="Present"
-          className="absolute right-0 z-30 mt-1.5 w-72 rounded-studio border border-studio-border bg-white p-1.5
+          className="absolute right-0 z-40 mt-1.5 w-72 rounded-studio border border-studio-border bg-white p-1.5
             shadow-studio"
         >
           <p className="px-2 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wide text-studio-faint">

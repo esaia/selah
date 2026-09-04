@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Maximize2 } from 'lucide-react';
 
+import { asBlackout } from '@/lib/live/blackout';
 import { openLiveChannel } from '@/lib/live/channel';
 import type { SlidePayload } from '@/lib/live/protocol';
 import { asTimerState, timerIsLive, withSkew, type TimerState } from '@/lib/timer/model';
@@ -17,6 +18,8 @@ export interface StageInitial {
   projector: Partial<ProjectorStyle>;
   stageLang?: Lang;
   timer: TimerState;
+  /** The operator has taken the stage monitor to black. */
+  black: boolean;
 }
 
 /**
@@ -50,6 +53,7 @@ export const StageOutput = ({ outputKey, initial }: { outputKey: string; initial
         projector: payload.projector,
         stageLang: payload.stageLang,
         timer: withSkew(asTimerState(payload.timer)),
+        black: asBlackout(payload.blackout).stage,
       }),
     );
 
@@ -69,6 +73,11 @@ export const StageOutput = ({ outputKey, initial }: { outputKey: string; initial
 
   return (
     <div className="relative h-dvh w-full bg-black">
+      {/* The Stage key blacks the monitor without touching the run: the count
+          is still going, and the person standing there gets it back exactly
+          where it is the moment the key is pressed again. */}
+      {state.black ? <div className="absolute inset-0 z-20 bg-black" /> : null}
+
       {timerIsLive(state.timer) ? (
         <TimerScreen state={state.timer} />
       ) : (

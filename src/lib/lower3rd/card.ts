@@ -52,9 +52,27 @@ export interface NameCard {
   title: string;
   /** The role beneath it. Often empty — a guest musician has no title. */
   subtitle: string;
+  /**
+   * Which design draws it.
+   *
+   * It is set from the console's picker at the moment of firing, not kept per
+   * person: an operator picks the look their stream has this season and every
+   * strap is that look. What is stored against a person is their name.
+   */
   template: Template;
   /** Where it sits in the operator's list. */
   position: number;
+}
+
+/**
+ * The form the console is filled in with, and with it the look everybody gets.
+ *
+ * It is a card plus the hold, because the hold is a console setting rather
+ * than a person's: the design tile and the slider decide what any name in the
+ * list looks like when it goes up.
+ */
+export interface CardDraft extends NameCard {
+  holdMs: number;
 }
 
 /**
@@ -90,6 +108,20 @@ export const newCard = (overrides: Partial<NameCard> = {}): NameCard => {
   };
 };
 
+/**
+ * A hold read back from anywhere, pinned to the range the slider offers.
+ *
+ * Zero is not "too short" — it is "stay until I take you down" — so it comes
+ * through untouched. Anything that is not a number at all is a row written
+ * before holds travelled with a person, and takes the default.
+ */
+export const asHoldMs = (value: unknown, fallback = DEFAULT_HOLD_MS): number => {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return fallback;
+  if (value === PINNED) return PINNED;
+
+  return Math.min(Math.max(value, MIN_HOLD_MS), MAX_HOLD_MS);
+};
+
 /** Is this id one Postgres minted, or one the console made up? */
 export const isSaved = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
 
@@ -120,6 +152,50 @@ export const asCard = (raw: unknown): NameCard | null => {
   };
 };
 
+/**
+ * A row out of `name_cards`, in the shape the console holds people in.
+ *
+ * The template comes back with the row and is then overwritten by whatever the
+ * console's picker is set to — a saved person is a name and a role, and the
+ * look is the operator's, chosen once for the whole stream.
+ */
+export const cardFromRow = (row: {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  template: string;
+  position: number | null;
+}): NameCard => ({
+  id: row.id,
+  title: row.title,
+  subtitle: row.subtitle ?? '',
+  template: isTemplate(row.template) ? row.template : DEFAULT_TEMPLATE,
+  position: row.position ?? 0,
+});
+
+/**
+ * The half-filled form, read back off the workspace row.
+ *
+ * Unlike `asCard` an empty name is allowed: that is a form nobody has typed in
+ * yet, which is exactly what a console reopened on a Saturday night holds. It
+ * is what makes a chosen design and a chosen hold survive a reload — and since
+ * both apply to everybody on the list, one reload used to undo the whole
+ * afternoon's setting up.
+ */
+export const asDraft = (raw: unknown): CardDraft => {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<keyof CardDraft, unknown>>;
+
+  return {
+    ...newCard({
+      ...(typeof value.id === 'string' && value.id ? { id: value.id } : {}),
+      title: typeof value.title === 'string' ? value.title : '',
+      subtitle: typeof value.subtitle === 'string' ? value.subtitle : '',
+      template: isTemplate(value.template) ? value.template : DEFAULT_TEMPLATE,
+    }),
+    holdMs: asHoldMs(value.holdMs),
+  };
+};
+
 /** A run read back off the wire or out of the session row. */
 export const asCardRun = (raw: unknown): CardRun | null => {
   if (!raw || typeof raw !== 'object') return null;
@@ -129,12 +205,10 @@ export const asCardRun = (raw: unknown): CardRun | null => {
 
   if (!card) return null;
 
-  const holdMs = typeof value.holdMs === 'number' && value.holdMs >= 0 ? value.holdMs : DEFAULT_HOLD_MS;
-
   return {
     card,
     firedAt: typeof value.firedAt === 'number' ? value.firedAt : Date.now(),
-    holdMs: holdMs === PINNED ? PINNED : Math.min(Math.max(holdMs, MIN_HOLD_MS), MAX_HOLD_MS),
+    holdMs: asHoldMs(value.holdMs),
     ...(typeof value.sentAt === 'number' ? { sentAt: value.sentAt } : {}),
   };
 };
@@ -167,6 +241,19 @@ export const remainingOf = (run: CardRun | null, now = Date.now()): number => {
 
 /** Should this run be on screen at all? */
 export const isShowing = (run: CardRun | null, now = Date.now()): boolean => remainingOf(run, now) > 0;
+
+/**
+ * How much of the hold is left as a fraction, for a bar that drains.
+ *
+ * A pinned card is always full: nothing is running out, so a bar that emptied
+ * would be lying about a strap that is going to stay up.
+ */
+export const progressOf = (run: CardRun | null, now = Date.now()): number => {
+  if (!run) return 0;
+  if (run.holdMs === PINNED) return 1;
+
+  return Math.min(1, Math.max(0, remainingOf(run, now) / run.holdMs));
+};
 
 /** The run to publish when the operator fires a card. */
 export const fireCard = (card: NameCard, holdMs = DEFAULT_HOLD_MS, now = Date.now()): CardRun => ({

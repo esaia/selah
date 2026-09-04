@@ -141,7 +141,6 @@ export interface TimerState {
    *  countdown moves its playhead instead, so it leaves this at zero. */
   adjustMs: number;
   messages: TimerMessage[];
-  blackout: boolean;
   /** Bumped to `Date.now()` to make every output flash once. */
   flashAt: number;
   /** Armed onto the projector, where it takes the slide's place. */
@@ -213,7 +212,6 @@ export const emptyTimerState = (): TimerState => {
     // A blank card, so the panel opens with somewhere to type rather than with
     // a button to press first. It carries no text, so it shows on nothing.
     messages: [newMessage()],
-    blackout: false,
     flashAt: 0,
     onProjector: false,
     onStage: false,
@@ -313,7 +311,6 @@ export const asTimerState = (raw: unknown): TimerState => {
     // Always at least one, for the same reason as the timers: a column with
     // nothing in it gives the operator nothing to write on.
     messages: messages.length ? messages : [newMessage()],
-    blackout: Boolean(input.blackout),
     flashAt: Math.max(0, num(input.flashAt, 0)),
     onProjector: Boolean(input.onProjector),
     // A row written before the stage had a flag of its own says nothing about

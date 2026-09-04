@@ -458,8 +458,6 @@ export const StageScreen = ({
   // element that is, so the frame wears it and every panel blinks together.
   const flashing = useFlash(timer.flashAt, now);
 
-  if (timer.blackout) return <div className="size-full bg-black" />;
-
   // A note the operator has sent full screen is the whole stage for as long as
   // it is up. The point of that button is that the person standing there should
   // not have to find the words in the corner of a screen of slides — the same

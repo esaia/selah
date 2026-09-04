@@ -13,6 +13,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 
 import { loadChapterCount, loadPassage, loadVerseCount, type Target } from '@/lib/bible/loadPassage';
+import { asBlackout, toggleScreen, type Blackout, type Screen } from '@/lib/live/blackout';
 import { openLiveChannel, type LiveChannel } from '@/lib/live/channel';
 import type { SignalTransport, SlidePayload } from '@/lib/live/protocol';
 import { loadLocalFile } from '@/lib/media/localMedia';
@@ -20,11 +21,14 @@ import { serveAssets } from '@/lib/media/peerAssets';
 import { LOCAL_THEME } from '@/lib/projector/themes';
 import {
   asCardRun,
+  asDraft,
+  cardFromRow,
   DEFAULT_HOLD_MS,
   fireCard,
   isSaved as hasRealId,
   remainingOf,
   withSkew as withCardSkew,
+  type CardDraft,
   type CardRun,
   type NameCard,
 } from '@/lib/lower3rd/card';
@@ -101,11 +105,15 @@ export interface StudioInitial {
     songScope: SongScope;
     tab: Tab;
     cardSize: number;
+    /** The name-card form as the operator left it, unvalidated. */
+    cardDraft: unknown;
   };
   songs: Song[];
   /** The people the operator has saved, and who is on the stream right now. */
   cards: NameCard[];
   card: unknown;
+  /** Which screens were black when the console was last open. */
+  blackout: unknown;
   showData: ShowData;
   nextShowData: ShowData;
   timer: TimerState;
@@ -150,11 +158,18 @@ interface StudioValue {
   stepLive: (direction: number) => void;
   clearProjector: () => void;
 
-  /** Saved name cards, who is on the stream, and how long a card holds. */
+  /** Saved name cards, who is on the stream, and the form being filled in. */
   cards: NameCard[];
   cardRun: CardRun | null;
-  cardHoldMs: number;
-  setCardHoldMs: (ms: number) => void;
+  /**
+   * The card being written, and with it the design and hold every strap uses.
+   *
+   * It lives here rather than in the panel because it is saved with the rest
+   * of the workspace: a look chosen before the service is still chosen after a
+   * reload.
+   */
+  cardDraft: CardDraft;
+  setCardDraft: (updater: (draft: CardDraft) => CardDraft) => void;
   showCard: (card: NameCard, holdMs?: number) => void;
   clearCard: () => void;
   saveCard: (card: NameCard) => Promise<void>;
@@ -195,6 +210,10 @@ interface StudioValue {
    * helpers in `lib/timer/model` stay pure functions of the whole state.
    */
   updateTimer: (updater: (state: TimerState) => TimerState) => void;
+
+  /** Which screens are black, and the key that takes one there and back. */
+  blackout: Blackout;
+  toggleBlackout: (screen: Screen) => void;
 
   tab: Tab;
   setTab: (tab: Tab) => void;
@@ -248,7 +267,14 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   // block list or clear when the projector clears.
   const [cards, setCards] = useState<NameCard[]>(initial.cards);
   const [cardRun, setCardRun] = useState<CardRun | null>(() => withCardSkew(asCardRun(initial.card)));
-  const [cardHoldMs, setCardHoldMs] = useState(DEFAULT_HOLD_MS);
+
+  // Which screens are dark. Not part of `showData`: blacking a projector does
+  // not take the verse off it, and the slide the console is holding has to be
+  // the slide that comes back when the key is pressed again.
+  const [blackout, setBlackout] = useState<Blackout>(() => asBlackout(initial.blackout));
+  const [cardDraft, setDraft] = useState<CardDraft>(() => asDraft(initial.workspace.cardDraft));
+
+  const setCardDraft = useCallback<StudioValue['setCardDraft']>(updater => setDraft(updater), []);
 
   const { blocks, live } = workspace;
 
@@ -306,6 +332,14 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     cardRef.current = cardRun;
   }, [cardRun]);
 
+  // And the dark screens, for the same reason: every push carries them, so a
+  // new verse cannot light a screen the operator has blacked.
+  const blackoutRef = useRef<Blackout>(blackout);
+
+  useEffect(() => {
+    blackoutRef.current = blackout;
+  }, [blackout]);
+
   /**
    * One payload, built in one place.
    *
@@ -327,6 +361,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       // same reason the timer is: a slide change must carry the card along
       // unchanged rather than take it down.
       card: cardRef.current && { ...cardRef.current, sentAt: Date.now() },
+      blackout: blackoutRef.current,
     }),
     [wireStyle],
   );
@@ -387,6 +422,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
           stream_style: wireStyle.stream,
           stream_lang: wireStyle.streamLang,
           stage_lang: wireStyle.stageLang,
+          blackout: blackoutRef.current,
         }),
         'the live slide',
       );
@@ -506,11 +542,39 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   );
 
   const showCard = useCallback<StudioValue['showCard']>(
-    (card, holdMs = cardHoldMs) => publishCard(fireCard(card, holdMs)),
-    [cardHoldMs, publishCard],
+    (card, holdMs = DEFAULT_HOLD_MS) => publishCard(fireCard(card, holdMs)),
+    [publishCard],
   );
 
   const clearCard = useCallback(() => publishCard(null), [publishCard]);
+
+  // ------------------------------------------------------------ blackout
+
+  /**
+   * The Audience and Stage keys.
+   *
+   * Published the way a card is: the slide goes out unchanged and the flag
+   * rides along with it, so the output that was told to go black is the only
+   * one that finds anything new. The row is written too, because a projector
+   * that reloads while the room is dark must come back dark rather than light
+   * the wall up mid-prayer.
+   */
+  const toggleBlackout = useCallback<StudioValue['toggleBlackout']>(
+    screen => {
+      const next = toggleScreen(blackoutRef.current, screen);
+
+      setBlackout(next);
+      blackoutRef.current = next;
+
+      channelRef.current?.publishSlide(payloadOf(showRef.current, nextRef.current, timerRef.current));
+
+      void save(
+        db.from('session_state').update({ blackout: next }).eq('session_id', initial.session.id),
+        'the blackout',
+      );
+    },
+    [db, initial.session.id, payloadOf],
+  );
 
   /**
    * Taking a finished card down.
@@ -553,7 +617,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
           user_id: initial.settings.user_id,
           title: card.title,
           subtitle: card.subtitle,
-          template: card.template,
           position: card.position,
         })
         .select()
@@ -562,7 +625,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       if (error) throw new Error(error.message);
       if (!data) return;
 
-      const written = data as NameCard;
+      const written = cardFromRow(data);
 
       setCards(current => {
         const without = current.filter(item => item.id !== written.id);
@@ -603,7 +666,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     void save(db.from('settings').update(toRow(next)).eq('user_id', initial.settings.user_id), 'your settings');
   });
 
-  useDebouncedSave({ workspace, setlist, activeSongId, songScope, tab, cardSize }, state => {
+  useDebouncedSave({ workspace, setlist, activeSongId, songScope, tab, cardSize, cardDraft }, state => {
     void save(
       db.from('session_workspace').upsert({
         session_id: initial.session.id,
@@ -614,6 +677,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
         song_scope: state.songScope,
         tab: state.tab,
         card_size: state.cardSize,
+        card_draft: state.cardDraft,
       }),
       'your workspace',
     );
@@ -1228,8 +1292,10 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       clearProjector,
       cards,
       cardRun,
-      cardHoldMs,
-      setCardHoldMs,
+      cardDraft,
+      setCardDraft,
+      blackout,
+      toggleBlackout,
       showCard,
       clearCard,
       saveCard,
@@ -1274,9 +1340,10 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       setActiveSongId,
       songScope,
       addPassage,
+      blackout,
       blocks,
       cardSize,
-      cardHoldMs,
+      cardDraft,
       cardRun,
       cards,
       clearCard,
@@ -1300,7 +1367,9 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       removeCard,
       removeGroup,
       saveCard,
+      setCardDraft,
       setLangOrder,
+      toggleBlackout,
       showCard,
       addLang,
       removeLang,

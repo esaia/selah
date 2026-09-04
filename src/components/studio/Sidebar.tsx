@@ -139,7 +139,7 @@ const DestRadio = ({
  * sits one click away in the settings dialog, summarised at the foot.
  */
 export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) => {
-  const { settings, update, setLangOrder, addLang, removeLang, peers } = useStudio();
+  const { settings, update, setLangOrder, addLang, removeLang } = useStudio();
 
   // The translation the cards are printed in. An armed language reads in
   // whatever the projector is carrying; only an unarmed one has a browsing
@@ -295,35 +295,6 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
           ) : null}
         </Section>
 
-        <Section title="Stream" hint="What OBS is showing right now.">
-          {/* The row is named for the thing the switch acts on, not for the
-              state it happens to be in — "Connected" beside a switch reads as
-              though the switch is what connects it. The state is the line
-              under the name and the dot beside it: presence on the session's
-              channel, so an overlay closed in OBS shows as gone without
-              anything to refresh. */}
-          <div className="flex items-center justify-between gap-2 rounded-studio border border-studio-border px-3 py-2">
-            <span className="flex min-w-0 items-center gap-2">
-              <span
-                aria-hidden
-                className={cn('size-1.5 shrink-0 rounded-full', peers.lower3rd ? 'bg-studio-go' : 'bg-studio-border')}
-              />
-
-              <span className="min-w-0">
-                <span className="block text-sm text-studio-text">Lower third</span>
-                <span className="block truncate text-[11px] text-studio-faint">
-                  {peers.lower3rd ? 'Connected' : 'Not open anywhere'}
-                </span>
-              </span>
-            </span>
-
-            <Toggle
-              checked={!settings.obsHidden}
-              onChange={checked => update({ obsHidden: !checked })}
-              label="Show slides on the lower third"
-            />
-          </div>
-        </Section>
       </div>
 
       <div className="shrink-0 border-t border-studio-border">

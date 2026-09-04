@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { QueryProvider } from '@/components/QueryProvider';
 import { Console } from '@/components/studio/Console';
 import { AudioProvider, type AudioInitial } from '@/lib/studio/AudioProvider';
+import { cardFromRow } from '@/lib/lower3rd/card';
 import { StudioProvider, type StudioInitial, type Tab } from '@/lib/studio/StudioProvider';
 import type { SettingsRow } from '@/lib/studio/settings';
 import { configured, createClient } from '@/lib/supabase/server';
@@ -56,7 +57,7 @@ export default async function StudioPage() {
     supabase.from('session_workspace').select('*').eq('session_id', session.data.id).maybeSingle(),
     supabase
       .from('session_state')
-      .select('show_data, next_show_data, timer, card')
+      .select('show_data, next_show_data, timer, card, blackout')
       .eq('session_id', session.data.id)
       .maybeSingle(),
     // The operator's own running order, with the order they were added in as
@@ -95,6 +96,9 @@ export default async function StudioPage() {
       songScope: workspace?.song_scope === 'setlist' ? 'setlist' : 'library',
       tab: TABS.includes(workspace?.tab as Tab) ? (workspace?.tab as Tab) : 'bible',
       cardSize: workspace?.card_size ?? 190,
+      // The name-card form as the operator left it. A design and a hold picked
+      // before the service should still be picked when the console reopens.
+      cardDraft: workspace?.card_draft ?? null,
     },
     // What the outputs are showing right now. Without this the console reopens
     // believing nothing is live, and its first style push would tell the
@@ -107,8 +111,11 @@ export default async function StudioPage() {
     // And the name card, if one was up when the console was closed. Read raw
     // and validated inside the provider, which is where the hold arithmetic
     // and the clock correction live.
-    cards: (nameCards.data ?? []) as StudioInitial['cards'],
+    cards: (nameCards.data ?? []).map(cardFromRow),
     card: state?.card ?? null,
+    // And which screens were left black, so a console reopened during a prayer
+    // does not report a bright room.
+    blackout: state?.blackout ?? null,
     songs: (songs.data ?? []).map(row => ({
       id: row.id,
       title: row.title,

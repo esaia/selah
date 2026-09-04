@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { asBlackout } from '@/lib/live/blackout';
 import { newPeerId, openLiveChannel, type LiveChannel } from '@/lib/live/channel';
 import type { SignalTransport, SlidePayload } from '@/lib/live/protocol';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
@@ -40,6 +41,8 @@ export interface ProjectorInitial {
   showData: ShowData;
   projector: Partial<ProjectorStyle>;
   timer: TimerState;
+  /** The operator has taken the room's screen to black. */
+  black: boolean;
 }
 
 /**
@@ -57,6 +60,11 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
   // projector. Carried by the same payload as the slide, so arming it is one
   // message and not a second channel to keep in step.
   const [timer, setTimer] = useState<TimerState>(initial.timer);
+
+  // The Audience key. It covers the screen rather than clearing it: the slide
+  // stays mounted, already fitted, so unblacking is instant and shows exactly
+  // what was there before.
+  const [black, setBlack] = useState(initial.black);
   const channelRef = useRef<LiveChannel | null>(null);
   const [peerId] = useState(newPeerId);
 
@@ -86,6 +94,7 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
       setShowData(current => keepSame(current, payload.showData ?? emptyShowData()));
       setStyle(current => keepSame(current, { ...defaultStyle, ...payload.projector }));
       setTimer(withSkew(asTimerState(payload.timer)));
+      setBlack(asBlackout(payload.blackout).audience);
     });
 
     return () => {
@@ -180,6 +189,11 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
             <TimerScreen state={timer} showClock={false} />
           </div>
         ) : null}
+
+        {/* Over everything, including the timer: the key says "this screen is
+            off", and a countdown showing through would be a screen that is
+            not. */}
+        {black ? <div className="absolute inset-0 z-30 bg-black" /> : null}
 
         <div
           className="relative flex h-full w-full items-center justify-center"
