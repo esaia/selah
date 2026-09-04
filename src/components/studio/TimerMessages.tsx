@@ -136,8 +136,15 @@ const Card = ({
           <Trash2 className="size-3.5" />
         </IconButton>
 
+        {/* Flashing something the outputs are not showing does nothing, so the
+            button waits for the message to be up. */}
         <IconButton
-          label="Flash this message once, to catch an eye"
+          label={
+            message.visible
+              ? "Flash this message once, to catch an eye"
+              : "Show this message first, then it can be flashed"
+          }
+          disabled={!message.visible}
           onClick={() => patch({ flashAt: Date.now() })}
         >
           <Zap className="size-3.5" />
@@ -151,9 +158,9 @@ const Card = ({
             label={`${color} text`}
             active={message.color === color}
             onClick={() => patch({ color })}
-            style={{
-              color: color === "white" ? "#111318" : MESSAGE_COLORS[color],
-            }}
+            // The swatch is the colour the message will be, and the console is
+            // dark: white ink reads as white here, not as the old paper ink.
+            style={{ color: MESSAGE_COLORS[color] }}
           >
             <span className="underline">A</span>
           </Chip>

@@ -96,6 +96,8 @@ export interface StudioSession {
 
 export interface StudioInitial {
   session: StudioSession;
+  /** Who is signed in, so the console can say so. */
+  email: string;
   settings: SettingsRow;
   workspace: {
     blocks: Block[];
@@ -125,6 +127,7 @@ export type SongScope = 'setlist' | 'library';
 
 interface StudioValue {
   session: StudioSession;
+  email: string;
   plan: string;
 
   settings: Settings;
@@ -1291,6 +1294,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   const value = useMemo<StudioValue>(
     () => ({
       session: initial.session,
+      email: initial.email,
       plan: initial.plan,
       settings,
       update,
@@ -1383,6 +1387,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       extendBlock,
       goLive,
       importSongs,
+      initial.email,
       initial.plan,
       initial.session,
       live,

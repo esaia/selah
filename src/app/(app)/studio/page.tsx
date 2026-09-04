@@ -84,6 +84,7 @@ export default async function StudioPage() {
 
   const initial: StudioInitial = {
     session: { id: session.data.id, name: session.data.name, outputKey: session.data.output_key },
+    email: user.email ?? '',
     settings: settings.data as SettingsRow,
     workspace: {
       blocks: (workspace?.blocks as Block[]) ?? [],

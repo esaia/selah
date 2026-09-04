@@ -8,7 +8,7 @@ import { useStudio } from '@/lib/studio/StudioProvider';
 
 /** Plan, upgrade, and the way out of the account. */
 export const AccountSection = () => {
-  const { plan } = useStudio();
+  const { email, plan } = useStudio();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -32,6 +32,11 @@ export const AccountSection = () => {
 
   return (
     <div className="space-y-6 text-sm">
+      <div className="border-studio-divider rounded-studio border p-4">
+        <p className="text-studio-muted text-xs">Signed in as</p>
+        <p className="mt-1 break-all">{email || 'Unknown'}</p>
+      </div>
+
       <div className="border-studio-divider rounded-studio border p-4">
         <p className="text-studio-muted text-xs">Your plan</p>
         <p className="mt-1 text-lg">{current.name}</p>
