@@ -11,6 +11,7 @@ import {
 } from 'react-icons/hi';
 
 import { Button } from '@/components/ui/Button';
+import { Kbd } from '@/components/ui/Kbd';
 import { findBook, parseReference, type BookEntry } from '@/lib/bible/passage';
 import { useStudio } from '@/lib/studio/StudioProvider';
 
@@ -127,6 +128,7 @@ export const SearchBar = ({
           icon={<HiOutlineMenuAlt2 className="text-sm" />}
         >
           Browse
+          <Kbd>{hint}</Kbd>
         </Button>
 
         {blocks.length > 0 ? (

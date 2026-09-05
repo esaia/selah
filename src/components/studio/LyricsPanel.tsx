@@ -13,6 +13,7 @@ import {
 
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Kbd } from '@/components/ui/Kbd';
 import { IconButton } from '@/components/ui/IconButton';
 import { cn } from '@/lib/cn';
 import { parseDroppedFiles } from '@/lib/lyrics/propresenter';
@@ -169,25 +170,23 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
 
         {songs.length > 0 ? <Setlist onEdit={setEditing} /> : null}
 
-        {songs.length > 0 ? (
-          <button
-            type="button"
-            onClick={onSearch}
-            title="Search the library"
-            className="mt-1 flex items-center justify-between gap-2 rounded-studio px-0.5 py-0.5 text-left
-              transition-colors duration-150 hover:bg-studio-surface focus:outline-none
-              focus-visible:ring-2 focus-visible:ring-studio-accent/40"
-          >
-            <span className="text-[11px] font-semibold tracking-wider text-studio-faint uppercase">
-              Library · {songs.length}
-            </span>
+        <button
+          type="button"
+          onClick={onSearch}
+          title="Search the library"
+          className="mt-1 flex items-center justify-between gap-2 rounded-studio px-0.5 py-0.5 text-left
+            transition-colors duration-150 hover:bg-studio-surface focus:outline-none
+            focus-visible:ring-2 focus-visible:ring-studio-accent/40"
+        >
+          <span className="text-[11px] font-semibold tracking-wider text-studio-faint uppercase">
+            Library · {songs.length}
+          </span>
 
-            <span className="flex items-center gap-1 text-[11px] text-studio-faint">
-              <HiOutlineSearch className="text-xs" />
-              {searchHint}
-            </span>
-          </button>
-        ) : null}
+          <span className="flex items-center gap-1.5 text-[11px] text-studio-faint">
+            <HiOutlineSearch className="text-xs" />
+            <Kbd>{searchHint}</Kbd>
+          </span>
+        </button>
 
         {/* Stacked, the column has no height of its own to divide up, so the
             list takes its natural height under a cap rather than a share. */}
