@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 
 import { openLiveChannel } from '@/lib/live/channel';
 import { asCardRun, isShowing, remainingOf, withSkew, type CardRun } from '@/lib/lower3rd/card';
+import { varsFor } from '@/lib/lower3rd/colors';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
 import { DEFAULT_FONT, fontStyleOf } from '@/lib/projector/fonts';
 import { keepSame } from '@/lib/projector/keepSame';
@@ -52,6 +53,8 @@ const defaultStyle: StreamStyle = {
   position: 'bottom',
   variant: 'scrim',
   lyricsVariant: 'scrim',
+  colors: {},
+  lyricsColors: {},
   hidden: false,
   fonts: [],
 };
@@ -331,6 +334,7 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
 
   const top = style.position === 'top';
   const align = (lyrics ? style.lyricsAlign : style.align) ?? 'left';
+  const look = (lyrics ? style.lyricsVariant : style.variant) || 'scrim';
 
   // A name card takes the bar's place while it holds, and the bar comes
   // straight back underneath when it goes — the verse was never taken down,
@@ -356,13 +360,15 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
       ) : null}
 
       <div
-        className={`lower3rd-bar lower3rd-bar--${(lyrics ? style.lyricsVariant : style.variant) || 'scrim'} ${
-          top ? 'lower3rd-bar--top' : ''
-        } ${ALIGN_CLASS[align]}`}
+        className={`lower3rd-bar lower3rd-bar--${look} ${top ? 'lower3rd-bar--top' : ''} ${ALIGN_CLASS[align]}`}
         // Opacity only. The bar used to slide in as well, but a lower third
         // that moves pulls the eye away from the speaker every time a verse
         // changes — a fade lets the words swap without the frame shifting.
         style={{
+          // The operator's colours, over the look's own. Only the knobs they
+          // have actually picked are here, so anything untouched still comes
+          // from the stylesheet.
+          ...varsFor(look, (lyrics ? style.lyricsColors : style.colors) ?? {}),
           opacity: visible && !cardShowing && !timerShowing ? 1 : 0,
           transition: transitionMs === 0 ? 'none' : `opacity ${transitionMs / 2}ms ease-in-out`,
         }}

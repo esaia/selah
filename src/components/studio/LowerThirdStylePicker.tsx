@@ -1,18 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import { MdRefresh } from "react-icons/md";
 
 import { cn } from "@/lib/cn";
+import {
+  defaultsOf,
+  knobsOf,
+  varsFor,
+  type Colorway,
+} from "@/lib/lower3rd/colors";
 import { fontStyleOf, type CustomFont } from "@/lib/projector/fonts";
 import { useStudio } from "@/lib/studio/StudioProvider";
 import type { Align } from "@/lib/types";
 
+import { ColorField } from "./ColorField";
+
 // Each look re-points the CSS variables on `.lower3rd-bar`; see globals.css.
+// A look here is an arrangement only — what it is painted in is picked below
+// the grid, which is why the bands appear once rather than in black and white.
 export const VARIANTS = [
   { value: "scrim", label: "Gradient fade" },
   { value: "solid", label: "Solid bar" },
-  { value: "bands", label: "White bands" },
-  { value: "bandsdark", label: "Black bands" },
+  { value: "bands", label: "Bands" },
   { value: "card", label: "Reference card" },
   { value: "split", label: "Split bar" },
   { value: "plain", label: "Text only" },
@@ -25,6 +35,13 @@ const TARGETS = [
   { id: "verses", label: "Verses" },
   { id: "lyrics", label: "Lyrics" },
 ];
+
+/** What each knob is called where the operator meets it. */
+const KNOBS: Record<keyof Colorway, { label: string; hint: string }> = {
+  plate: { label: "Plate", hint: "The panel the words sit on." },
+  ink: { label: "Text", hint: "The words, and the reference under them." },
+  accent: { label: "Accent", hint: "The rule and the reference chip." },
+};
 
 /** Short enough to fit the tile, long enough to wrap onto a second line. */
 const SAMPLE_VERSE = "For God so loved the world that he gave his only Son";
@@ -42,9 +59,9 @@ const ALIGN_CLASS: Record<Align, string> = {
  * rather than a drawing of them means a look and its preview cannot disagree —
  * a new variant in the stylesheet previews itself.
  *
- * The typeface and the alignment come from the settings below the grid, for the
- * same reason: a tile that is always ragged-left in one face is answering a
- * question the operator has already given a different answer to.
+ * The typeface, the alignment and the colours come from the settings around the
+ * grid, for the same reason: a tile that is always ragged-left in one face is
+ * answering a question the operator has already given a different answer to.
  */
 const Preview = ({
   variant,
@@ -53,6 +70,7 @@ const Preview = ({
   font,
   fonts,
   align,
+  colors,
 }: {
   variant: string;
   top: boolean;
@@ -60,6 +78,7 @@ const Preview = ({
   font: string;
   fonts: CustomFont[];
   align: Align;
+  colors: Colorway;
 }) => {
   const type = fontStyleOf(font, fonts);
 
@@ -75,6 +94,7 @@ const Preview = ({
           top && "lower3rd-bar--top",
           ALIGN_CLASS[align],
         )}
+        style={varsFor(variant, colors)}
       >
         <div className="lower3rd-inner">
           <div className="lower3rd-block">
@@ -102,6 +122,10 @@ const Preview = ({
  * dropdown — "Split bar" and "Reference card" mean nothing until you have seen
  * them. Verses and lyrics each keep their own look, switched by the tabs above
  * the grid rather than by a second identical grid.
+ *
+ * The colours are asked separately, below. They used to be part of the look,
+ * which meant the same arrangement had to be listed once per colourway and an
+ * operator whose church is not black or white was out of luck.
  */
 export const LowerThirdStylePicker = () => {
   const { settings, update } = useStudio();
@@ -118,6 +142,24 @@ export const LowerThirdStylePicker = () => {
   // being chosen and the look being described are the same picture.
   const font = lyrics ? settings.streamLyricsFont : settings.streamFont;
   const align = lyrics ? settings.streamLyricsAlign : settings.streamAlign;
+
+  const colors = lyrics
+    ? settings.streamColors.lyrics
+    : settings.streamColors.verses;
+  const setColors = (next: Colorway) =>
+    update({
+      streamColors: { ...settings.streamColors, [target]: next },
+    });
+  // Dropped, not set to the default: a knob that is absent is the look's own
+  // colour, and a look the operator switches to later should paint in its own.
+  const clearColor = (knob: keyof Colorway) =>
+    setColors(Object.fromEntries(Object.entries(colors).filter(([key]) => key !== knob)));
+
+  const knobs = knobsOf(selected);
+  const defaults = defaultsOf(selected);
+  // Only the knobs this look uses count as picked: an accent left behind by the
+  // split bar should not light up Reset on a look that has no rule to paint.
+  const picked = knobs.some((knob) => colors[knob]);
 
   return (
     <div>
@@ -156,7 +198,7 @@ export const LowerThirdStylePicker = () => {
           : "How Bible slides sit on the stream."}
       </p>
 
-      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {VARIANTS.map(({ value, label }) => (
           <button
             key={value}
@@ -178,6 +220,7 @@ export const LowerThirdStylePicker = () => {
               font={font}
               fonts={settings.customFonts}
               align={align}
+              colors={colors}
             />
 
             <span
@@ -191,6 +234,47 @@ export const LowerThirdStylePicker = () => {
               {label}
             </span>
           </button>
+        ))}
+      </div>
+
+      <div className="mt-4 flex items-baseline justify-between gap-2">
+        <span className="block text-xs font-semibold text-studio-text">
+          Colours
+        </span>
+
+        <button
+          type="button"
+          disabled={!picked}
+          title={`Back to the colours ${variantLabel(selected)} ships in`}
+          onClick={() => setColors({})}
+          className={cn(
+            "flex h-6 items-center gap-1 rounded-[4px] border px-2 text-[11px] font-medium",
+            "transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40",
+            picked
+              ? "border-studio-border bg-studio-bg text-studio-muted hover:bg-studio-surface hover:text-studio-text"
+              : "cursor-default border-transparent text-studio-faint/50",
+          )}
+        >
+          <MdRefresh className="text-xs" />
+          Reset
+        </button>
+      </div>
+
+      <p className="mt-0.5 text-[11px] leading-snug text-studio-faint">
+        {`What ${variantLabel(selected)} is painted in. Every tile above follows.`}
+      </p>
+
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {knobs.map((knob) => (
+          <ColorField
+            key={knob}
+            label={KNOBS[knob].label}
+            hint={KNOBS[knob].hint}
+            value={colors[knob]}
+            fallback={defaults[knob] ?? "#ffffff"}
+            onPick={(value) => setColors({ ...colors, [knob]: value })}
+            onClear={() => clearColor(knob)}
+          />
         ))}
       </div>
     </div>

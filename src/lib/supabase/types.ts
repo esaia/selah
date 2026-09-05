@@ -93,6 +93,7 @@ export interface Database {
         lower_third_position: string;
         lower_third_variant: string;
         lyrics_variant: string;
+        stream_colors: Json;
         obs_hidden: boolean;
         stream_lang: string;
         stage_lang: string;

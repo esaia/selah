@@ -1,4 +1,5 @@
 import { defaultVersionOf, isLang, MAX_LANGS, REQUIRED_LANG, specOf, type Lang } from '@/lib/bible/languages';
+import { asStreamColors, migrated, type StreamColors } from '@/lib/lower3rd/colors';
 import { asCustomFonts, DEFAULT_FONT, fontsUsedBy, type CustomFont } from '@/lib/projector/fonts';
 import {
   asScaleMode,
@@ -58,6 +59,12 @@ export interface Settings {
   lowerThirdPosition: 'top' | 'bottom';
   lowerThirdVariant: string;
   lyricsVariant: string;
+  /**
+   * What those two looks are painted in. A look says how the words are
+   * arranged; this says in what colours — which is why "White bands" and
+   * "Black bands" are no longer two looks. See `lib/lower3rd/colors.ts`.
+   */
+  streamColors: StreamColors;
   obsHidden: boolean;
   streamLang: Lang;
   stageLang: Lang;
@@ -105,6 +112,11 @@ const asVersion = (lang: Lang, value: unknown): string =>
 
 export const fromRow = (row: SettingsRow): Settings => {
   const versions = (row.versions ?? {}) as Partial<Record<Lang, string>>;
+  // The dark bands look was folded back into the light one as a colourway; a
+  // row still naming it is read as that arrangement in those colours.
+  const stored = asStreamColors(row.stream_colors);
+  const verses = migrated(row.lower_third_variant || 'scrim', stored.verses);
+  const lyrics = migrated(row.lyrics_variant || 'scrim', stored.lyrics);
   const langOrder = asOrder(row.lang_order);
   const adminLang = isLang(row.admin_lang) && langOrder.includes(row.admin_lang) ? row.admin_lang : langOrder[0];
 
@@ -140,8 +152,9 @@ export const fromRow = (row: SettingsRow): Settings => {
     transitionMs: clampTransition(row.transition_ms ?? DEFAULT_TRANSITION_MS),
     langOrder,
     lowerThirdPosition: row.lower_third_position === 'top' ? 'top' : 'bottom',
-    lowerThirdVariant: row.lower_third_variant || 'scrim',
-    lyricsVariant: row.lyrics_variant || 'scrim',
+    lowerThirdVariant: verses.variant,
+    lyricsVariant: lyrics.variant,
+    streamColors: { verses: verses.colors, lyrics: lyrics.colors },
     obsHidden: Boolean(row.obs_hidden),
     streamLang: isLang(row.stream_lang) ? row.stream_lang : REQUIRED_LANG,
     stageLang: isLang(row.stage_lang) ? row.stage_lang : REQUIRED_LANG,
@@ -174,6 +187,7 @@ export const toRow = (settings: Settings) => ({
   lower_third_position: settings.lowerThirdPosition,
   lower_third_variant: settings.lowerThirdVariant,
   lyrics_variant: settings.lyricsVariant,
+  stream_colors: settings.streamColors,
   obs_hidden: settings.obsHidden,
   stream_lang: settings.streamLang,
   stage_lang: settings.stageLang,
@@ -241,6 +255,8 @@ export const streamStyle = (settings: Settings): StreamStyle => {
     position: settings.lowerThirdPosition,
     variant: settings.lowerThirdVariant,
     lyricsVariant: settings.lyricsVariant,
+    colors: settings.streamColors.verses,
+    lyricsColors: settings.streamColors.lyrics,
     hidden: settings.obsHidden,
     fonts: fontsUsedBy([settings.streamFont, settings.streamLyricsFont], settings.customFonts),
   };

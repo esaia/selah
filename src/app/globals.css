@@ -947,15 +947,28 @@ body {
   padding: 4.5vh 6vw;
 
   /* Per-variant knobs. Each look below re-points these rather than restating
-     the layout, so position (top/bottom) and appearance stay independent. */
+     the layout, so position (top/bottom) and appearance stay independent.
+
+     Three of them — the plate, the ink and the accent — are the ones the
+     operator can pick, and the console overrides them inline on this element;
+     see `lib/lower3rd/colors.ts`. So a look declares what it is painted in and
+     never paints with a literal, or the swatch would have nothing to move. The
+     transparency stays in the look, though: how far the plate fades is part of
+     the arrangement, not of the colour chosen for it. */
+  --l3-plate: #06080c;
   --l3-fg: #ffffff;
-  --l3-ref: rgba(255, 255, 255, 0.72);
+  --l3-ref: color-mix(in srgb, var(--l3-fg) 72%, transparent);
   --l3-dir: to top;
   --l3-shadow: 0 2px 10px rgba(0, 0, 0, 0.65);
 
   /* Fading the scrim out rather than ending it on a hard edge keeps the bar
      from cutting a visible line across the shot. */
-  background: linear-gradient(var(--l3-dir), rgba(6, 8, 12, 0.9) 0%, rgba(6, 8, 12, 0.74) 58%, rgba(6, 8, 12, 0) 100%);
+  background: linear-gradient(
+    var(--l3-dir),
+    color-mix(in srgb, var(--l3-plate) 90%, transparent) 0%,
+    color-mix(in srgb, var(--l3-plate) 74%, transparent) 58%,
+    color-mix(in srgb, var(--l3-plate) 0%, transparent) 100%
+  );
 }
 
 .lower3rd-bar--top {
@@ -993,7 +1006,8 @@ body {
 
 /* Solid slab — reads harder than the scrim over a busy or bright shot. */
 .lower3rd-bar--solid {
-  background: rgba(8, 10, 14, 0.88);
+  --l3-plate: #080a0e;
+  background: color-mix(in srgb, var(--l3-plate) 88%, transparent);
 }
 
 /* No plate at all: text straight on the video, carried by its shadow. Needs a
@@ -1005,27 +1019,19 @@ body {
 
 /* Broadcast bands: each line of text sits on its own plate running the full
    width of the frame, with the bar itself carrying nothing — the plates are
-   the graphic. Two colourways share all the mechanics and differ only in the
-   plate and ink. The bar gives up its side padding so the plates can reach
-   both edges; the text keeps its own inset instead. */
-.lower3rd-bar--bands,
-.lower3rd-bar--bandsdark {
+   the graphic. This was two looks, white and black, which were one arrangement
+   listed twice; the plate and the ink are swatches now. The bar gives up its
+   side padding so the plates can reach both edges; the text keeps its own
+   inset instead. */
+.lower3rd-bar--bands {
   background: none;
   padding-left: 0;
   padding-right: 0;
   --l3-shadow: none;
-}
-
-.lower3rd-bar--bands {
   --l3-fg: #14171c;
-  --l3-ref: rgba(20, 23, 28, 0.6);
-  --l3-plate: rgba(255, 255, 255, 0.93);
-}
-
-.lower3rd-bar--bandsdark {
-  --l3-fg: #ffffff;
-  --l3-ref: rgba(255, 255, 255, 0.7);
-  --l3-plate: rgba(10, 12, 16, 0.86);
+  --l3-ref: color-mix(in srgb, var(--l3-fg) 60%, transparent);
+  --l3-plate: #ffffff;
+  --l3-plate-fill: color-mix(in srgb, var(--l3-plate) 93%, transparent);
 }
 
 /* One plate per line box, drawn as a repeating stripe on the block rather than
@@ -1036,8 +1042,7 @@ body {
    plates, and starting the stripe inside it keeps the words centred on their
    own plate. The inset is a percentage, not vw, so the style picker's tiles
    scale it with them. */
-.lower3rd-bar--bands .lower3rd-text,
-.lower3rd-bar--bandsdark .lower3rd-text {
+.lower3rd-bar--bands .lower3rd-text {
   display: block;
   line-height: 1.5;
   padding: 0 6%;
@@ -1045,15 +1050,14 @@ body {
     to bottom,
     transparent 0,
     transparent 0.08em,
-    var(--l3-plate) 0.08em,
-    var(--l3-plate) 1.42em,
+    var(--l3-plate-fill) 0.08em,
+    var(--l3-plate-fill) 1.42em,
     transparent 1.42em,
     transparent 1.5em
   );
 }
 
-.lower3rd-bar--bands .lower3rd-ref,
-.lower3rd-bar--bandsdark .lower3rd-ref {
+.lower3rd-bar--bands .lower3rd-ref {
   display: block;
   line-height: 1.8;
   padding: 0 6%;
@@ -1061,8 +1065,8 @@ body {
     to bottom,
     transparent 0,
     transparent 0.16em,
-    var(--l3-plate) 0.16em,
-    var(--l3-plate) 1.64em,
+    var(--l3-plate-fill) 0.16em,
+    var(--l3-plate-fill) 1.64em,
     transparent 1.64em,
     transparent 1.8em
   );
@@ -1070,8 +1074,7 @@ body {
 
 /* The reference is its own full-width plate now, so it no longer needs the
    inline-block shrink-to-fit the other looks rely on. */
-.lower3rd-bar--bands .lower3rd-refline,
-.lower3rd-bar--bandsdark .lower3rd-refline {
+.lower3rd-bar--bands .lower3rd-refline {
   margin-top: 0.16em;
 }
 
@@ -1086,10 +1089,12 @@ body {
 .lower3rd-bar--card {
   background: none;
   --l3-fg: #ffffff;
-  --l3-ref: #ffffff;
+  --l3-ref: var(--l3-fg);
   --l3-shadow: none;
-  --l3-plate: rgba(45, 85, 71, 0.93);
-  --l3-chip: rgba(10, 12, 16, 0.95);
+  --l3-plate: #2d5547;
+  --l3-accent: #0a0c10;
+  --l3-plate-fill: color-mix(in srgb, var(--l3-plate) 93%, transparent);
+  --l3-chip: color-mix(in srgb, var(--l3-accent) 95%, transparent);
 }
 
 .lower3rd-bar--card .lower3rd-block {
@@ -1109,7 +1114,7 @@ body {
 
 .lower3rd-bar--card .lower3rd-text {
   width: 100%;
-  background: var(--l3-plate);
+  background: var(--l3-plate-fill);
   padding: 0.5em 0.7em;
   line-height: 1.34;
 }
@@ -1139,18 +1144,21 @@ body {
    ruled off from the verse — the arrangement broadcast scripture graphics use,
    where the numbers are meant to be read from across a room. */
 .lower3rd-bar--split {
-  background: rgba(18, 20, 24, 0.93);
-  border-top: 2px solid rgba(198, 94, 43, 0.9);
-  padding: 2.8vh 5vw;
+  --l3-plate: #121418;
+  --l3-accent: #c65e2b;
   --l3-fg: #ffffff;
-  --l3-ref: #ffffff;
+  --l3-ref: var(--l3-fg);
   --l3-shadow: none;
+  --l3-rule: color-mix(in srgb, var(--l3-accent) 90%, transparent);
+  background: color-mix(in srgb, var(--l3-plate) 93%, transparent);
+  border-top: 2px solid var(--l3-rule);
+  padding: 2.8vh 5vw;
 }
 
 /* The accent rule always faces the picture, so it swaps edges with the bar. */
 .lower3rd-bar--split.lower3rd-bar--top {
   border-top: none;
-  border-bottom: 2px solid rgba(198, 94, 43, 0.9);
+  border-bottom: 2px solid var(--l3-rule);
 }
 
 /* Reversed so the reference — second in the markup, for reading order — sits
@@ -1177,7 +1185,7 @@ body {
   flex: 0 0 auto;
   margin-top: 0;
   padding-right: 0.85em;
-  border-right: 1px solid rgba(255, 255, 255, 0.22);
+  border-right: 1px solid color-mix(in srgb, var(--l3-fg) 22%, transparent);
   align-self: stretch;
 }
 
@@ -1207,7 +1215,7 @@ body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: rgba(255, 255, 255, 0.86);
+  color: color-mix(in srgb, var(--l3-fg) 86%, transparent);
 }
 
 .lower3rd-bar--split .lower3rd-block + .lower3rd-block {
@@ -1219,13 +1227,12 @@ body {
 .lower3rd-block + .lower3rd-block {
   margin-top: 0.5em;
   padding-top: 0.5em;
-  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  border-top: 1px solid color-mix(in srgb, var(--l3-fg) 16%, transparent);
 }
 
 /* The plates are already separated by their own edges, so the rule that
    divides stacked languages would only add noise. */
-.lower3rd-bar--bands .lower3rd-block + .lower3rd-block,
-.lower3rd-bar--bandsdark .lower3rd-block + .lower3rd-block {
+.lower3rd-bar--bands .lower3rd-block + .lower3rd-block {
   margin-top: 0.28em;
   padding-top: 0.34em;
   border-top: none;
@@ -1314,8 +1321,7 @@ body {
 /* The tile's own padding is more specific than the variant's, so the bands
    have to give theirs up again here or the plates stop short of the edges in
    the picker while running full width on the stream. */
-.l3-preview .lower3rd-bar--bands,
-.l3-preview .lower3rd-bar--bandsdark {
+.l3-preview .lower3rd-bar--bands {
   padding-left: 0;
   padding-right: 0;
 }

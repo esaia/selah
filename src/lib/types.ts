@@ -12,6 +12,7 @@ export {
 export type { Lang, LangSpec } from '@/lib/bible/languages';
 
 import type { Lang } from '@/lib/bible/languages';
+import type { Colorway } from '@/lib/lower3rd/colors';
 import type { CustomFont } from '@/lib/projector/fonts';
 import type { ScaleMode } from '@/lib/projector/looks';
 
@@ -94,6 +95,12 @@ export interface StreamStyle {
   position: 'top' | 'bottom';
   variant: string;
   lyricsVariant: string;
+  /**
+   * What those looks are painted in. Only what the operator has picked: an
+   * empty colourway is the look's own colours, not black.
+   */
+  colors: Colorway;
+  lyricsColors: Colorway;
   hidden: boolean;
   /** As on `ProjectorStyle`: the added faces this overlay draws, and no more. */
   fonts: CustomFont[];
