@@ -95,7 +95,16 @@ export default function HomePage() {
         <div className="grid items-center gap-14 lg:grid-cols-[1fr_0.9fr] lg:gap-12">
           <div>
             <h1 className={`${DISPLAY} text-[clamp(2.4rem,4.6vw,3.6rem)] leading-[1.0]`}>
-              Simple Church Presentation Software
+              Simple Church{' '}
+              <span className="relative inline-block">
+                <span
+                  aria-hidden
+                  className="absolute inset-x-[-0.08em] bottom-[0.06em] h-[0.38em] -rotate-[0.7deg]
+                    rounded-[2px] bg-site-accent/60"
+                />
+                <span className="relative">Presentation</span>
+              </span>{' '}
+              Software
             </h1>
 
             <div className="mt-7 h-1 w-16 rounded-full bg-site-accent" />
