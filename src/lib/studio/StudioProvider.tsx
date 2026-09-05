@@ -18,6 +18,7 @@ import { openLiveChannel, type LiveChannel } from '@/lib/live/channel';
 import type { SignalTransport, SlidePayload } from '@/lib/live/protocol';
 import { loadLocalFile } from '@/lib/media/localMedia';
 import { serveAssets } from '@/lib/media/peerAssets';
+import { keepSame } from '@/lib/projector/keepSame';
 import { LOCAL_THEME } from '@/lib/projector/themes';
 import {
   asCardRun,
@@ -408,20 +409,29 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
    */
   const pushShow = useCallback(
     (payload: ShowData, next: ShowData = emptyShowData()) => {
-      setShowData(payload);
-      showRef.current = payload;
-      setNextShowData(next);
-      nextRef.current = next;
+      // A slide that says nothing new keeps its object, the way the outputs
+      // keep theirs. The preview panel reads "a new slide has arrived" off the
+      // reference, and re-sending the words already on screen — dragging the
+      // cards around behind a live one, or a look change re-pushing it — would
+      // otherwise crossfade the panel out and back for a change it does not
+      // draw.
+      const slide = keepSame(showRef.current, payload);
+      const after = keepSame(nextRef.current, next);
 
-      pushedRef.current = JSON.stringify([payload, next]);
+      setShowData(slide);
+      showRef.current = slide;
+      setNextShowData(after);
+      nextRef.current = after;
 
-      channelRef.current?.publishSlide(payloadOf(payload, next, timerRef.current));
+      pushedRef.current = JSON.stringify([slide, after]);
+
+      channelRef.current?.publishSlide(payloadOf(slide, after, timerRef.current));
 
       void save(
         db.from('session_state').upsert({
           session_id: initial.session.id,
-          show_data: payload,
-          next_show_data: next,
+          show_data: slide,
+          next_show_data: after,
           projector: wireStyle.projector,
           stream_style: wireStyle.stream,
           stream_lang: wireStyle.streamLang,
