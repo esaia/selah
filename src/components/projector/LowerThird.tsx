@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-import { openLiveChannel } from '@/lib/live/channel';
+import { newPeerId, openLiveChannel } from '@/lib/live/channel';
 import { asCardRun, isShowing, remainingOf, withSkew, type CardRun } from '@/lib/lower3rd/card';
 import { varsFor } from '@/lib/lower3rd/colors';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
@@ -234,7 +234,12 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
   }, []);
 
   useEffect(() => {
-    const channel = openLiveChannel(outputKey, 'lower3rd');
+    // The console scales this page down into its preview rail. That copy is
+    // the operator looking at their own output, not a broadcast machine that
+    // has joined the service, so it listens without putting a hand up.
+    const preview = new URLSearchParams(window.location.search).has('preview');
+
+    const channel = openLiveChannel(outputKey, 'lower3rd', newPeerId(), !preview);
 
     const off = channel.onSlide(payload => {
       const next = { showData: payload.showData ?? emptyShowData(), style: { ...defaultStyle, ...payload.style } };

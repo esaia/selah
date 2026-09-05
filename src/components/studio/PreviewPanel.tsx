@@ -327,10 +327,13 @@ export const PreviewPanel = ({ onSettings }: { onSettings: (tab: string) => void
               rendering of the same design: it joins the session's channel like
               any other output, and its vh/vw padding resolves against its own
               1920x1080 viewport, so what shows here is what OBS draws. The
-              chequerboard stands in for the camera and reads as transparency. */}
+              chequerboard stands in for the camera and reads as transparency.
+              `?preview=1` is what keeps it out of the Present menu's count —
+              the same trap the stage pane below sidesteps by not being a
+              frame at all. */}
           <iframe
             title="Lower third preview"
-            src={`/lower3rd/${session.outputKey}`}
+            src={`/lower3rd/${session.outputKey}?preview=1`}
             tabIndex={-1}
             scrolling="no"
             style={{

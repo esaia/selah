@@ -30,7 +30,22 @@ const emptyRoles = (): Record<Role, number> => ({ console: 0, show: 0, lower3rd:
  */
 export const newPeerId = () => Math.random().toString(36).slice(2, 10);
 
-export const openLiveChannel = (outputKey: string, role: Role, peerId = newPeerId()): LiveChannel => {
+export const openLiveChannel = (
+  outputKey: string,
+  role: Role,
+  peerId = newPeerId(),
+  /**
+   * Whether this peer counts as a device in the room.
+   *
+   * Listening and being counted are two different things, and the console's
+   * preview needs the first without the second: it embeds the real /lower3rd
+   * page, so it joins the channel exactly as OBS does, and the Present menu
+   * read it back as a stream that was connected when nothing was watching.
+   * A preview that does not track is still handed every slide — presence
+   * feeds the counter and nothing else.
+   */
+  announce = true,
+): LiveChannel => {
   const slideHandlers = new Set<(payload: SlidePayload) => void>();
   const signalHandlers = new Set<(payload: SignalPayload) => void>();
   const presenceHandlers = new Set<(roles: Record<Role, number>) => void>();
@@ -62,7 +77,7 @@ export const openLiveChannel = (outputKey: string, role: Role, peerId = newPeerI
     )
     .on('presence', { event: 'sync' }, emitPresence)
     .subscribe(status => {
-      if (status === 'SUBSCRIBED') void channel?.track({ role });
+      if (status === 'SUBSCRIBED' && announce) void channel?.track({ role });
     });
 
   const send = (event: string, payload: unknown) => {
