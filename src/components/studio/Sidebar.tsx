@@ -1,13 +1,14 @@
 'use client';
 
 import { ChevronRight, MonitorPlay, Video, X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 import { Select } from '@/components/ui/Select';
 import { Toggle } from '@/components/ui/Toggle';
 import { cn } from '@/lib/cn';
 import { fontLabelOf } from '@/lib/projector/fonts';
 import { THEMES } from '@/lib/projector/themes';
+import { MAX_TRANSITION_MS, MIN_TRANSITION_MS } from '@/lib/projector/transition';
 import { stageLangOf, streamLangOf } from '@/lib/studio/settings';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import { LANG_LABELS, LANGS, MAX_LANGS, REQUIRED_LANG, versionsOf, type Lang } from '@/lib/types';
@@ -299,6 +300,36 @@ export const Sidebar = ({ onSettings }: { onSettings: (tab: string) => void }) =
       </div>
 
       <div className="shrink-0 border-t border-studio-border">
+        {/* The crossfade sits with the outputs rather than in the look dialog:
+            it is the one thing on this list an operator reaches for mid-service
+            — a hard cut for a reading, a long fade under a prayer — and it
+            belongs where the screens themselves are summarised, at the width
+            of a rail control rather than a page of settings. */}
+        <label className="flex h-9 items-center gap-2 border-b border-studio-divider px-4">
+          <span className="shrink-0 text-[11px] text-studio-faint">Transition</span>
+
+          <input
+            type="range"
+            min={MIN_TRANSITION_MS}
+            max={MAX_TRANSITION_MS}
+            step={10}
+            value={settings.transitionMs}
+            aria-label="Slide transition duration in milliseconds"
+            title="Crossfade between slides. Slide it to zero for a hard cut."
+            onChange={event => update({ transitionMs: Number(event.target.value) })}
+            style={
+              {
+                '--range-fill': `${((settings.transitionMs - MIN_TRANSITION_MS) / (MAX_TRANSITION_MS - MIN_TRANSITION_MS)) * 100}%`,
+              } as CSSProperties
+            }
+            className="studio-range h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-studio-border"
+          />
+
+          <span className="w-11 shrink-0 text-right text-[11px] text-studio-muted tabular-nums">
+            {settings.transitionMs === 0 ? 'Cut' : `${settings.transitionMs}ms`}
+          </span>
+        </label>
+
         <SummaryRow
           icon={<MonitorPlay className="size-4" />}
           label="Projector look"

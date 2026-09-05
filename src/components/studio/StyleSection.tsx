@@ -13,7 +13,6 @@ import {
   MIN_TEXT_SIZE,
   SCALE_MODES,
 } from '@/lib/projector/looks';
-import { MAX_TRANSITION_MS, MIN_TRANSITION_MS } from '@/lib/projector/transition';
 import { DYNAMIC_THEME, THEMES } from '@/lib/projector/themes';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import type { Align } from '@/lib/types';
@@ -228,29 +227,6 @@ export const StyleSection = () => {
         />
       </div>
 
-      <Field label="Transition" hint="Crossfade between slides. Slide it to zero for a hard cut.">
-        <div className="flex items-center gap-3">
-          <input
-            type="range"
-            min={MIN_TRANSITION_MS}
-            max={MAX_TRANSITION_MS}
-            step={10}
-            value={settings.transitionMs}
-            aria-label="Slide transition duration in milliseconds"
-            onChange={event => update({ transitionMs: Number(event.target.value) })}
-            style={
-              {
-                '--range-fill': `${((settings.transitionMs - MIN_TRANSITION_MS) / (MAX_TRANSITION_MS - MIN_TRANSITION_MS)) * 100}%`,
-              } as CSSProperties
-            }
-            className="studio-range h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-studio-border"
-          />
-
-          <span className="w-12 shrink-0 text-right text-xs text-studio-muted tabular-nums">
-            {settings.transitionMs === 0 ? 'Off' : `${settings.transitionMs}ms`}
-          </span>
-        </div>
-      </Field>
     </div>
   );
 };
