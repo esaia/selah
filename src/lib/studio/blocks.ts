@@ -34,20 +34,52 @@ export const extensionVerse = (block: Block, side: 'start' | 'end'): number | nu
 };
 
 /**
+ * Every verse between the block's edge and the chapter's, in reading order.
+ *
+ * The rest of the chapter on that side, which is what a held tile asks for. An
+ * unknown `chapterLength` means nobody has told us where the chapter ends, so
+ * the far end offers the one verse it is sure of rather than guessing.
+ */
+export const extensionSpan = (block: Block, side: 'start' | 'end'): number[] => {
+  const edge = extensionVerse(block, side);
+
+  if (edge === null) return [];
+
+  if (side === 'start') return Array.from({ length: edge }, (_, index) => index + 1);
+
+  if (!block.chapterLength) return [edge];
+
+  return Array.from({ length: block.chapterLength - edge + 1 }, (_, index) => edge + index);
+};
+
+/**
  * Where an extension leaves the block. The verses themselves still have to be
  * fetched — this only decides the shape and moves the live pointer, because
- * prepending shifts every card along by one.
+ * prepending shifts every card along by as many verses as it adds.
+ *
+ * `span` is how far the tile reaches: the neighbouring verse on a click, the
+ * rest of the chapter on a hold.
  */
-export const planExtension = (block: Block, side: 'start' | 'end', live: Live) => {
-  const added = extensionVerse(block, side);
+export const planExtension = (
+  block: Block,
+  side: 'start' | 'end',
+  live: Live,
+  span: 'verse' | 'chapter' = 'verse',
+) => {
+  const edge = extensionVerse(block, side);
+  const added = span === 'chapter' ? extensionSpan(block, side) : edge === null ? [] : [edge];
 
-  if (added === null) return null;
+  if (added.length === 0) return null;
+
+  const cards = added.map(verse => [verse]);
 
   return {
-    verses: side === 'start' ? [added, ...block.verses] : [...block.verses, added],
-    groups: side === 'start' ? [[added], ...block.groups] : [...block.groups, [added]],
+    verses: side === 'start' ? [...added, ...block.verses] : [...block.verses, ...added],
+    groups: side === 'start' ? [...cards, ...block.groups] : [...block.groups, ...cards],
     live:
-      side === 'start' && pointsAt(live, block.id) ? { ...live, verseIndex: live.verseIndex + 1 } : live,
+      side === 'start' && pointsAt(live, block.id)
+        ? { ...live, verseIndex: live.verseIndex + added.length }
+        : live,
   };
 };
 
@@ -63,6 +95,39 @@ export const planTrim = (block: Block, groupIndex: number) => {
   const verses = block.verses.filter(verse => kept.has(verse));
 
   return verses.length === 0 ? null : { verses, groups };
+};
+
+/**
+ * Drop the first card alone, leaving the rest of the passage where it is.
+ *
+ * The cut on every other card takes that card and everything after it, which
+ * on the first card is the whole passage — the bin button's job, not this
+ * one's. So the first card trims from the front instead: Luke 3:4-18 loses its
+ * verse 4 and starts at 5.
+ *
+ * Every remaining card slides down one, so the live pointer comes with it —
+ * and clears when it was the dropped card that was on the screen. Returns null
+ * when there is nothing behind it, which the caller reads as "delete" the same
+ * way `planTrim` does.
+ */
+export const planDropFirst = (block: Block, live: Live) => {
+  if (!block.groups?.length) return undefined;
+
+  const groups = block.groups.slice(1);
+
+  if (groups.length === 0) return null;
+
+  const kept = new Set(groups.flat());
+
+  return {
+    verses: block.verses.filter(verse => kept.has(verse)),
+    groups,
+    live: pointsAt(live, block.id)
+      ? live.verseIndex === 0
+        ? null
+        : { ...live, verseIndex: live.verseIndex - 1 }
+      : live,
+  };
 };
 
 /** Merge a card with the one after it, so both verses show on one slide. */

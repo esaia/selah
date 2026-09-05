@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   HiOutlineArrowDown,
   HiOutlineArrowUp,
@@ -22,24 +22,108 @@ import type { Sortable } from './sortable';
 
 import { VerseCard } from './VerseCard';
 
-/** Pulls the neighbouring verse into the passage. Sized to match a verse card. */
-const ExtendTile = ({ label, icon, onClick }: { label: string; icon: ReactNode; onClick: () => void }) => (
-  <div>
-    <div className="mb-1 h-[18px]" aria-hidden="true" />
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      onClick={onClick}
-      className="flex aspect-video w-full items-center justify-center rounded-[4px] border border-dashed
-        border-studio-border text-studio-faint transition-colors duration-150
-        hover:border-studio-accent hover:bg-studio-surface hover:text-studio-accent
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40"
-    >
-      {icon}
-    </button>
-  </div>
-);
+/** How long the tile is held before it takes the whole chapter. */
+const HOLD_MS = 2000;
+
+/**
+ * Pulls the neighbouring verse into the passage, or the rest of the chapter
+ * when it is held. Sized to match a verse card.
+ *
+ * Reaching a long passage a verse at a time is a dozen clicks during a service,
+ * and typing the reference again is a trip back to the search bar. Holding is
+ * the same gesture as clicking, kept down.
+ *
+ * The wait is shown as a disc growing out of the centre, not as a chevron that
+ * swells: the arrow is the tile's one piece of meaning, and something that
+ * changes size under the cursor reads as a wobble rather than as progress. The
+ * disc runs the whole hold at a constant rate, so how much is left is a
+ * distance rather than a guess, and it falls away quickly on release — a
+ * cancelled hold should look cancelled.
+ */
+const ExtendTile = ({
+  label,
+  holdLabel,
+  icon,
+  onClick,
+  onHold,
+}: {
+  label: string;
+  holdLabel: string;
+  icon: ReactNode;
+  onClick: () => void;
+  onHold: () => void;
+}) => {
+  const [holding, setHolding] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Set when the hold fired, so the click that follows the release is swallowed
+  // — a pointer release is still a click, and the chapter is already in.
+  const fired = useRef(false);
+
+  const stop = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    setHolding(false);
+  };
+
+  useEffect(() => stop, []);
+
+  return (
+    <div>
+      <div className="mb-1 h-[18px]" aria-hidden="true" />
+      <button
+        type="button"
+        title={`${label} · ${holdLabel}`}
+        aria-label={label}
+        onPointerDown={event => {
+          // Primary button only: a right-click opens a menu, not a chapter.
+          if (event.button !== 0) return;
+
+          fired.current = false;
+          setHolding(true);
+
+          timer.current = setTimeout(() => {
+            fired.current = true;
+            stop();
+            onHold();
+          }, HOLD_MS);
+        }}
+        onPointerUp={stop}
+        onPointerLeave={stop}
+        onPointerCancel={stop}
+        onClick={() => {
+          if (fired.current) {
+            fired.current = false;
+            return;
+          }
+
+          onClick();
+        }}
+        className={cn(
+          `relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-[4px]
+            border border-dashed text-studio-faint transition-colors duration-150
+            hover:border-studio-accent hover:bg-studio-surface hover:text-studio-accent
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40`,
+          holding ? 'border-studio-accent bg-studio-surface text-studio-accent' : 'border-studio-border',
+        )}
+      >
+        {/* Always mounted, so the growth is a transition on a class rather than
+            an entrance — a disc that appears at full size shows nothing. */}
+        <span
+          aria-hidden="true"
+          className={cn(
+            'pointer-events-none absolute top-1/2 left-1/2 aspect-square h-[150%] -translate-x-1/2',
+            '-translate-y-1/2 rounded-full bg-studio-slide/70 transition-transform ease-linear',
+            holding ? 'scale-100' : 'scale-0 duration-200',
+          )}
+          style={holding ? { transitionDuration: `${HOLD_MS}ms` } : undefined}
+        />
+
+        <span className="relative">{icon}</span>
+      </button>
+    </div>
+  );
+};
 
 /** Compact label: 15:1-3,7 rather than a bare first-to-last span. */
 const verseRange = (numbers: number[]) => {
@@ -189,8 +273,10 @@ export const PassageBlock = ({
                 {canPrepend ? (
                   <ExtendTile
                     label={`Add verse ${firstVerse - 1}`}
+                    holdLabel="hold for verse 1 onwards"
                     icon={<HiOutlineChevronLeft className="text-xl" />}
                     onClick={() => void extendBlock(block.id, 'start')}
+                    onHold={() => void extendBlock(block.id, 'start', 'chapter')}
                   />
                 ) : null}
 
@@ -206,6 +292,10 @@ export const PassageBlock = ({
                     isLive={live?.kind !== 'lyrics' && live?.blockId === block.id && live?.verseIndex === groupIndex}
                     onGoLive={() => selectVerse(block.id, groupIndex)}
                     onRemove={() => void removeGroup(block.id, groupIndex)}
+                    /* The first card's cut takes only itself — see
+                       `planDropFirst`. Everywhere else it takes the rest of the
+                       passage with it, and the card says so. */
+                    removesRest={groupIndex > 0}
                     onJoin={groupIndex < groups.length - 1 ? () => joinGroup(block.id, groupIndex) : undefined}
                     onSplit={() => splitGroup(block.id, groupIndex)}
                   />
@@ -214,8 +304,14 @@ export const PassageBlock = ({
                 {canAppend ? (
                   <ExtendTile
                     label={`Add verse ${lastVerse + 1}`}
+                    holdLabel={
+                      block.chapterLength
+                        ? `hold for the rest of the chapter, to verse ${block.chapterLength}`
+                        : 'hold for the rest of the chapter'
+                    }
                     icon={<HiOutlineChevronRight className="text-xl" />}
                     onClick={() => void extendBlock(block.id, 'end')}
+                    onHold={() => void extendBlock(block.id, 'end', 'chapter')}
                   />
                 ) : null}
               </div>

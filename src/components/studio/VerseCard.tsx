@@ -43,6 +43,7 @@ export const VerseCard = ({
   size = 190,
   onGoLive,
   onRemove,
+  removesRest = true,
   onJoin,
   onSplit,
 }: {
@@ -55,6 +56,11 @@ export const VerseCard = ({
   size?: number;
   onGoLive: () => void;
   onRemove?: () => void;
+  /**
+   * Whether this card's cut takes the cards after it too. False on the first
+   * card, which trims from the front and leaves the rest standing.
+   */
+  removesRest?: boolean;
   onJoin?: () => void;
   onSplit?: () => void;
 }) => {
@@ -103,7 +109,7 @@ export const VerseCard = ({
           ) : null}
 
           {onRemove ? (
-            <Control label="Remove this verse and the rest" onClick={onRemove}>
+            <Control label={removesRest ? 'Remove this verse and the rest' : 'Remove this verse'} onClick={onRemove}>
               <HiOutlineX className="text-sm" />
             </Control>
           ) : null}
@@ -112,6 +118,7 @@ export const VerseCard = ({
 
       <button
         type="button"
+        data-slide-card
         onClick={onGoLive}
         title={isLive ? 'Click again to clear the screen' : text}
         className={cn(

@@ -19,7 +19,7 @@ import type { SignalTransport, SlidePayload } from '@/lib/live/protocol';
 import { loadLocalFile } from '@/lib/media/localMedia';
 import { serveAssets } from '@/lib/media/peerAssets';
 import { keepSame } from '@/lib/projector/keepSame';
-import { LOCAL_THEME } from '@/lib/projector/themes';
+import { DEFAULT_THEME, LOCAL_THEME } from '@/lib/projector/themes';
 import {
   asCardRun,
   asDraft,
@@ -64,6 +64,7 @@ import {
   moveBlock as moveBlockIn,
   moveBlockTo as moveBlockToIn,
   orderBlocks as orderBlocksIn,
+  planDropFirst,
   planExtension,
   planTrim,
   regroup,
@@ -144,7 +145,8 @@ interface StudioValue {
   loading: boolean;
 
   addPassage: (request: { book: number; chapter: number; from?: number | null; to?: number | null }) => Promise<Block | null>;
-  extendBlock: (id: string, side: 'start' | 'end') => Promise<void>;
+  /** One verse on that side, or the rest of the chapter when `span` says so. */
+  extendBlock: (id: string, side: 'start' | 'end', span?: 'verse' | 'chapter') => Promise<void>;
   removeGroup: (id: string, groupIndex: number) => Promise<void>;
   joinGroup: (id: string, groupIndex: number) => void;
   splitGroup: (id: string, groupIndex: number) => void;
@@ -195,6 +197,8 @@ interface StudioValue {
   /** Writes the song and hands back the row, whose id is the database's, not the draft's. */
   saveSong: (song: Song) => Promise<Song | undefined>;
   reorderSlides: (song: Song, ids: string[]) => Promise<void>;
+  /** Drop one slide from a song, from the grid rather than the editor. */
+  removeSlide: (song: Song, slideId: string) => Promise<void>;
   removeSong: (id: string) => Promise<void>;
   clearSongs: () => Promise<void>;
   placeInSetlist: (songId: string, index: number) => void;
@@ -781,7 +785,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     setSettings(current =>
       file
         ? { ...current, localImage: file, theme: LOCAL_THEME }
-        : { ...current, localImage: null, theme: current.theme === LOCAL_THEME ? '1' : current.theme },
+        : { ...current, localImage: null, theme: current.theme === LOCAL_THEME ? DEFAULT_THEME : current.theme },
     );
   }, []);
 
@@ -903,12 +907,12 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   );
 
   const extendBlock = useCallback<StudioValue['extendBlock']>(
-    async (id, side) => {
+    async (id, side, span = 'verse') => {
       const block = blocks.find(item => item.id === id);
 
       if (!block) return;
 
-      const plan = planExtension(block, side, live);
+      const plan = planExtension(block, side, live, span);
 
       if (!plan) return;
 
@@ -923,21 +927,44 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
       if (!block) return;
 
+      const drop = () => setWorkspace(current => removeBlockIn(current, id));
+
+      // The first card has nothing before it to keep, so its cut takes itself
+      // and the passage starts one verse later: every card behind it slides
+      // down one, and `planDropFirst` has already walked the live pointer back
+      // with them.
+      if (groupIndex === 0) {
+        const plan = planDropFirst(block, live);
+
+        if (plan === undefined) return;
+
+        if (plan === null) {
+          drop();
+          return;
+        }
+
+        await reloadBlock(block, plan.verses, plan.groups, () => plan.live);
+        return;
+      }
+
+      // Every other card takes the rest of the passage with it, so a pointer
+      // at or past the cut has nothing left to point at.
       const plan = planTrim(block, groupIndex);
 
       if (plan === undefined) return;
 
       if (plan === null) {
-        setWorkspace(current => removeBlockIn(current, id));
+        drop();
         return;
       }
 
-      // Anything from the cut point on is gone, so a live pointer there clears.
-      await reloadBlock(block, plan.verses, plan.groups, live =>
-        live && live.kind !== 'lyrics' && live.blockId === id && live.verseIndex >= groupIndex ? null : live,
+      await reloadBlock(block, plan.verses, plan.groups, current =>
+        current && current.kind !== 'lyrics' && current.blockId === id && current.verseIndex >= groupIndex
+          ? null
+          : current,
       );
     },
-    [blocks, reloadBlock],
+    [blocks, live, reloadBlock],
   );
 
   const refreshBlocks = useCallback(async () => {
@@ -1267,6 +1294,53 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [live, publishLyrics, saveSong],
   );
 
+  /**
+   * One slide out of a song, taken from the card itself.
+   *
+   * The editor could already do this, but reaching a slide there is opening a
+   * dialog, finding the row and coming back — and the operator is looking
+   * straight at the card they mean. So the grid deletes the way ProPresenter's
+   * does.
+   *
+   * The live pointer is an index into the list, so dropping a card ahead of it
+   * has to move it: `saveSong` only clears a pointer that has run off the end,
+   * which would leave slide 7 live and showing what used to be slide 8. The
+   * slide is republished rather than merely repointed, because the stage
+   * display draws the one *after* it and that has changed.
+   */
+  const removeSlide = useCallback<StudioValue['removeSlide']>(
+    async (song, slideId) => {
+      const slides = song.slides.filter(slide => slide.id !== slideId);
+
+      // Not in this song, or the last one standing — a song with no slides is
+      // a row the grid cannot draw and the editor is the place to empty one.
+      if (slides.length === song.slides.length || slides.length === 0) return;
+
+      const trimmed: Song = { ...song, slides };
+      const onScreen =
+        live?.kind === 'lyrics' && live.songId === song.id ? song.slides[live.slideIndex]?.id : null;
+
+      setSongs(current => current.map(item => (item.id === song.id ? trimmed : item)));
+
+      if (onScreen) {
+        const at = slides.findIndex(slide => slide.id === onScreen);
+
+        // The card that was on the projector is the one that just went.
+        if (at >= 0) publishLyrics(trimmed, at);
+        else clearProjector();
+      }
+
+      try {
+        await saveSong(trimmed);
+      } catch {
+        // Nothing agreed to keep the shorter song, so the grid goes back to the
+        // one the database still holds.
+        setSongs(current => current.map(item => (item.id === song.id ? song : item)));
+      }
+    },
+    [clearProjector, live, publishLyrics, saveSong],
+  );
+
   const removeSong = useCallback<StudioValue['removeSong']>(
     async id => {
       await db.from('songs').delete().eq('id', id);
@@ -1351,6 +1425,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       importSongs,
       saveSong,
       reorderSlides,
+      removeSlide,
       removeSong,
       clearSongs: async () => {
         await db.from('songs').delete().eq('user_id', initial.settings.user_id);
@@ -1421,6 +1496,7 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       removeSong,
       saveSong,
       reorderSlides,
+      removeSlide,
       selectLyric,
       selectVerse,
       setLocalBackground,

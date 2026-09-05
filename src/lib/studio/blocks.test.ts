@@ -5,7 +5,9 @@ import type { Block, Live } from '@/lib/types';
 import {
   joinGroup,
   moveBlockTo,
+  extensionSpan,
   orderBlocks,
+  planDropFirst,
   planExtension,
   planTrim,
   regroup,
@@ -57,6 +59,46 @@ describe('planExtension', () => {
 
     expect(planExtension(block(), 'start', lyrics)?.live).toBe(lyrics);
   });
+
+  it('reaches back to verse 1 on a chapter span, pointer and all', () => {
+    const plan = planExtension(block(), 'start', live(0), 'chapter');
+
+    expect(plan?.verses).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
+    expect(plan?.groups[0]).toEqual([1]);
+    expect(plan?.live).toEqual({ blockId: 'b1', verseIndex: 15 });
+  });
+
+  it('reaches the end of the chapter on a chapter span', () => {
+    const plan = planExtension(block(), 'end', live(2), 'chapter');
+
+    expect(plan?.verses[plan.verses.length - 1]).toBe(36);
+    expect(plan?.verses).toHaveLength(21);
+    expect(plan?.live).toEqual({ blockId: 'b1', verseIndex: 2 });
+  });
+
+  it('still refuses at the edges when asked for the chapter', () => {
+    expect(planExtension(block({ verses: [1], groups: [[1]] }), 'start', null, 'chapter')).toBeNull();
+    expect(planExtension(block({ verses: [36], groups: [[36]] }), 'end', null, 'chapter')).toBeNull();
+  });
+});
+
+describe('extensionSpan', () => {
+  it('counts back to the first verse of the chapter', () => {
+    expect(extensionSpan(block(), 'start')).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+  });
+
+  it('counts on to the last', () => {
+    expect(extensionSpan(block({ verses: [34], groups: [[34]] }), 'end')).toEqual([35, 36]);
+  });
+
+  it('offers only the verse it is sure of when the chapter length is unknown', () => {
+    expect(extensionSpan(block({ chapterLength: 0 }), 'end')).toEqual([19]);
+  });
+
+  it('has nothing to add at either edge', () => {
+    expect(extensionSpan(block({ verses: [1], groups: [[1]] }), 'start')).toEqual([]);
+    expect(extensionSpan(block({ verses: [36], groups: [[36]] }), 'end')).toEqual([]);
+  });
 });
 
 describe('planTrim', () => {
@@ -70,6 +112,44 @@ describe('planTrim', () => {
 
   it('ignores a card that is not there', () => {
     expect(planTrim(block(), 9)).toBeUndefined();
+  });
+});
+
+describe('planDropFirst', () => {
+  it('drops the first card and leaves the rest standing', () => {
+    expect(planDropFirst(block(), null)).toEqual({ verses: [17, 18], groups: [[17], [18]], live: null });
+  });
+
+  it('takes a joined first card whole', () => {
+    const joined = block({ groups: [[16, 17], [18]] });
+
+    expect(planDropFirst(joined, null)).toMatchObject({ verses: [18], groups: [[18]] });
+  });
+
+  it('walks the live pointer back, because every card slid down one', () => {
+    const live: Live = { blockId: 'b1', verseIndex: 2 };
+
+    expect(planDropFirst(block(), live)).toMatchObject({ live: { blockId: 'b1', verseIndex: 1 } });
+  });
+
+  it('clears the screen when the dropped card was the one on it', () => {
+    const live: Live = { blockId: 'b1', verseIndex: 0 };
+
+    expect(planDropFirst(block(), live)).toMatchObject({ live: null });
+  });
+
+  it('leaves another block\u2019s pointer alone', () => {
+    const live: Live = { blockId: 'b2', verseIndex: 0 };
+
+    expect(planDropFirst(block(), live)).toMatchObject({ live });
+  });
+
+  it('reports a one-card block as a deletion', () => {
+    expect(planDropFirst(block({ verses: [16], groups: [[16]] }), null)).toBeNull();
+  });
+
+  it('ignores a block with no cards', () => {
+    expect(planDropFirst(block({ verses: [], groups: [] }), null)).toBeUndefined();
   });
 });
 

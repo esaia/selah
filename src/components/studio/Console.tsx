@@ -23,6 +23,22 @@ import { Sidebar } from './Sidebar';
 import { TimerPanel } from './TimerPanel';
 
 /**
+ * Let go of the card the operator last clicked.
+ *
+ * A click leaves the card focused without a ring — but the moment the operator
+ * reaches for the arrows, the browser decides the focus is worth showing and
+ * paints `:focus-visible` on it. So the card they stepped away from wears an
+ * accent ring while the live one is red, which reads as two slides claiming the
+ * screen. Arrows mean the hands have left the mouse; the ring has nothing left
+ * to say.
+ */
+const dropCardFocus = () => {
+  const focused = document.activeElement;
+
+  if (focused instanceof HTMLElement && focused.matches('[data-slide-card]')) focused.blur();
+};
+
+/**
  * The console shell.
  *
  * Setup on the left, passages in the middle, what the room is seeing on the
@@ -30,7 +46,20 @@ import { TimerPanel } from './TimerPanel';
  * during a service the operator's hand is not on the mouse.
  */
 export const Console = () => {
-  const { blocks, stepLive, cardSize, setCardSize, tab, loading, updateTimer, orderBlocks, settings } = useStudio();
+  const {
+    blocks,
+    stepLive,
+    cardSize,
+    setCardSize,
+    tab,
+    loading,
+    updateTimer,
+    orderBlocks,
+    settings,
+    live,
+    songs,
+    removeSlide,
+  } = useStudio();
 
   // The console draws its own copies of the slide — the preview panel, every
   // card, the specimens in the settings dialog — so the operator's own faces
@@ -80,6 +109,27 @@ export const Console = () => {
       // Stepping slides must not fight with typing a reference or a lyric.
       if (typing) return;
 
+      // Delete takes the slide the operator is looking at, which is the one on
+      // the projector: selecting a card and putting it up are the same gesture
+      // here, so there is no quieter selection to delete instead. Backspace as
+      // well as Delete — the key a Mac keyboard actually has is ⌫.
+      //
+      // Songs only. On the Bible tab a card's × trims the passage rather than
+      // dropping one verse, and a key that means two different things on two
+      // tabs is a key nobody trusts.
+      if ((event.key === 'Delete' || event.key === 'Backspace') && tab === 'lyrics') {
+        if (live?.kind !== 'lyrics') return;
+
+        const song = songs.find(item => item.id === live.songId);
+        const slide = song?.slides[live.slideIndex];
+
+        if (!song || !slide) return;
+
+        event.preventDefault();
+        void removeSlide(song, slide.id);
+        return;
+      }
+
       // A stage timer is started and stopped with a thumb on the space bar. On
       // its own tab that wins over stepping the slide, which is what the same
       // key does everywhere else in the console.
@@ -91,11 +141,13 @@ export const Console = () => {
 
       if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === ' ') {
         event.preventDefault();
+        dropCardFocus();
         stepLive(1);
       }
 
       if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
         event.preventDefault();
+        dropCardFocus();
         stepLive(-1);
       }
     };
@@ -103,7 +155,7 @@ export const Console = () => {
     window.addEventListener('keydown', onKey);
 
     return () => window.removeEventListener('keydown', onKey);
-  }, [browsing, searching, stepLive, tab, updateTimer]);
+  }, [browsing, live, removeSlide, searching, songs, stepLive, tab, updateTimer]);
 
   return (
     <div className="flex h-dvh flex-col bg-studio-bg">

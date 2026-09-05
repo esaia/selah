@@ -1,7 +1,7 @@
 'use client';
 
 import { useLayoutEffect, useRef } from 'react';
-import { HiOutlinePencil } from 'react-icons/hi';
+import { HiOutlinePencil, HiOutlineTrash } from 'react-icons/hi';
 
 import { IconButton } from '@/components/ui/IconButton';
 import { cn } from '@/lib/cn';
@@ -27,6 +27,7 @@ export const LyricCard = ({
   size = 190,
   onGoLive,
   onEdit,
+  onDelete,
   onGroup,
 }: {
   slide: SongSlide;
@@ -38,6 +39,7 @@ export const LyricCard = ({
   size?: number;
   onGoLive: () => void;
   onEdit?: () => void;
+  onDelete?: () => void;
   onGroup?: (group: string) => void;
 }) => {
   const bodyRef = useRef<HTMLSpanElement>(null);
@@ -78,20 +80,35 @@ export const LyricCard = ({
           ) : null}
         </span>
 
-        {onEdit ? (
-          <IconButton
-            label={`Edit slide ${index + 1}`}
-            onClick={onEdit}
-            className="h-[18px] w-[18px] text-studio-faint opacity-0 transition-opacity
-              group-hover:opacity-100 focus-visible:opacity-100"
-          >
-            <HiOutlinePencil className="text-[11px]" />
-          </IconButton>
-        ) : null}
+        <span className="flex shrink-0 items-center">
+          {onEdit ? (
+            <IconButton
+              label={`Edit slide ${index + 1}`}
+              onClick={onEdit}
+              className="h-[18px] w-[18px] text-studio-faint opacity-0 transition-opacity
+                group-hover:opacity-100 focus-visible:opacity-100"
+            >
+              <HiOutlinePencil className="text-[11px]" />
+            </IconButton>
+          ) : null}
+
+          {onDelete ? (
+            <IconButton
+              label={`Delete slide ${index + 1}`}
+              tone="danger"
+              onClick={onDelete}
+              className="h-[18px] w-[18px] opacity-0 transition-opacity
+                group-hover:opacity-100 focus-visible:opacity-100"
+            >
+              <HiOutlineTrash className="text-[11px]" />
+            </IconButton>
+          ) : null}
+        </span>
       </div>
 
       <button
         type="button"
+        data-slide-card
         onClick={onGoLive}
         title={isLive ? 'Click again to clear the screen' : slide.text}
         className={cn(

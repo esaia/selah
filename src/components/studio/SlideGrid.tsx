@@ -30,7 +30,7 @@ export const SlideGrid = ({
   scrollTo?: boolean;
   onEditSlide: (index: number) => void;
 }) => {
-  const { settings, cardSize, live, selectLyric, saveSong, reorderSlides } = useStudio();
+  const { settings, cardSize, live, selectLyric, saveSong, reorderSlides, removeSlide } = useStudio();
   const box = useRef<HTMLElement>(null);
 
   const onScreen = live?.kind === 'lyrics' && live.songId === song.id;
@@ -117,6 +117,9 @@ export const SlideGrid = ({
               isLive={onScreen && live.slideIndex === index}
               onGoLive={() => selectLyric(song, index)}
               onEdit={() => onEditSlide(index)}
+              /* A song has to keep a slide. Emptying one out is the editor's
+                 job, where the song can be deleted outright. */
+              onDelete={song.slides.length > 1 ? () => void removeSlide(song, slide.id) : undefined}
               onGroup={group =>
                 void saveSong({
                   ...song,
