@@ -18,6 +18,8 @@ import { openLiveChannel, type LiveChannel } from '@/lib/live/channel';
 import type { SignalTransport, SlidePayload } from '@/lib/live/protocol';
 import { loadLocalFile } from '@/lib/media/localMedia';
 import { serveAssets } from '@/lib/media/peerAssets';
+import { lyricsShowData, songFromRow, songLangsRow, syncSwitches } from '@/lib/lyrics/langs';
+import { homeOf } from '@/lib/lyrics/lists';
 import { keepSame } from '@/lib/projector/keepSame';
 import { DEFAULT_THEME, LOCAL_THEME } from '@/lib/projector/themes';
 import {
@@ -53,8 +55,11 @@ import {
   type Lang,
   type Live,
   type LocalFileMeta,
+  type OpenList,
   type ShowData,
   type Song,
+  type SongLibrary,
+  type SongPlaylist,
   type SongSlide,
 } from '@/lib/types';
 
@@ -104,15 +109,17 @@ export interface StudioInitial {
   workspace: {
     blocks: Block[];
     live: Live;
-    setlist: string[];
     activeSongId: string | null;
-    songScope: SongScope;
+    /** The library or playlist the panel was showing, if it said. */
+    open: OpenList | null;
     tab: Tab;
     cardSize: number;
     /** The name-card form as the operator left it, unvalidated. */
     cardDraft: unknown;
   };
   songs: Song[];
+  libraries: SongLibrary[];
+  playlists: SongPlaylist[];
   /** The people the operator has saved, and who is on the stream right now. */
   cards: NameCard[];
   card: unknown;
@@ -124,8 +131,6 @@ export interface StudioInitial {
   plan: string;
 }
 
-/** Which list a song was opened from, and so what the workspace shows. */
-export type SongScope = 'setlist' | 'library';
 
 interface StudioValue {
   session: StudioSession;
@@ -184,28 +189,63 @@ interface StudioValue {
 
   songs: Song[];
   activeSongId: string | null;
+  /** The song last asked for off the rail, which is what the panel scrolls to. */
+  songCue: { id: string; at: number } | null;
   /**
    * Open a song. `from` says which list it was picked out of, because that is
    * what the workspace shows: a song picked off the playlist is one item of a
    * running order the operator is working through, and one picked out of the
    * library is the only thing they asked to see.
    */
-  setActiveSongId: (id: string | null, from?: SongScope) => void;
-  songScope: SongScope;
-  setlist: string[];
-  importSongs: (songs: Song[]) => Promise<void>;
+  setActiveSongId: (id: string | null) => void;
+
+  /**
+   * The shelves and the running orders, and which of them the panel is showing.
+   *
+   * A library holds songs — one library each, so moving a song files it
+   * somewhere else rather than copying it — and a playlist only names them in
+   * an order, so deleting one takes the order and nothing else.
+   */
+  libraries: SongLibrary[];
+  playlists: SongPlaylist[];
+  open: OpenList;
+  openList: (open: OpenList) => void;
+  addLibrary: (name: string) => Promise<void>;
+  addPlaylist: (name: string) => Promise<void>;
+  renameList: (open: OpenList, name: string) => Promise<void>;
+  removeList: (open: OpenList) => Promise<void>;
+  orderLists: (kind: OpenList['kind'], ids: string[]) => Promise<void>;
+  /**
+   * File songs on another shelf; they leave the one they were on.
+   *
+   * These four take a list because the rail selects one: a Sunday's worth of
+   * songs dragged onto a playlist is one act to the operator, and should be
+   * one write rather than eleven.
+   */
+  moveSongsToLibrary: (songIds: string[], libraryId: string) => Promise<void>;
+  /** Put songs at a place in a running order, moving any already on it. */
+  placeInPlaylist: (playlistId: string, songIds: string[], index: number) => Promise<void>;
+  orderPlaylist: (playlistId: string, songIds: string[]) => Promise<void>;
+  removeFromPlaylist: (playlistId: string, songIds: string[]) => Promise<void>;
+
+  /**
+   * Bring songs in. Given a name, they arrive on a new library of their own —
+   * a bundle is somebody's library already, and tipping it into the one on
+   * screen mixes two collections that were never meant to be one.
+   */
+  importSongs: (songs: Song[], intoNewLibrary?: string) => Promise<void>;
   /** Writes the song and hands back the row, whose id is the database's, not the draft's. */
   saveSong: (song: Song) => Promise<Song | undefined>;
   reorderSlides: (song: Song, ids: string[]) => Promise<void>;
+  /**
+   * The song's languages as the rail leaves them — added, renamed, reordered,
+   * switched off — written and, when that song is live, sent again.
+   */
+  setSongLangs: (song: Song) => Promise<void>;
   /** Drop one slide from a song, from the grid rather than the editor. */
   removeSlide: (song: Song, slideId: string) => Promise<void>;
-  removeSong: (id: string) => Promise<void>;
+  removeSongs: (ids: string[]) => Promise<void>;
   clearSongs: () => Promise<void>;
-  placeInSetlist: (songId: string, index: number) => void;
-  /** The whole running order at once, as a drag leaves it. */
-  orderSetlist: (songIds: string[]) => void;
-  removeFromSetlist: (songId: string) => void;
-  clearSetlist: () => void;
   publishLyrics: (song: Song, slideIndex: number) => void;
   selectLyric: (song: Song, slideIndex: number) => void;
 
@@ -254,14 +294,55 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     live: initial.workspace.live,
   });
   const [songs, setSongs] = useState<Song[]>(initial.songs);
-  const [setlist, setSetlist] = useState<string[]>(initial.workspace.setlist);
-  const [activeSongId, setActiveSong] = useState<string | null>(initial.workspace.activeSongId);
-  const [songScope, setSongScope] = useState<SongScope>(initial.workspace.songScope);
 
-  const setActiveSongId = useCallback<StudioValue['setActiveSongId']>((id, from = 'library') => {
+  // Read by `saveSong` when it propagates a switch to the songs that share a
+  // language name. A ref rather than a dependency: rebuilding that callback on
+  // every song edit would rebuild half the console with it.
+  const songsRef = useRef(songs);
+
+  useEffect(() => {
+    songsRef.current = songs;
+  }, [songs]);
+  const [activeSongId, setActiveSong] = useState<string | null>(initial.workspace.activeSongId);
+
+  /**
+   * The song the operator has just asked to see, and when they asked.
+   *
+   * Opening a song off the rail takes the panel to it; a slide going live only
+   * lights its row. The two must not be the same signal — a running order is
+   * laid out end to end, so a slide sent from the song after the one being
+   * read would otherwise scroll the panel out from under the operator
+   * mid-service. The count is what makes asking for the same song twice a
+   * second request rather than no change at all.
+   */
+  const [songCue, setSongCue] = useState<{ id: string; at: number } | null>(null);
+
+  const setActiveSongId = useCallback<StudioValue['setActiveSongId']>(id => {
     setActiveSong(id);
-    setSongScope(from);
+
+    if (id) setSongCue(current => ({ id, at: (current?.at ?? 0) + 1 }));
   }, []);
+  const [libraries, setLibraries] = useState<SongLibrary[]>(initial.libraries);
+  const [playlists, setPlaylists] = useState<SongPlaylist[]>(initial.playlists);
+
+  // What the panel is showing. A row that names a list which has since been
+  // deleted, and a console that has never said, both fall back to the first
+  // library — the shelf every song already filed is on.
+  const [openList, setOpenList] = useState<OpenList | null>(initial.workspace.open);
+
+  const open = useMemo<OpenList>(() => {
+    const named =
+      openList?.kind === 'playlist'
+        ? playlists.some(list => list.id === openList.id)
+        : libraries.some(list => list.id === openList?.id);
+
+    if (openList && named) return openList;
+    if (libraries[0]) return { kind: 'library', id: libraries[0].id };
+    if (playlists[0]) return { kind: 'playlist', id: playlists[0].id };
+
+    return { kind: 'library', id: '' };
+  }, [libraries, openList, playlists]);
+
   const [tab, setTab] = useState<Tab>(initial.workspace.tab);
   const [cardSize, setCardSize] = useState(initial.workspace.cardSize);
   const [loading, setLoading] = useState(false);
@@ -684,15 +765,15 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     void save(db.from('settings').update(toRow(next)).eq('user_id', initial.settings.user_id), 'your settings');
   });
 
-  useDebouncedSave({ workspace, setlist, activeSongId, songScope, tab, cardSize, cardDraft }, state => {
+  useDebouncedSave({ workspace, open, activeSongId, tab, cardSize, cardDraft }, state => {
     void save(
       db.from('session_workspace').upsert({
         session_id: initial.session.id,
         blocks: state.workspace.blocks,
         live: state.workspace.live,
-        setlist: state.setlist,
         active_song_id: state.activeSongId,
-        song_scope: state.songScope,
+        open_kind: state.open.kind,
+        open_id: state.open.id || null,
         tab: state.tab,
         card_size: state.cardSize,
         card_draft: state.cardDraft,
@@ -1063,6 +1144,39 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   }, [liveSlide, pushShow]);
 
   /**
+   * The same, for a song on the wall.
+   *
+   * Rebuilt from the song rather than from the pointer, so anything that
+   * changes the song a slide belongs to — switching a language off, renaming
+   * one, dragging one to the front, fixing a typo — reaches the outputs
+   * without every one of those paths having to remember to send it. Which is
+   * how a language switched off went on being sung: the send lived in the one
+   * action, and any other way to the same change had no send of its own.
+   */
+  const liveLyric = useMemo(() => {
+    if (live?.kind !== 'lyrics') return null;
+
+    const song = songs.find(item => item.id === live.songId);
+    const slide = song?.slides[live.slideIndex];
+
+    if (!song || !slide) return null;
+
+    const after = song.slides[live.slideIndex + 1];
+
+    return [lyricsShowData(song, slide), after ? lyricsShowData(song, after) : emptyShowData()];
+  }, [live, songs]);
+
+  useEffect(() => {
+    if (!liveLyric) return;
+
+    const wanted = JSON.stringify(liveLyric);
+
+    if (wanted === pushedRef.current) return;
+
+    pushShow(liveLyric[0], liveLyric[1]);
+  }, [liveLyric, pushShow]);
+
+  /**
    * Join or split cards, and put the result on the outputs when the card that
    * changed is the one on screen. Regrouping only rewrites the workspace, so
    * without this the projector keeps the slide it was last handed — joining the
@@ -1122,11 +1236,14 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
       const after = song.slides[slideIndex + 1];
 
-      pushShow(
-        { ...emptyShowData(), lyrics: { title: song.title, text: slide.text } },
-        after ? { ...emptyShowData(), lyrics: { title: song.title, text: after.text } } : emptyShowData(),
-      );
+      pushShow(lyricsShowData(song, slide), after ? lyricsShowData(song, after) : emptyShowData());
       setWorkspace(current => ({ ...current, live: { kind: 'lyrics', songId: song.id, slideIndex } }));
+
+      // A running order is laid out end to end, so the slide that went up may
+      // belong to the song after the one the rail was lit on. Whatever is on
+      // the wall is what the operator is working on, and the rail says so —
+      // the row lights up, but the panel stays where they left it.
+      setActiveSong(song.id);
     },
     [pushShow],
   );
@@ -1166,9 +1283,39 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
   // ------------------------------------------------------------ songs
 
+  /**
+   * Where a song written or imported right now belongs: the shelf the operator
+   * is looking at, or the first one when they are looking at a running order.
+   * Importing a Christmas bundle with Christmas open should not file it under
+   * Library because that happens to be first.
+   */
+  const filing = open.kind === 'library' && open.id ? open.id : homeOf(libraries);
+
   const importSongs = useCallback<StudioValue['importSongs']>(
-    async imported => {
+    async (imported, intoNewLibrary) => {
       if (imported.length === 0) return;
+
+      // A shelf of its own, named after what was dropped. Two bundles of the
+      // same name are two imports and get two shelves, because that is what
+      // the operator did — the alternative is a silent merge.
+      let shelf: string | undefined;
+
+      if (intoNewLibrary) {
+        const taken = libraries.filter(list => list.name === intoNewLibrary).length;
+        const name = taken > 0 ? `${intoNewLibrary} ${taken + 1}` : intoNewLibrary;
+
+        const { data } = await db
+          .from('song_libraries')
+          .insert({ user_id: initial.settings.user_id, name, position: libraries.length })
+          .select('id, name')
+          .single();
+
+        if (data) {
+          shelf = data.id;
+          setLibraries(current => [...current, data]);
+          setOpenList({ kind: 'library', id: data.id });
+        }
+      }
 
       // A re-import replaces the song of the same title rather than doubling
       // it. The conflict target is `title_key`, the stored lowercase title,
@@ -1180,6 +1327,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
             user_id: initial.settings.user_id,
             title: song.title,
             slides: song.slides,
+            langs: songLangsRow(song),
+            library_id: shelf ?? song.libraryId ?? filing ?? null,
             source: song.source ?? 'propresenter',
           })),
           { onConflict: 'user_id,title_key' },
@@ -1192,19 +1341,12 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       setSongs(current => {
         const byTitle = new Map(current.map(song => [song.title.toLowerCase(), song]));
 
-        data.forEach(row =>
-          byTitle.set(row.title.toLowerCase(), {
-            id: row.id,
-            title: row.title,
-            slides: row.slides as Song['slides'],
-            source: row.source,
-          }),
-        );
+        data.forEach(row => byTitle.set(row.title.toLowerCase(), songFromRow(row)));
 
         return [...byTitle.values()].sort((a, b) => a.title.localeCompare(b.title));
       });
     },
-    [db, initial.settings.user_id],
+    [db, filing, initial.settings.user_id, libraries],
   );
 
   const saveSong = useCallback<StudioValue['saveSong']>(
@@ -1215,7 +1357,14 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
       const { data, error } = await db
         .from('songs')
-        .upsert({ ...saved, user_id: initial.settings.user_id, title: song.title, slides: song.slides })
+        .upsert({
+          ...saved,
+          user_id: initial.settings.user_id,
+          title: song.title,
+          slides: song.slides,
+          langs: songLangsRow(song),
+          library_id: song.libraryId ?? filing ?? null,
+        })
         .select()
         .single();
 
@@ -1225,7 +1374,26 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       if (error) throw new Error(error.message);
       if (!data) return;
 
-      const written: Song = { id: data.id, title: data.title, slides: data.slides as Song['slides'] };
+      const written = songFromRow(data);
+
+      // A switch thrown here is thrown on every song that calls a language by
+      // the same name: a bilingual service is a dozen songs with the same two
+      // languages, and setting each of them by hand is the thing an operator
+      // does eleven times and forgets on the twelfth. Only the switches
+      // travel, and only to songs they would actually change.
+      const alike = syncSwitches(songsRef.current, written);
+
+      if (alike.length > 0) {
+        setSongs(current =>
+          current.map(item => alike.find(synced => synced.id === item.id) ?? item),
+        );
+
+        await Promise.all(
+          alike.map(synced =>
+            save(db.from('songs').update({ langs: songLangsRow(synced) }).eq('id', synced.id), 'the other songs'),
+          ),
+        );
+      }
 
       setSongs(current => {
         const without = current.filter(item => item.id !== written.id);
@@ -1242,7 +1410,39 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
       return written;
     },
-    [db, initial.settings.user_id],
+    [db, filing, initial.settings.user_id],
+  );
+
+  /**
+   * A song's languages, changed while the song may be on the wall.
+   *
+   * Only a write: the effect above notices that the live song has changed and
+   * sends the slide again, so a language switched off reaches the room without
+   * waiting for the next slide.
+   */
+  const setSongLangs = useCallback<StudioValue['setSongLangs']>(
+    async next => {
+      const before = songsRef.current.find(song => song.id === next.id);
+
+      // Moved here first, written second. A radio that waits for the round
+      // trip before it moves reads as a control that did not take the click —
+      // and this is a control the operator uses mid-service, where a beat of
+      // "did that work?" is a beat spent looking at the console instead of the
+      // room. The effect that watches `songs` sends the slide again, so the
+      // wall follows the click at the same moment the rail does.
+      setSongs(current => current.map(song => (song.id === next.id ? next : song)));
+
+      try {
+        await saveSong(next);
+      } catch (failure) {
+        // Nothing agreed to the change, so the rail goes back to what the
+        // database still holds rather than showing a switch that is not set.
+        if (before) setSongs(current => current.map(song => (song.id === before.id ? before : song)));
+
+        throw failure;
+      }
+    },
+    [saveSong],
   );
 
   /**
@@ -1341,39 +1541,232 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [clearProjector, live, publishLyrics, saveSong],
   );
 
-  const removeSong = useCallback<StudioValue['removeSong']>(
-    async id => {
-      await db.from('songs').delete().eq('id', id);
+  const removeSongs = useCallback<StudioValue['removeSongs']>(
+    async ids => {
+      if (ids.length === 0) return;
 
-      setSongs(current => current.filter(song => song.id !== id));
-      setSetlist(current => current.filter(songId => songId !== id));
-      setActiveSong(current => (current === id ? null : current));
+      await db.from('songs').delete().in('id', ids);
+
+      setSongs(current => current.filter(song => !ids.includes(song.id)));
+      setActiveSong(current => (current && ids.includes(current) ? null : current));
+
+      // A deleted song leaves every running order it was on. The lists are
+      // rewritten locally and in the row, because a playlist naming a song
+      // that no longer exists would keep a gap in the order for ever.
+      setPlaylists(current =>
+        current.map(list => {
+          if (!list.songs.some(songId => ids.includes(songId))) return list;
+
+          const songIds = list.songs.filter(songId => !ids.includes(songId));
+
+          void save(db.from('song_playlists').update({ songs: songIds }).eq('id', list.id), 'the playlist');
+
+          return { ...list, songs: songIds };
+        }),
+      );
+
       setWorkspace(current => ({
         ...current,
-        live: current.live?.kind === 'lyrics' && current.live.songId === id ? null : current.live,
+        live: current.live?.kind === 'lyrics' && ids.includes(current.live.songId) ? null : current.live,
       }));
     },
     [db],
   );
 
-  const placeInSetlist = useCallback<StudioValue['placeInSetlist']>((songId, index) => {
-    setSetlist(current => {
-      const from = current.indexOf(songId);
-      const without = current.filter(id => id !== songId);
-      // Removing it first shifts every later slot down by one.
-      const target = from !== -1 && from < index ? index - 1 : index;
+  /**
+   * The lists themselves.
+   *
+   * Written straight through rather than debounced: naming a playlist or
+   * filing a song is a deliberate act with a visible result, and the operator
+   * who does it at 10:29 and closes the laptop should find it there at 10:30.
+   * Local state moves first so the rail answers the click, and the write is
+   * what the next console reads.
+   */
+  const addLibrary = useCallback<StudioValue['addLibrary']>(
+    async name => {
+      const { data, error } = await db
+        .from('song_libraries')
+        .insert({ user_id: initial.settings.user_id, name, position: libraries.length })
+        .select('id, name')
+        .single();
 
-      without.splice(Math.max(0, Math.min(target, without.length)), 0, songId);
+      if (error) throw new Error(error.message);
+      if (!data) return;
 
-      return without;
-    });
-  }, []);
+      setLibraries(current => [...current, data]);
+      setOpenList({ kind: 'library', id: data.id });
+    },
+    [db, initial.settings.user_id, libraries.length],
+  );
 
-  // Ids the caller has not seen — a song added on another console mid-drag —
-  // keep their place at the end rather than dropping out of the order.
-  const orderSetlist = useCallback<StudioValue['orderSetlist']>(songIds => {
-    setSetlist(current => [...songIds.filter(id => current.includes(id)), ...current.filter(id => !songIds.includes(id))]);
-  }, []);
+  const addPlaylist = useCallback<StudioValue['addPlaylist']>(
+    async name => {
+      const { data, error } = await db
+        .from('song_playlists')
+        .insert({ user_id: initial.settings.user_id, name, songs: [], position: playlists.length })
+        .select('id, name, songs')
+        .single();
+
+      if (error) throw new Error(error.message);
+      if (!data) return;
+
+      setPlaylists(current => [...current, { id: data.id, name: data.name, songs: [] }]);
+      setOpenList({ kind: 'playlist', id: data.id });
+    },
+    [db, initial.settings.user_id, playlists.length],
+  );
+
+  const renameList = useCallback<StudioValue['renameList']>(
+    async (list, name) => {
+      const named = <T extends { id: string; name: string }>(current: T[]) =>
+        current.map(item => (item.id === list.id ? { ...item, name } : item));
+
+      if (list.kind === 'playlist') {
+        setPlaylists(named);
+        await save(db.from('song_playlists').update({ name }).eq('id', list.id), 'the name');
+        return;
+      }
+
+      setLibraries(named);
+      await save(db.from('song_libraries').update({ name }).eq('id', list.id), 'the name');
+    },
+    [db],
+  );
+
+  /**
+   * A list dropped.
+   *
+   * A playlist takes only the order with it. A library would take its songs,
+   * which is a library being deleted and a hundred songs going quietly with
+   * it — so they are filed on the first library that remains instead, and the
+   * last library cannot go at all, because then there would be nowhere to put
+   * the next import.
+   */
+  const removeList = useCallback<StudioValue['removeList']>(
+    async list => {
+      if (list.kind === 'playlist') {
+        setPlaylists(current => current.filter(item => item.id !== list.id));
+        await save(db.from('song_playlists').delete().eq('id', list.id), 'the playlist');
+        return;
+      }
+
+      const shelter = libraries.find(item => item.id !== list.id);
+
+      if (!shelter) return;
+
+      setSongs(current =>
+        current.map(song => (song.libraryId === list.id ? { ...song, libraryId: shelter.id } : song)),
+      );
+      setLibraries(current => current.filter(item => item.id !== list.id));
+
+      await save(
+        db.from('songs').update({ library_id: shelter.id }).eq('library_id', list.id),
+        'the songs that were on it',
+      );
+      await save(db.from('song_libraries').delete().eq('id', list.id), 'the library');
+    },
+    [db, libraries],
+  );
+
+  const orderLists = useCallback<StudioValue['orderLists']>(
+    async (kind, ids) => {
+      // A list made on another console mid-drag keeps its place on the end
+      // rather than dropping out of the order.
+      const sorted = <T extends { id: string }>(current: T[]) => [
+        ...ids.map(id => current.find(item => item.id === id)).filter((item): item is T => Boolean(item)),
+        ...current.filter(item => !ids.includes(item.id)),
+      ];
+
+      if (kind === 'playlist') {
+        setPlaylists(sorted);
+      } else {
+        setLibraries(sorted);
+      }
+
+      await Promise.all(
+        ids.map((id, position) =>
+          save(
+            db.from(kind === 'playlist' ? 'song_playlists' : 'song_libraries').update({ position }).eq('id', id),
+            'the order',
+          ),
+        ),
+      );
+    },
+    [db],
+  );
+
+  const moveSongsToLibrary = useCallback<StudioValue['moveSongsToLibrary']>(
+    async (songIds, libraryId) => {
+      if (songIds.length === 0) return;
+
+      setSongs(current => current.map(song => (songIds.includes(song.id) ? { ...song, libraryId } : song)));
+
+      await save(
+        db.from('songs').update({ library_id: libraryId }).in('id', songIds),
+        songIds.length > 1 ? 'the songs' : 'the song',
+      );
+    },
+    [db],
+  );
+
+  /** One running order, rewritten whole — the shape a drag leaves it in. */
+  const writePlaylist = useCallback(
+    async (playlistId: string, songIds: string[]) => {
+      setPlaylists(current =>
+        current.map(list => (list.id === playlistId ? { ...list, songs: songIds } : list)),
+      );
+
+      await save(db.from('song_playlists').update({ songs: songIds }).eq('id', playlistId), 'the playlist');
+    },
+    [db],
+  );
+
+  const placeInPlaylist = useCallback<StudioValue['placeInPlaylist']>(
+    async (playlistId, songIds, index) => {
+      const list = playlists.find(item => item.id === playlistId);
+
+      if (!list || songIds.length === 0) return;
+
+      const without = list.songs.filter(id => !songIds.includes(id));
+      // Taking them out first shifts every later slot down by one, so the drop
+      // lands where the line was drawn rather than one place further on for
+      // each song that was already above it.
+      const above = list.songs.filter((id, at) => songIds.includes(id) && at < index).length;
+
+      without.splice(Math.max(0, Math.min(index - above, without.length)), 0, ...songIds);
+
+      await writePlaylist(playlistId, without);
+    },
+    [playlists, writePlaylist],
+  );
+
+  const orderPlaylist = useCallback<StudioValue['orderPlaylist']>(
+    async (playlistId, songIds) => {
+      const list = playlists.find(item => item.id === playlistId);
+
+      if (!list) return;
+
+      await writePlaylist(playlistId, [
+        ...songIds.filter(id => list.songs.includes(id)),
+        ...list.songs.filter(id => !songIds.includes(id)),
+      ]);
+    },
+    [playlists, writePlaylist],
+  );
+
+  const removeFromPlaylist = useCallback<StudioValue['removeFromPlaylist']>(
+    async (playlistId, songIds) => {
+      const list = playlists.find(item => item.id === playlistId);
+
+      if (!list) return;
+
+      await writePlaylist(
+        playlistId,
+        list.songs.filter(id => !songIds.includes(id)),
+      );
+    },
+    [playlists, writePlaylist],
+  );
 
   const value = useMemo<StudioValue>(
     () => ({
@@ -1419,26 +1812,40 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       removeCard,
       songs,
       activeSongId,
+      songCue,
       setActiveSongId,
-      songScope,
-      setlist,
+      libraries,
+      playlists,
+      open,
+      openList: setOpenList,
+      addLibrary,
+      addPlaylist,
+      renameList,
+      removeList,
+      orderLists,
+      moveSongsToLibrary,
+      placeInPlaylist,
+      orderPlaylist,
+      removeFromPlaylist,
       importSongs,
       saveSong,
       reorderSlides,
+      setSongLangs,
       removeSlide,
-      removeSong,
+      removeSongs,
       clearSongs: async () => {
         await db.from('songs').delete().eq('user_id', initial.settings.user_id);
 
         setSongs([]);
-        setSetlist([]);
         setActiveSong(null);
+        setPlaylists(current => current.map(list => ({ ...list, songs: [] })));
         setWorkspace(current => ({ ...current, live: current.live?.kind === 'lyrics' ? null : current.live }));
+
+        await save(
+          db.from('song_playlists').update({ songs: [] }).eq('user_id', initial.settings.user_id),
+          'the playlists',
+        );
       },
-      placeInSetlist,
-      orderSetlist,
-      removeFromSetlist: songId => setSetlist(current => current.filter(id => id !== songId)),
-      clearSetlist: () => setSetlist([]),
       publishLyrics,
       selectLyric,
       showData,
@@ -1455,8 +1862,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     }),
     [
       activeSongId,
+      songCue,
       setActiveSongId,
-      songScope,
       addPassage,
       blackout,
       blocks,
@@ -1478,8 +1885,18 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       live,
       loading,
       peers,
-      placeInSetlist,
-      orderSetlist,
+      libraries,
+      playlists,
+      open,
+      addLibrary,
+      addPlaylist,
+      renameList,
+      removeList,
+      orderLists,
+      moveSongsToLibrary,
+      placeInPlaylist,
+      orderPlaylist,
+      removeFromPlaylist,
       publishLyrics,
       refreshBlocks,
       regroupCards,
@@ -1493,14 +1910,14 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       showCard,
       addLang,
       removeLang,
-      removeSong,
+      removeSongs,
       saveSong,
       reorderSlides,
+      setSongLangs,
       removeSlide,
       selectLyric,
       selectVerse,
       setLocalBackground,
-      setlist,
       settings,
       showData,
       nextShowData,

@@ -1,4 +1,5 @@
-import { LANGS, type ShowData } from '@/lib/types';
+import { lyricBlocks } from '@/lib/lyrics/langs';
+import { LANGS, type LyricsSlide, type ShowData } from '@/lib/types';
 
 /**
  * Identity, kept across a payload that says nothing new.
@@ -27,11 +28,18 @@ export const keepSame = <T>(current: T, next: T): T => (equal(current, next) ? c
  *
  * True only when every language the two slides share is identical. If any
  * shared language reads differently the verse itself moved, and that is a
- * change the room should see the transition for. Songs never qualify: a lyric
- * slide has no languages to arm, so its text changing is always a new slide.
+ * change the room should see the transition for.
+ *
+ * A song is the same case wearing the song's own languages: switching one off
+ * mid-chorus drops a block, and the words that remain are the ones already on
+ * the wall.
  */
 export const sameVerse = (current: ShowData, next: ShowData): boolean => {
-  if (!current || !next || current.lyrics || next.lyrics) return false;
+  if (!current || !next) return false;
+
+  if (current.lyrics || next.lyrics) {
+    return Boolean(current.lyrics && next.lyrics) && sameLyric(current.lyrics!, next.lyrics!);
+  }
 
   const langs = LANGS.filter(lang => current[lang]?.length && next[lang]?.length);
 
@@ -40,6 +48,28 @@ export const sameVerse = (current: ShowData, next: ShowData): boolean => {
   if (langs.length === 0) return false;
 
   return langs.every(lang => equal(current[lang], next[lang]));
+};
+
+/**
+ * The same song slide, wearing a different set of languages.
+ *
+ * Matched by title and by every language the two have in common, the way a
+ * verse is matched by every language it shares. A slide that shares no
+ * language is a different slide — including the moment a song is switched
+ * down to a translation it has no words for, which is a blank the room should
+ * see arrive.
+ */
+const sameLyric = (current: LyricsSlide, next: LyricsSlide): boolean => {
+  if (current.title !== next.title) return false;
+
+  const by = (lyrics: LyricsSlide) =>
+    new Map(lyricBlocks(lyrics).map(block => [block.id, block.text]));
+
+  const before = by(current);
+  const after = by(next);
+  const shared = [...before.keys()].filter(id => after.has(id));
+
+  return shared.length > 0 && shared.every(id => before.get(id) === after.get(id));
 };
 
 const equal = (a: unknown, b: unknown): boolean => {

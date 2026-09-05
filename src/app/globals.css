@@ -387,6 +387,10 @@
   --color-studio-muted: #a49b8d;
   --color-studio-faint: #6f675e;
   --color-studio-accent: #fcdf50;
+  /* The accent lifted a shade, for yellow that has to be read as small text
+     rather than filled behind it: #fcdf50 at 12px on the console's near-black
+     goes dim, where a fill of it is the brightest thing on screen. */
+  --color-studio-accent-soft: #ffe97a;
   /* Yellow is a light colour: anything sitting on the accent is ink, never
      white. Every filled accent control reaches for this rather than guessing. */
   --color-studio-onaccent: #191818;

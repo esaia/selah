@@ -8,7 +8,9 @@ import { cn } from '@/lib/cn';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import type { Song } from '@/lib/types';
 
-import { songDragProps } from './Setlist';
+import { homeOf } from '@/lib/lyrics/lists';
+
+import { songDragProps } from './SongRail';
 
 /**
  * The shortcut as this platform writes it, for the hint in the library header.
@@ -46,15 +48,17 @@ interface Entry {
 
 /**
  * Everything a song can be found by, built once per library rather than per
- * keystroke: the title, and every line of every slide so a half-remembered
- * phrase finds the song it belongs to.
+ * keystroke: the title, and every line of every slide — in every language the
+ * song is sung in, so half a remembered phrase finds it whichever of them it
+ * was remembered in.
  */
 const indexOf = (songs: Song[]): Entry[] =>
   songs.map(song => ({
     song,
     keys: keysOf(song.title),
     lines: song.slides
-      .flatMap(slide => slide.text.split('\n'))
+      .flatMap(slide => [slide.text, ...Object.values(slide.alt ?? {})])
+      .flatMap(text => text.split('\n'))
       .map(line => line.trim())
       .filter(Boolean)
       .map(line => ({ line, keys: keysOf(line) })),
@@ -89,7 +93,12 @@ const matchOf = (entry: Entry, probes: string[]) => {
  * the palette stays open for the next song.
  */
 export const SongSearch = ({ onClose }: { onClose: () => void }) => {
-  const { songs, setTab, setActiveSongId, placeInSetlist, setlist } = useStudio();
+  const { songs, setTab, setActiveSongId, placeInPlaylist, playlists, open, libraries } = useStudio();
+
+  // A song that has never been filed is on the first shelf, which is the same
+  // rule the rail reads it by.
+  const libraryOf = (song: Song) =>
+    libraries.find(list => list.id === (song.libraryId ?? homeOf(libraries)))?.name ?? '';
 
   // Mounted only while the palette is open, so it always opens empty.
   const [query, setQuery] = useState('');
@@ -174,8 +183,13 @@ export const SongSearch = ({ onClose }: { onClose: () => void }) => {
 
       event.preventDefault();
 
-      if (event.shiftKey) {
-        placeInSetlist(picked.id, setlist.length);
+      // Shift adds to the running order rather than opening the song — but
+      // only when one is open to add it to. A library is a shelf, and a song
+      // is already on one.
+      if (event.shiftKey && open.kind === 'playlist') {
+        const list = playlists.find(item => item.id === open.id);
+
+        void placeInPlaylist(open.id, [picked.id], list?.songs.length ?? 0);
         onClose();
         return;
       }
@@ -236,7 +250,12 @@ export const SongSearch = ({ onClose }: { onClose: () => void }) => {
                 {line ? <span className="mt-0.5 block truncate text-[11px] text-studio-muted">{line}</span> : null}
               </span>
 
-              <span className="shrink-0 text-[11px] text-studio-faint">{song.slides.length} slides</span>
+              {/* Which shelf it is on: two songs can share a title across
+                  libraries, and "open it" means opening that one. */}
+              <span className="flex shrink-0 items-baseline gap-3 text-[11px] text-studio-faint">
+                {libraryOf(song) ? <span className="max-w-32 truncate">{libraryOf(song)}</span> : null}
+                <span>{song.slides.length} slides</span>
+              </span>
             </div>
           ))}
 

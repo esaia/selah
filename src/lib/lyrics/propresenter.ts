@@ -44,64 +44,138 @@ const rtfBlobs = (latin1: string): string[] => {
 };
 
 const CONTROL_WORD = /^\\([a-zA-Z]+)(-?\d+)? ?/;
-const UNICODE_ESCAPE = /^\\u(-?\d+) ?\??/;
+const UNICODE_ESCAPE = /^\\u(-?\d+) ?/;
 const HEX_ESCAPE = /^\\'([0-9a-fA-F]{2})/;
 
 /**
- * RTF to plain text. Georgian arrives as `\uNNNN` escapes, each followed by an
- * ASCII `?` stand-in that has to be dropped, and `\par` is the line break that
- * separates the lines of a slide.
+ * Groups that hold markup rather than words. ProPresenter writes them at the
+ * head of every blob, and a document with a bulleted list or a second typeface
+ * writes them with contents — which is how the font's own name ended up on the
+ * wall. Skipped whole, contents and all, alongside anything marked `\*` as
+ * ignorable.
+ */
+const MARKUP_GROUPS = new Set([
+  'fonttbl',
+  'colortbl',
+  'stylesheet',
+  'listtable',
+  'listoverridetable',
+  'info',
+  'filetbl',
+  'revtbl',
+  'generator',
+  'xmlnstbl',
+  'pntext',
+]);
+
+/**
+ * RTF to plain text. Georgian arrives as `\uNNNN` escapes, each followed by the
+ * ASCII stand-in that `\ucN` sizes and that has to be dropped, and `\par` is
+ * the line break that separates the lines of a slide.
  */
 export const rtfToText = (rtf: string): string => {
   const out: string[] = [];
+
+  // The group we are inside, and the one whose markup we are skipping past. A
+  // skip has to keep counting braces rather than scanning for the next `}`:
+  // the tables nest.
+  let depth = 0;
+  let skipping: number | null = null;
+  let fresh = false;
+
+  // How many characters follow a `\uNNNN` as its stand-in for a reader that
+  // cannot show the character. ProPresenter writes `\uc1`, but the default the
+  // spec gives is 1 either way.
+  let uc = 1;
+
+  const keeping = () => skipping === null;
+
   let i = 0;
 
   while (i < rtf.length) {
     const char = rtf[i];
 
+    if (char === '{') {
+      depth += 1;
+      fresh = true;
+      i += 1;
+      continue;
+    }
+
+    if (char === '}') {
+      depth -= 1;
+
+      if (skipping !== null && depth < skipping) skipping = null;
+
+      fresh = false;
+      i += 1;
+      continue;
+    }
+
     if (char === '\\') {
       const rest = rtf.slice(i, i + 24);
+
+      // `\*` marks the group ignorable — by the spec's own instruction to a
+      // reader that does not know the destination, which we never do.
+      if (rest[1] === '*') {
+        if (fresh && keeping()) skipping = depth;
+
+        i += 2;
+        fresh = false;
+        continue;
+      }
+
       const unicode = UNICODE_ESCAPE.exec(rest);
 
       if (unicode) {
         const code = Number(unicode[1]);
-        out.push(String.fromCharCode(code < 0 ? code + 65536 : code));
+
+        if (keeping()) out.push(String.fromCharCode(code < 0 ? code + 65536 : code));
+
         i += unicode[0].length;
+        i = skipReplacement(rtf, i, uc);
+        fresh = false;
         continue;
       }
 
       const hex = HEX_ESCAPE.exec(rest);
 
       if (hex) {
-        out.push(String.fromCharCode(parseInt(hex[1], 16)));
+        if (keeping()) out.push(String.fromCharCode(parseInt(hex[1], 16)));
+
         i += hex[0].length;
+        fresh = false;
         continue;
       }
 
       const word = CONTROL_WORD.exec(rest);
 
       if (word) {
-        if (word[1] === 'par' || word[1] === 'line') {
+        if (word[1] === 'uc') {
+          uc = Math.max(0, Number(word[2] ?? 1));
+        } else if (fresh && MARKUP_GROUPS.has(word[1])) {
+          if (keeping()) skipping = depth;
+        } else if (keeping() && (word[1] === 'par' || word[1] === 'line')) {
           out.push('\n');
         }
 
         i += word[0].length;
+        fresh = false;
         continue;
       }
 
       // An escaped literal: \{ \} \\
-      out.push(rtf[i + 1] || '');
+      if (keeping()) out.push(rtf[i + 1] || '');
+
       i += 2;
+      fresh = false;
       continue;
     }
 
-    if (char === '{' || char === '}') {
-      i += 1;
-      continue;
-    }
+    if (keeping()) out.push(char);
 
-    out.push(char);
     i += 1;
+    fresh = false;
   }
 
   return out
@@ -113,11 +187,40 @@ export const rtfToText = (rtf: string): string => {
     .trim();
 };
 
-/** The header tables are all markup; the text starts after the list tables. */
-const body = (blob: string): string => {
-  const marker = '{\\*\\listoverridetable}';
-  const index = blob.lastIndexOf(marker);
-  return index === -1 ? blob : blob.slice(index + marker.length);
+/**
+ * Step over the `uc` characters that stand in for a `\uNNNN` we have already
+ * read. A stand-in can itself be an escape — `\'3f` is the usual `?` — and one
+ * escape counts as one character.
+ */
+const skipReplacement = (rtf: string, start: number, uc: number): number => {
+  let i = start;
+
+  for (let taken = 0; taken < uc && i < rtf.length; taken += 1) {
+    if (rtf[i] === '\\') {
+      const hex = HEX_ESCAPE.exec(rtf.slice(i, i + 4));
+
+      if (hex) {
+        i += hex[0].length;
+        continue;
+      }
+
+      const word = CONTROL_WORD.exec(rtf.slice(i, i + 24));
+
+      // A control word is markup, not a stand-in: it belongs to whatever comes
+      // next, so leave it where it is.
+      if (word) break;
+
+      i += 2;
+      continue;
+    }
+
+    // The group is over: there was no stand-in to drop.
+    if (rtf[i] === '{' || rtf[i] === '}') break;
+
+    i += 1;
+  }
+
+  return i;
 };
 
 const decodeLatin1 = (buffer: ArrayBuffer): string => {
@@ -149,7 +252,7 @@ export const parseProDocument = (buffer: ArrayBuffer, filename: string): Song =>
   const seen = new Set();
 
   const slides = rtfBlobs(decodeLatin1(buffer))
-    .map(blob => rtfToText(body(blob)))
+    .map(blob => rtfToText(blob))
     .filter(text => text.length > 0)
     .map((text, index) => ({ id: `${slug(title) || 'song'}-${index}`, text }));
 

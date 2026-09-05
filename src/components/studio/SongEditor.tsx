@@ -8,12 +8,24 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Modal, useModalClose } from '@/components/ui/Modal';
 import { cn } from '@/lib/cn';
 import { colorOf } from '@/lib/lyrics/groups';
+import { hasWords, langsOf, textOf, withText } from '@/lib/lyrics/langs';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import type { Song, SongSlide } from '@/lib/types';
 
 import { GroupPicker } from './GroupPicker';
+import { SongLangs } from './SongLangs';
 import { SortHandle } from './SortHandle';
 import { LIFTED_SLOT, useSortable, type Sortable } from './sortable';
+
+/**
+ * How wide the editor stands, by how many languages are being typed at once.
+ *
+ * One language reads best in a column a line of verse fits across; three side
+ * by side need the room or every one of them wraps every other word. So the
+ * dialog grows with the song rather than standing at whichever width suits the
+ * worst case.
+ */
+const WIDTHS = ['max-w-2xl', 'max-w-4xl', 'max-w-6xl'];
 
 /** A field that is as tall as what has been typed into it, up to a ceiling. */
 const grow = (field: HTMLTextAreaElement | null) => {
@@ -58,6 +70,7 @@ const Seam = ({ label, onInsert }: { label: string; onInsert: () => void }) => (
 
 /** One slide, as a card in the running order. */
 const Card = ({
+  song,
   slide,
   index,
   sortable,
@@ -65,13 +78,17 @@ const Card = ({
   onGroup,
   onRemove,
 }: {
+  song: Song;
   slide: SongSlide;
   index: number;
   sortable: Sortable<SongSlide>;
-  onChange: (text: string) => void;
+  onChange: (langId: string, text: string) => void;
   onGroup: (group: string) => void;
   onRemove: () => void;
-}) => (
+}) => {
+  const langs = langsOf(song);
+
+  return (
   <li
     {...sortable.row(slide.id)}
     className={cn(
@@ -97,18 +114,38 @@ const Card = ({
     <div className="min-w-0 flex-1 py-1.5">
       <GroupPicker value={slide.group ?? ''} onPick={onGroup} />
 
-      <textarea
-        ref={grow}
-        rows={2}
-        value={slide.text}
-        placeholder="What the room reads on this slide…"
-        onChange={event => {
-          grow(event.currentTarget);
-          onChange(event.target.value);
-        }}
-        className="mt-1 max-h-64 w-full resize-none bg-transparent pr-2 text-sm leading-snug text-studio-text
-          placeholder:text-studio-faint focus:outline-none"
-      />
+      {/* One field per language the song is in, side by side, so a line and
+          its translation are written and read as the pair they are. A song
+          with one language is one field, as it always was. */}
+      <div className={cn('mt-1 flex flex-col gap-1', langs.length > 1 && 'sm:flex-row sm:gap-3')}>
+        {langs.map((lang, position) => (
+          <div key={lang.id} className="min-w-0 flex-1">
+            {langs.length > 1 ? (
+              <span className="block text-[10px] font-semibold tracking-wider text-studio-faint uppercase">
+                {lang.label || `Language ${position + 1}`}
+              </span>
+            ) : null}
+
+            <textarea
+              ref={grow}
+              rows={2}
+              value={textOf(song, slide, lang.id)}
+              placeholder="What the room reads on this slide…"
+              aria-label={
+                langs.length > 1
+                  ? `Slide ${index + 1} in ${lang.label || `language ${position + 1}`}`
+                  : `Slide ${index + 1}`
+              }
+              onChange={event => {
+                grow(event.currentTarget);
+                onChange(lang.id, event.target.value);
+              }}
+              className="max-h-64 w-full resize-none bg-transparent pr-2 text-sm leading-snug text-studio-text
+                placeholder:text-studio-faint focus:outline-none"
+            />
+          </div>
+        ))}
+      </div>
     </div>
 
     <span className="flex shrink-0 items-start p-1.5">
@@ -121,8 +158,9 @@ const Card = ({
         <Trash2 className="size-3.5" />
       </IconButton>
     </span>
-  </li>
-);
+    </li>
+  );
+};
 
 /**
  * Edit a song's slides.
@@ -139,7 +177,16 @@ const Card = ({
 export const SongEditor = ({ song, onClose }: { song: Song; onClose: () => void }) => {
   const { saveSong } = useStudio();
   const [title, setTitle] = useState(song.title);
-  const [slides, setSlides] = useState(song.slides);
+
+  // The draft is the whole song, not just its slides: adding a language or
+  // dragging one to the front rewrites every slide, and `lib/lyrics/langs.ts`
+  // does that to a song rather than to a list.
+  const [draft, setDraft] = useState(song);
+  const slides = draft.slides;
+
+  const setSlides = (next: (slides: SongSlide[]) => SongSlide[]) =>
+    setDraft(current => ({ ...current, slides: next(current.slides) }));
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const close = useModalClose();
@@ -185,9 +232,9 @@ export const SongEditor = ({ song, onClose }: { song: Song; onClose: () => void 
 
     try {
       await saveSong({
-        ...song,
+        ...draft,
         title: title.trim(),
-        slides: slides.filter(slide => slide.text.trim().length > 0),
+        slides: slides.filter(hasWords),
       });
 
       close.current?.(onClose);
@@ -203,7 +250,7 @@ export const SongEditor = ({ song, onClose }: { song: Song; onClose: () => void 
       open
       onClose={onClose}
       closeRef={close}
-      width="max-w-2xl"
+      width={WIDTHS[Math.min(langsOf(draft).length, WIDTHS.length) - 1]}
       title={
         <input
           value={title}
@@ -239,6 +286,17 @@ export const SongEditor = ({ song, onClose }: { song: Song; onClose: () => void 
       }
     >
       <div className="space-y-2">
+        {/* What the song is sung in, before what it says. The same table the
+            rail carries, so a language added here and one added there are the
+            same act. */}
+        <div className="mb-3 rounded-studio border border-studio-border p-3">
+          <h3 className="mb-2 text-[11px] font-semibold tracking-wider text-studio-faint uppercase">
+            Sung in
+          </h3>
+
+          <SongLangs song={draft} onChange={setDraft} />
+        </div>
+
         {/* The gaps between the cards belong to the list, and a release in one
             of them is still a release on the order the drag arrived at. */}
         <ul className="space-y-2" {...sortable.list()}>
@@ -253,11 +311,14 @@ export const SongEditor = ({ song, onClose }: { song: Song; onClose: () => void 
               ) : null}
 
               <Card
+                song={draft}
                 slide={slide}
                 index={index}
                 sortable={sortable}
-                onChange={text =>
-                  setSlides(current => current.map(item => (item.id === slide.id ? { ...item, text } : item)))
+                onChange={(langId, text) =>
+                  setSlides(current =>
+                    current.map(item => (item.id === slide.id ? withText(draft, item, langId, text) : item)),
+                  )
                 }
                 onGroup={group =>
                   setSlides(current =>

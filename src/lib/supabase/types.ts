@@ -59,6 +59,8 @@ export interface Database {
         blocks: Json;
         live: Json | null;
         setlist: Json;
+        open_kind: string;
+        open_id: string | null;
         active_song_id: string | null;
         song_scope: string;
         tab: string;
@@ -109,11 +111,28 @@ export interface Database {
         created_at: string;
         updated_at: string;
       }>;
+      song_libraries: Row<{
+        id: string;
+        user_id: string;
+        name: string;
+        position: number;
+        created_at: string;
+      }>;
+      song_playlists: Row<{
+        id: string;
+        user_id: string;
+        name: string;
+        songs: Json;
+        position: number;
+        created_at: string;
+      }>;
       songs: Row<{
         id: string;
         user_id: string;
         title: string;
         slides: Json;
+        langs: Json;
+        library_id: string | null;
         source: string;
         created_at: string;
         updated_at: string;

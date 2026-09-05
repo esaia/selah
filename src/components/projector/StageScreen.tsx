@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 
+import { lyricFor } from '@/lib/lyrics/langs';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
 import { useBox } from '@/lib/projector/useBox';
 import { flashAnimation, useFlash } from '@/lib/projector/useFlash';
@@ -61,12 +62,19 @@ const langOf = (projector: Partial<ProjectorStyle>, chosen: Lang | undefined): L
 /**
  * A slide as lines of plain text.
  *
- * A song is one block of words, as it is on the projector. Verses keep their
- * reference on a line of its own, because "what is on screen" for someone on
- * stage includes which verse it is.
+ * A song is one block of words and nothing else, in the one language the song
+ * points at the stage — the pick rides inside the slide, so the panel showing
+ * what is coming next resolves the same language without the stage knowing
+ * anything about songs. No title: the band knows what they are playing, and
+ * the line under every slide only takes room from the words being sung.
+ *
+ * Verses do keep their reference on a line of its own, because "what is on
+ * screen" for someone about to read aloud includes which verse it is.
  */
 const stageLines = (slide: ShowData | undefined, lang: Lang): { text: string[]; ref: string } => {
-  if (slide?.lyrics) return { text: [slide.lyrics.text.split('\n').join(' ')], ref: slide.lyrics.title };
+  if (slide?.lyrics) {
+    return { text: [lyricFor(slide.lyrics, slide.lyrics.stage).split('\n').join(' ')], ref: '' };
+  }
 
   const verses = slide?.[lang] ?? [];
 

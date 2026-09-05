@@ -3,11 +3,46 @@
 import { useEffect, useRef } from 'react';
 
 import { cn } from '@/lib/cn';
+import { cardLangOf, langsOf } from '@/lib/lyrics/langs';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import type { Song } from '@/lib/types';
 
 import { LyricCard } from './LyricCard';
 import { LIFTED_SLOT, useSortable } from './sortable';
+
+/**
+ * Which language this song's cards are read in.
+ *
+ * The console's side of the glass: what the room sees is set in the rail, and
+ * this only decides which of a bilingual song's texts is printed on the
+ * thumbnails — so a Georgian operator can run an English chorus off cards they
+ * read at a glance. Shown only when there is a choice to make.
+ */
+const CardLang = ({ song, onPick }: { song: Song; onPick: (langId: string) => void }) => {
+  const chosen = cardLangOf(song);
+
+  return (
+    <span className="flex shrink-0 items-center rounded-studio border border-studio-border p-0.5">
+      {langsOf(song).map((lang, index) => (
+        <button
+          key={lang.id}
+          type="button"
+          onClick={() => onPick(lang.id)}
+          title={`Read these cards in ${lang.label || `language ${index + 1}`}`}
+          className={cn(
+            'max-w-24 truncate rounded-[3px] px-1.5 py-0.5 text-[10px] font-semibold transition-colors',
+            'duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40',
+            lang.id === chosen
+              ? 'bg-studio-accent text-studio-onaccent'
+              : 'text-studio-faint hover:bg-studio-surface hover:text-studio-text',
+          )}
+        >
+          {lang.label || `Language ${index + 1}`}
+        </button>
+      ))}
+    </span>
+  );
+};
 
 /**
  * One song's slides, as the grid the operator works from.
@@ -21,6 +56,7 @@ export const SlideGrid = ({
   song,
   heading,
   scrollTo,
+  cue,
   onEditSlide,
 }: {
   song: Song;
@@ -28,12 +64,24 @@ export const SlideGrid = ({
   heading?: boolean;
   /** Bring this song into view: the operator has just asked to see it. */
   scrollTo?: boolean;
+  /**
+   * When they asked. A slide going live lights a row without moving the panel,
+   * so the scroll follows this rather than which song is active — otherwise
+   * sending a slide from the next song in the order would scroll the panel out
+   * from under the operator mid-service.
+   */
+  cue?: number;
   onEditSlide: (index: number) => void;
 }) => {
-  const { settings, cardSize, live, selectLyric, saveSong, reorderSlides, removeSlide } = useStudio();
+  const { settings, cardSize, live, selectLyric, saveSong, reorderSlides, removeSlide, setSongLangs } = useStudio();
   const box = useRef<HTMLElement>(null);
 
   const onScreen = live?.kind === 'lyrics' && live.songId === song.id;
+
+  // Only a song sung in more than one has a card language to choose.
+  const many = langsOf(song).length > 1;
+
+  const pickCardLang = (langId: string) => void setSongLangs({ ...song, cardLang: langId });
 
   /**
    * The running order, dragged on the cards rather than on a rail.
@@ -58,7 +106,7 @@ export const SlideGrid = ({
   // the console instead of the song they are about to put up.
   useEffect(() => {
     if (scrollTo) box.current?.scrollIntoView({ behavior: 'instant', block: 'start' });
-  }, [scrollTo, song.id]);
+  }, [scrollTo, cue]);
 
   return (
     <section ref={box} className="scroll-mt-2">
@@ -88,10 +136,20 @@ export const SlideGrid = ({
               above it only competes with the first. */}
           <span className="truncate text-sm font-semibold text-studio-text">{song.title}</span>
 
-          <span className="shrink-0 text-[11px] text-studio-faint tabular-nums">
-            {song.slides.length} slide{song.slides.length === 1 ? '' : 's'}
+          <span className="flex shrink-0 items-center gap-2">
+            {many ? <CardLang song={song} onPick={pickCardLang} /> : null}
+
+            <span className="text-[11px] text-studio-faint tabular-nums">
+              {song.slides.length} slide{song.slides.length === 1 ? '' : 's'}
+            </span>
           </span>
         </h2>
+      ) : many ? (
+        // No strip to hang it in — one song, so there is no title bar — but the
+        // choice still has to be reachable.
+        <div className="mb-2 flex justify-end">
+          <CardLang song={song} onPick={pickCardLang} />
+        </div>
       ) : null}
 
       {/* The gaps between the cards belong to the grid, so a release in one of
@@ -108,6 +166,7 @@ export const SlideGrid = ({
             className={cn('rounded-studio', slides.lifted === slide.id && LIFTED_SLOT)}
           >
             <LyricCard
+              song={song}
               slide={slide}
               index={index}
               size={cardSize}

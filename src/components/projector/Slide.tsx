@@ -2,6 +2,7 @@ import type { RefObject } from 'react';
 
 import { apiBookName } from '@/lib/bible/passage';
 import { cn } from '@/lib/cn';
+import { lyricBlocks } from '@/lib/lyrics/langs';
 import { fontStyleOf } from '@/lib/projector/fonts';
 import { DEFAULT_LYRIC_LOOK, DEFAULT_VERSE_LOOK } from '@/lib/projector/looks';
 import type { Align, Lang, ProjectorStyle, ShowData, Verse } from '@/lib/types';
@@ -97,13 +98,16 @@ export const Slide = ({
       style={type.style ? { fontFamily: type.style } : undefined}
     >
       {lyrics ? (
-        // A song slide is one block of text: no reference, no language stack,
-        // and the armed languages do not apply to it. The line breaks the song
-        // was written with are ignored — at projector size they wrap anyway,
-        // and honouring both gives a ragged block.
-        <div className="show-block">
-          <p className="show-text">{lyrics.text.split('\n').join(' ')}</p>
-        </div>
+        // A song slide has no reference, and its languages are the song's own
+        // rather than the armed ones — but they stack exactly as verses do, so
+        // two languages of a chorus are two blocks fitted as one. The line
+        // breaks the song was written with are ignored: at projector size they
+        // wrap anyway, and honouring both gives a ragged block.
+        lyricBlocks(lyrics).map(block => (
+          <div key={block.id} className="show-block">
+            <p className="show-text">{block.text.split('\n').join(' ')}</p>
+          </div>
+        ))
       ) : (
         style.order.map(lang => {
           const verses = showData?.[lang] ?? [];

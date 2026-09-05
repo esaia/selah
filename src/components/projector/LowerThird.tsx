@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { newPeerId, openLiveChannel } from '@/lib/live/channel';
 import { asCardRun, isShowing, remainingOf, withSkew, type CardRun } from '@/lib/lower3rd/card';
 import { varsFor } from '@/lib/lower3rd/colors';
+import { lyricFor } from '@/lib/lyrics/langs';
 import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
 import { DEFAULT_FONT, fontStyleOf } from '@/lib/projector/fonts';
 import { keepSame } from '@/lib/projector/keepSame';
@@ -61,7 +62,7 @@ const defaultStyle: StreamStyle = {
 
 /** Is there anything on this slide worth putting on screen? */
 const hasContent = (showData: ShowData, enabled: Partial<Record<Lang, boolean>>) => {
-  if (showData?.lyrics?.text) return true;
+  if (showData?.lyrics) return Boolean(lyricFor(showData.lyrics, showData.lyrics.lower3rd));
 
   return LANGS.some(lang => enabled?.[lang] && (showData?.[lang]?.length ?? 0) > 0);
 };
@@ -380,7 +381,9 @@ export const LowerThird = ({ outputKey, initial }: { outputKey: string; initial:
       >
         <div ref={textRef} className="lower3rd-inner">
           {lyrics ? (
-            <p className="lower3rd-text">{lyrics.text.split('\n').join(' ')}</p>
+            // One language, the one the song points at the overlay: the stream
+            // carries one for a song exactly as it does for a verse.
+            <p className="lower3rd-text">{lyricFor(lyrics, lyrics.lower3rd).split('\n').join(' ')}</p>
           ) : (
             style.order.map(lang => (style.enabled?.[lang] ? <Block key={lang} lang={lang} showData={showData} /> : null))
           )}

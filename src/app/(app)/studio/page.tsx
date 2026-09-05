@@ -4,11 +4,12 @@ import { QueryProvider } from '@/components/QueryProvider';
 import { Console } from '@/components/studio/Console';
 import { AudioProvider, type AudioInitial } from '@/lib/studio/AudioProvider';
 import { cardFromRow } from '@/lib/lower3rd/card';
+import { songFromRow } from '@/lib/lyrics/langs';
 import { StudioProvider, type StudioInitial, type Tab } from '@/lib/studio/StudioProvider';
 import type { SettingsRow } from '@/lib/studio/settings';
 import { configured, createClient } from '@/lib/supabase/server';
 import { asTimerState } from '@/lib/timer/model';
-import { emptyShowData, type Block, type Live, type ShowData, type Song } from '@/lib/types';
+import { emptyShowData, type Block, type Live, type ShowData } from '@/lib/types';
 
 export const metadata = { title: 'Console' };
 
@@ -33,11 +34,18 @@ export default async function StudioPage() {
 
   if (!user) redirect('/login?next=/studio');
 
-  const [settings, session, subscription, songs, nameCards] = await Promise.all([
+  const [settings, session, subscription, songs, libraries, playlists, nameCards] = await Promise.all([
     supabase.from('settings').select('*').eq('user_id', user.id).single(),
     supabase.from('sessions').select('id, name, output_key').eq('user_id', user.id).order('created_at').limit(1).single(),
     supabase.from('subscriptions').select('plan').eq('user_id', user.id).maybeSingle(),
-    supabase.from('songs').select('id, title, slides, source').eq('user_id', user.id).order('title'),
+    supabase.from('songs').select('id, title, slides, langs, library_id, source').eq('user_id', user.id).order('title'),
+    supabase.from('song_libraries').select('id, name').eq('user_id', user.id).order('position').order('created_at'),
+    supabase
+      .from('song_playlists')
+      .select('id, name, songs')
+      .eq('user_id', user.id)
+      .order('position')
+      .order('created_at'),
     // Saved speakers, in the order the operator dragged them.
     supabase
       .from('name_cards')
@@ -96,12 +104,14 @@ export default async function StudioPage() {
     workspace: {
       blocks: (workspace?.blocks as Block[]) ?? [],
       live: (workspace?.live as Live) ?? null,
-      setlist: (workspace?.setlist as string[]) ?? [],
       activeSongId: workspace?.active_song_id ?? null,
-      // A row written before the console remembered this says nothing about it,
-      // and the library is the honest default: it shows the one song the
-      // operator last had open either way.
-      songScope: workspace?.song_scope === 'setlist' ? 'setlist' : 'library',
+      // Which list the panel was showing. A row written before the console had
+      // more than one of each says nothing about it, and the first library is
+      // the honest default — it is where every song already filed lives.
+      open:
+        workspace?.open_id
+          ? { kind: workspace.open_kind === 'playlist' ? 'playlist' : 'library', id: workspace.open_id }
+          : null,
       tab: TABS.includes(workspace?.tab as Tab) ? (workspace?.tab as Tab) : 'bible',
       cardSize: workspace?.card_size ?? 190,
       // The name-card form as the operator left it. A design and a hold picked
@@ -124,11 +134,12 @@ export default async function StudioPage() {
     // And which screens were left black, so a console reopened during a prayer
     // does not report a bright room.
     blackout: state?.blackout ?? null,
-    songs: (songs.data ?? []).map(row => ({
+    songs: (songs.data ?? []).map(songFromRow),
+    libraries: libraries.data ?? [],
+    playlists: (playlists.data ?? []).map(row => ({
       id: row.id,
-      title: row.title,
-      slides: row.slides as Song['slides'],
-      source: row.source,
+      name: row.name,
+      songs: (row.songs as string[]) ?? [],
     })),
     plan: subscription.data?.plan ?? 'free',
   };

@@ -55,12 +55,37 @@ describe('the same verse, wearing a different set of languages', () => {
     expect(sameVerse({} as ShowData, {} as ShowData)).toBe(false);
   });
 
-  // A song has no languages to arm, so its text changing is always a new slide.
-  it('never applies to song slides', () => {
+  // A song wears its own languages, and switching one off drops a block from a
+  // slide the room is already reading.
+  it('is the same song slide when a language is switched off', () => {
+    const both = {
+      title: 'Amazing grace',
+      text: 'Amazing grace',
+      langs: [
+        { id: 'en', label: 'English', text: 'Amazing grace' },
+        { id: 'ka', label: 'ქართული', text: 'საოცარი მადლი' },
+      ],
+    };
+    const one = { title: 'Amazing grace', text: 'Amazing grace', langs: [both.langs[0]] };
+
+    expect(sameVerse({ lyrics: both } as ShowData, { lyrics: one } as ShowData)).toBe(true);
+    expect(sameVerse({ lyrics: one } as ShowData, { lyrics: both } as ShowData)).toBe(true);
+  });
+
+  it('is a new song slide when the words or the song change', () => {
     const lyrics = { text: 'Amazing grace', title: 'Amazing grace' };
 
-    expect(sameVerse({ lyrics } as ShowData, { lyrics } as ShowData)).toBe(false);
+    expect(sameVerse({ lyrics } as ShowData, { lyrics: { ...lyrics, text: 'How sweet' } } as ShowData)).toBe(false);
+    expect(sameVerse({ lyrics } as ShowData, { lyrics: { ...lyrics, title: 'Another' } } as ShowData)).toBe(false);
+  });
+
+  // One is a song and the other is scripture: that is a slide change whatever
+  // the words say.
+  it('never crosses between a song and a verse', () => {
+    const lyrics = { text: 'Amazing grace', title: 'Amazing grace' };
+
     expect(sameVerse({ eng } as ShowData, { eng, lyrics } as ShowData)).toBe(false);
+    expect(sameVerse({ lyrics } as ShowData, {} as ShowData)).toBe(false);
   });
 
   // An empty language is not a shared one: `{ geo: [] }` says the operator has

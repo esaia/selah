@@ -1,36 +1,25 @@
 'use client';
 
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import {
   HiOutlineDocumentAdd,
-  HiOutlineDownload,
-  HiOutlinePencil,
-  HiOutlinePlus,
-  HiOutlineSearch,
-  HiOutlineTrash,
   HiOutlineUpload,
 } from 'react-icons/hi';
 
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { Kbd } from '@/components/ui/Kbd';
-import { IconButton } from '@/components/ui/IconButton';
 import { cn } from '@/lib/cn';
+import { songsInPlaylist } from '@/lib/lyrics/lists';
 import { parseDroppedFiles } from '@/lib/lyrics/propresenter';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import type { Song } from '@/lib/types';
 
+import { DROP_ZONE } from './dropZone';
 import { NewSongModal } from './NewSongModal';
-import { Setlist, songDragProps } from './Setlist';
+import { SongRail } from './SongRail';
 import { SlideEditor } from './SlideEditor';
 import { SlideGrid } from './SlideGrid';
-import { useSearchHint } from './SongSearch';
 import { SongEditor } from './SongEditor';
-
-// Generated from a ProPresenter bundle and served as a static file, so a church
-// with no bundle of its own still starts with a full library — and the 150 kB
-// is only fetched if they ask for it.
-const BUILT_IN_LIBRARY = '/lyrics/library.json';
 
 /**
  * The Lyrics tab: songs imported straight from a ProPresenter bundle, listed on
@@ -42,48 +31,49 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
   const {
     songs,
     activeSongId,
-    setActiveSongId,
     importSongs,
     saveSong,
-    removeSong,
+    removeSongs,
     clearSongs,
-    setlist,
-    placeInSetlist,
-    songScope,
+    playlists,
+    open,
+    songCue,
   } = useStudio();
 
   const fileRef = useRef<HTMLInputElement>(null);
-  const searchHint = useSearchHint();
 
   const [busy, setBusy] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
-  const [confirmingRemove, setConfirmingRemove] = useState<Song | null>(null);
+  const [confirmingRemove, setConfirmingRemove] = useState<Song[] | null>(null);
   const [editingSlide, setEditingSlide] = useState<{ song: Song; index: number } | null>(null);
   const [editing, setEditing] = useState<Song | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dropping, setDropping] = useState(false);
 
   const active = songs.find(song => song.id === activeSongId) ?? songs[0] ?? null;
 
-  // Everything on the playlist when the song came off it, and that song alone
-  // otherwise. A playlist the active song is not on has nothing to say about
-  // it, so that falls back to the song by itself.
-  const ordered = setlist
-    .map(id => songs.find(song => song.id === id))
-    .filter((song): song is Song => Boolean(song));
-
-  // The library lights a row only when the library is where the song was
-  // opened from; the playlist does the same for its own. One song, one lit row.
-  const opened = songScope === 'library' ? active?.id : null;
+  // The whole running order when the open list is one and the song is on it,
+  // and that song alone otherwise. A playlist the active song is not on has
+  // nothing to say about it, and a library is a shelf rather than an order.
+  const ordered = songsInPlaylist(
+    songs,
+    playlists.find(list => list.id === open.id),
+  );
 
   const shown =
-    active && songScope === 'setlist' && ordered.some(song => song.id === active.id) ? ordered : active ? [active] : [];
+    active && open.kind === 'playlist' && ordered.some(song => song.id === active.id)
+      ? ordered
+      : active
+        ? [active]
+        : [];
 
-  const handleFiles = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files = [...(event.target.files ?? [])];
+  /** What the bundle is called, which is what its shelf is called. */
+  const bundleName = (files: File[]) =>
+    (files.length === 1 ? files[0].name.replace(/\.[^.]+$/, '') : `Import ${new Date().toLocaleDateString()}`).trim() ||
+    'Import';
 
-    event.target.value = '';
-
+  const importFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
     setBusy(true);
@@ -97,7 +87,7 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
         return;
       }
 
-      await importSongs(imported);
+      await importSongs(imported, bundleName(files));
     } catch (failure) {
       setError(
         (failure as Error).message ||
@@ -108,30 +98,45 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
     }
   };
 
-  const loadBuiltIn = async () => {
-    setBusy(true);
-    setError(null);
+  const handleFiles = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = [...(event.target.files ?? [])];
 
-    try {
-      const response = await fetch(BUILT_IN_LIBRARY);
+    event.target.value = '';
 
-      if (!response.ok) throw new Error(response.statusText);
-
-      const library = (await response.json()) as { songs?: Song[] };
-
-      await importSongs(library.songs ?? []);
-    } catch (failure) {
-      setError((failure as Error).message || 'The built-in songs could not be loaded.');
-    } finally {
-      setBusy(false);
-    }
+    void importFiles(files);
   };
+
+  // A bundle dragged off the desktop onto the tab is the same import as the
+  // button — the operator should not have to find the button first. Only a
+  // drag carrying files answers here; a song being dragged onto the playlist
+  // is the setlist's own business.
+  const carriesFiles = (event: DragEvent<HTMLElement>) => [...event.dataTransfer.types].includes('Files');
 
   return (
     // The right-hand padding belongs to the slide column, not to this box: the
     // column is what scrolls, and a gutter outside it left the scrollbar
     // floating in a strip of white with the rail on the far side of it.
-    <div className="flex min-h-0 flex-1 flex-col gap-4 py-3 pl-4 lg:flex-row">
+    <div
+      onDragOver={event => {
+        if (!carriesFiles(event)) return;
+
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+        setDropping(true);
+      }}
+      onDragLeave={event => {
+        if (event.currentTarget === event.target) setDropping(false);
+      }}
+      onDrop={event => {
+        if (!carriesFiles(event)) return;
+
+        event.preventDefault();
+        setDropping(false);
+
+        void importFiles([...event.dataTransfer.files]);
+      }}
+      className={cn('flex min-h-0 flex-1 flex-col gap-4 py-3 pl-4 lg:flex-row', dropping && DROP_ZONE)}
+    >
       <div className="flex w-full shrink-0 flex-col gap-2 lg:w-60">
         <input
           ref={fileRef}
@@ -150,99 +155,11 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
           {busy ? 'Importing…' : 'Import from ProPresenter'}
         </Button>
 
-        <div className="flex gap-2">
-          <Button
-            className="min-w-0 flex-1 px-2"
-            icon={<HiOutlineDownload className="text-sm" />}
-            onClick={() => void loadBuiltIn()}
-          >
-            Built-in songs
-          </Button>
+        <Button icon={<HiOutlineDocumentAdd className="text-sm" />} onClick={() => setCreating(true)}>
+          New song
+        </Button>
 
-          <Button
-            className="min-w-0 flex-1 px-2"
-            icon={<HiOutlineDocumentAdd className="text-sm" />}
-            onClick={() => setCreating(true)}
-          >
-            New song
-          </Button>
-        </div>
-
-        {songs.length > 0 ? <Setlist onEdit={setEditing} /> : null}
-
-        <button
-          type="button"
-          onClick={onSearch}
-          title="Search the library"
-          className="mt-1 flex items-center justify-between gap-2 rounded-studio px-0.5 py-0.5 text-left
-            transition-colors duration-150 hover:bg-studio-surface focus:outline-none
-            focus-visible:ring-2 focus-visible:ring-studio-accent/40"
-        >
-          <span className="text-[11px] font-semibold tracking-wider text-studio-faint uppercase">
-            Library · {songs.length}
-          </span>
-
-          <span className="flex items-center gap-1.5 text-[11px] text-studio-faint">
-            <HiOutlineSearch className="text-xs" />
-            <Kbd>{searchHint}</Kbd>
-          </span>
-        </button>
-
-        {/* Stacked, the column has no height of its own to divide up, so the
-            list takes its natural height under a cap rather than a share. */}
-        <div
-          className="studio-scroll max-h-56 overflow-y-auto rounded-studio border border-studio-border
-            lg:max-h-none lg:min-h-0 lg:flex-1"
-        >
-          {songs.map(song => (
-            <div
-              key={song.id}
-              {...songDragProps(song.id)}
-              title="Drag onto the playlist"
-              className={cn(
-                'group/song flex cursor-grab items-center gap-1 border-b border-studio-divider last:border-b-0',
-                song.id === opened ? 'bg-studio-accent/10' : 'hover:bg-studio-surface',
-              )}
-            >
-              <button
-                type="button"
-                onClick={() => setActiveSongId(song.id)}
-                className="min-w-0 flex-1 px-2.5 py-2 text-left focus:outline-none"
-              >
-                <span
-                  className={cn(
-                    'block truncate text-xs',
-                    song.id === opened ? 'font-semibold text-studio-text' : 'text-studio-muted',
-                  )}
-                >
-                  {song.title}
-                </span>
-                <span className="block text-[11px] text-studio-faint">{song.slides.length} slides</span>
-              </button>
-
-              <span className="flex shrink-0 pr-1 opacity-0 transition-opacity group-hover/song:opacity-100">
-                <IconButton
-                  label={`Add ${song.title} to the playlist`}
-                  onClick={() => placeInSetlist(song.id, setlist.length)}
-                >
-                  <HiOutlinePlus className="text-sm" />
-                </IconButton>
-
-                <IconButton label={`Edit ${song.title}`} onClick={() => setEditing(song)}>
-                  <HiOutlinePencil className="text-sm" />
-                </IconButton>
-
-                <IconButton label={`Remove ${song.title}`} tone="danger" onClick={() => setConfirmingRemove(song)}>
-                  <HiOutlineTrash className="text-sm" />
-                </IconButton>
-              </span>
-            </div>
-          ))}
-
-          {songs.length === 0 ? (
-            <p className="px-3 py-6 text-center text-xs text-studio-faint">No songs imported yet.</p>
-          ) : null}
-        </div>
+        <SongRail onEdit={setEditing} onRemove={setConfirmingRemove} onSearch={onSearch} />
 
         {songs.length > 0 ? (
           <Button variant="ghost" onClick={() => setConfirmingClear(true)}>
@@ -253,12 +170,16 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
 
       <ConfirmDialog
         open={Boolean(confirmingRemove)}
-        title="Remove this song?"
-        message={`“${confirmingRemove?.title}” and its ${confirmingRemove?.slides.length} slides are deleted, and it leaves the playlist. Importing the bundle again brings it back.`}
-        confirmLabel="Remove song"
+        title={confirmingRemove && confirmingRemove.length > 1 ? 'Remove these songs?' : 'Remove this song?'}
+        message={
+          confirmingRemove && confirmingRemove.length > 1
+            ? `${confirmingRemove.length} songs and their ${confirmingRemove.reduce((total, song) => total + song.slides.length, 0)} slides are deleted, and they leave every playlist. Importing the bundle again brings them back.`
+            : `“${confirmingRemove?.[0]?.title}” and its ${confirmingRemove?.[0]?.slides.length} slides are deleted, and it leaves the playlist. Importing the bundle again brings it back.`
+        }
+        confirmLabel={confirmingRemove && confirmingRemove.length > 1 ? 'Remove songs' : 'Remove song'}
         onCancel={() => setConfirmingRemove(null)}
         onConfirm={() => {
-          if (confirmingRemove) void removeSong(confirmingRemove.id);
+          if (confirmingRemove) void removeSongs(confirmingRemove.map(song => song.id));
           setConfirmingRemove(null);
         }}
       />
@@ -292,14 +213,15 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
       {editingSlide ? (
         <SlideEditor
           key={`${editingSlide.song.id}-${editingSlide.index}`}
+          song={editingSlide.song}
           slide={editingSlide.song.slides[editingSlide.index]}
           index={editingSlide.index}
           onClose={() => setEditingSlide(null)}
-          onSave={text =>
+          onSave={edited =>
             void saveSong({
               ...editingSlide.song,
               slides: editingSlide.song.slides.map((item, position) =>
-                position === editingSlide.index ? { ...item, text } : item,
+                position === editingSlide.index ? edited : item,
               ),
             })
           }
@@ -318,8 +240,9 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
             <p className="text-sm font-medium text-studio-text">No songs yet</p>
             <p className="max-w-sm text-xs text-studio-muted">
               Press <strong className="font-semibold text-studio-text">New song</strong> to type one in, or import a
-              ProPresenter bundle — in ProPresenter, select your playlist and choose File → Export → Bundle. Only the
-              lyrics are read; media stays in ProPresenter.
+              ProPresenter bundle — in ProPresenter, select your playlist and choose File → Export → Bundle, then press{' '}
+              <strong className="font-semibold text-studio-text">Import from ProPresenter</strong> or drop the bundle
+              anywhere on this tab. Only the lyrics are read; media stays in ProPresenter.
             </p>
           </div>
         ) : (
@@ -334,7 +257,8 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
                 key={song.id}
                 song={song}
                 heading={shown.length > 1}
-                scrollTo={shown.length > 1 && song.id === active.id}
+                scrollTo={shown.length > 1 && song.id === songCue?.id}
+                cue={songCue?.at}
                 onEditSlide={index => setEditingSlide({ song, index })}
               />
             ))}

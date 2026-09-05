@@ -7,8 +7,9 @@ import { IconButton } from '@/components/ui/IconButton';
 import { cn } from '@/lib/cn';
 import { fontStyleOf, type CustomFont } from '@/lib/projector/fonts';
 import { colorOf } from '@/lib/lyrics/groups';
+import { cardLangOf, textOf } from '@/lib/lyrics/langs';
 import { fitText } from '@/lib/projector/fitText';
-import type { Align, SongSlide } from '@/lib/types';
+import type { Align, Song, SongSlide } from '@/lib/types';
 
 import { GroupPicker } from './GroupPicker';
 
@@ -18,6 +19,7 @@ const clamp = (value: number, min: number, max: number) => Math.min(Math.max(val
 
 /** One song slide, framed and scaled exactly like a verse card. */
 export const LyricCard = ({
+  song,
   slide,
   index,
   isLive,
@@ -30,6 +32,7 @@ export const LyricCard = ({
   onDelete,
   onGroup,
 }: {
+  song: Song;
   slide: SongSlide;
   index: number;
   isLive: boolean;
@@ -46,6 +49,16 @@ export const LyricCard = ({
   const textRef = useRef<HTMLSpanElement>(null);
   const type = fontStyleOf(font, fonts);
 
+  // One language, the one the operator reads the cards in, even when the song is
+  // sung in two: a card is a thumbnail a slide is picked out of at a glance, and
+  // stacking the translation into it halves the type and reads as a wall of text.
+  //
+  // Nothing typed in that language shows an empty card rather than falling back
+  // to another one. The card is answering "what does this slide say in English",
+  // and a card that quietly answered in Georgian would hide the one thing the
+  // operator is looking down the grid for — which slides still need translating.
+  const shown = textOf(song, slide, cardLangOf(song));
+
   useLayoutEffect(() => {
     if (bodyRef.current) {
       fitText(textRef.current, bodyRef.current.clientHeight, {
@@ -53,7 +66,7 @@ export const LyricCard = ({
         max: clamp(Math.round(size / 17), 9, 22),
       });
     }
-  }, [align, font, size, slide.text]);
+  }, [align, font, size, shown]);
 
   return (
     <div>
@@ -110,7 +123,10 @@ export const LyricCard = ({
         type="button"
         data-slide-card
         onClick={onGoLive}
-        title={isLive ? 'Click again to clear the screen' : slide.text}
+        // Only the live card has anything to say on hover. The words were the
+        // tooltip once, which meant hovering a grid put a second copy of the
+        // slide over the one already being read.
+        title={isLive ? 'Click again to clear the screen' : undefined}
         className={cn(
           'flex aspect-video w-full flex-col justify-center rounded-[4px] bg-studio-slide p-2 text-left',
           'transition-shadow duration-150 focus:outline-none',
@@ -123,7 +139,7 @@ export const LyricCard = ({
       >
         <span ref={bodyRef} className="flex flex-1 items-center justify-center overflow-hidden">
           <span ref={textRef} className={cn('w-full leading-snug font-semibold text-white', ALIGN_CLASS[align])}>
-            {slide.text.split('\n').join(' ')}
+            {shown.split('\n').join(' ')}
           </span>
         </span>
       </button>
