@@ -1028,9 +1028,9 @@ body {
   padding-left: 0;
   padding-right: 0;
   --l3-shadow: none;
-  --l3-fg: #14171c;
+  --l3-fg: #ffffff;
   --l3-ref: color-mix(in srgb, var(--l3-fg) 60%, transparent);
-  --l3-plate: #ffffff;
+  --l3-plate: #0a0c10;
   --l3-plate-fill: color-mix(in srgb, var(--l3-plate) 93%, transparent);
 }
 

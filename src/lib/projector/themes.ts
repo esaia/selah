@@ -49,8 +49,19 @@ export const THEMES: Theme[] = [
   { id: '20', src: '/images/20.jpeg', label: 'Background 20' },
 ];
 
-/** The picture for a stored theme id, falling back to the first background. */
-export const themeSrc = (id: string): string => THEMES.find(theme => theme.id === id)?.src ?? THEMES[0].src;
+/**
+ * What a console starts on, before anyone has chosen anything: a soft prism
+ * blur that words sit on without fighting them. Every fallback to "no theme
+ * chosen" is this one — the settings row's default, the projector's own, and
+ * the theme a local picture is dropped back to when it is removed.
+ */
+export const DEFAULT_THEME = '31';
+
+/** The picture for a stored theme id, falling back to the default background. */
+export const themeSrc = (id: string): string =>
+  THEMES.find(theme => theme.id === id)?.src ?? themeSrcOf(DEFAULT_THEME);
+
+const themeSrcOf = (id: string) => THEMES.find(theme => theme.id === id)?.src ?? THEMES[0].src;
 
 /** A picture fetched from a URL the operator typed. */
 export const DYNAMIC_THEME = 'dynamicIMG';

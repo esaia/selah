@@ -39,7 +39,7 @@ export const emptyStreamColors = (): StreamColors => ({ verses: {}, lyrics: {} }
 export const LOOK_DEFAULTS: Record<string, Colorway> = {
   scrim: { plate: '#06080c', ink: '#ffffff' },
   solid: { plate: '#080a0e', ink: '#ffffff' },
-  bands: { plate: '#ffffff', ink: '#14171c' },
+  bands: { plate: '#0a0c10', ink: '#ffffff' },
   card: { plate: '#2d5547', ink: '#ffffff', accent: '#0a0c10' },
   split: { plate: '#121418', ink: '#ffffff', accent: '#c65e2b' },
   plain: { ink: '#ffffff' },

@@ -9,6 +9,7 @@ import {
   DEFAULT_VERSE_LOOK,
   type ScaleMode,
 } from '@/lib/projector/looks';
+import { DEFAULT_THEME } from '@/lib/projector/themes';
 import { clampTransition, DEFAULT_TRANSITION_MS } from '@/lib/projector/transition';
 import type { Database } from '@/lib/supabase/types';
 import type { Align, LocalFileMeta, ProjectorStyle, StreamStyle } from '@/lib/types';
@@ -125,7 +126,7 @@ export const fromRow = (row: SettingsRow): Settings => {
     adminVersion: asVersion(adminLang, row.admin_version),
     enabled: asFlags(row.enabled, langOrder),
     versions: Object.fromEntries(langOrder.map(lang => [lang, asVersion(lang, versions[lang])])),
-    theme: row.theme || '1',
+    theme: row.theme || DEFAULT_THEME,
     dynamicImage: row.dynamic_image || '',
     localImage: (row.local_image as LocalFileMeta | null) ?? null,
     font: row.font || DEFAULT_FONT,

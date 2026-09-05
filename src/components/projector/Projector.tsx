@@ -9,7 +9,7 @@ import { fitText, refitOnFontLoad } from '@/lib/projector/fitText';
 import { DEFAULT_FONT } from '@/lib/projector/fonts';
 import { keepSame, sameVerse } from '@/lib/projector/keepSame';
 import { DEFAULT_LYRIC_LOOK, DEFAULT_TEXT_SIZE, DEFAULT_VERSE_LOOK, fitTo, lookOf } from '@/lib/projector/looks';
-import { DYNAMIC_THEME, LOCAL_THEME, themeSrc } from '@/lib/projector/themes';
+import { DEFAULT_THEME, DYNAMIC_THEME, LOCAL_THEME, themeSrc } from '@/lib/projector/themes';
 import { asTimerState, withSkew, type TimerState } from '@/lib/timer/model';
 import { emptyShowData, REQUIRED_LANG, type ProjectorStyle, type ShowData } from '@/lib/types';
 
@@ -23,7 +23,7 @@ const MAX_FONT_SIZE = 64;
 const LYRICS_MAX_FONT_SIZE = 200;
 
 const defaultStyle: ProjectorStyle = {
-  theme: '1',
+  theme: DEFAULT_THEME,
   dynamicImage: '',
   localImage: null,
   font: DEFAULT_FONT,
