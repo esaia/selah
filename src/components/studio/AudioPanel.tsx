@@ -7,7 +7,8 @@ import { cn } from '@/lib/cn';
 import { useAudio, type Track } from '@/lib/studio/AudioProvider';
 
 import { DROP_ZONE } from './dropZone';
-import { LIFTED_SLOT } from './sortable';
+import { useLibraryReorder } from './libraryDrag';
+import { LIFTED_SLOT, type Sortable } from './sortable';
 import { useTrackReorder } from './trackDrag';
 
 /** Every track, as opposed to one of the operator's libraries. */
@@ -35,6 +36,9 @@ const LibraryRow = ({
   onSelect,
   onDropTrack,
   onDelete,
+  drag,
+  dragging,
+  lifted,
 }: {
   label: string;
   count: number;
@@ -42,17 +46,38 @@ const LibraryRow = ({
   onSelect: () => void;
   onDropTrack: (event: DragEvent) => void;
   onDelete?: () => void;
+  /** The row's part in the library reorder, for the rows that take part. */
+  drag?: ReturnType<Sortable<unknown>['row']>;
+  /** True while some library is in the air — this row or another. */
+  dragging?: boolean;
+  /** True while this row is the one in the air. */
+  lifted?: boolean;
 }) => {
   const [over, setOver] = useState(false);
 
+  // Two drags cross this row and mean opposite things: a track being filed
+  // here, and a library being carried past. While a library is in the air the
+  // row is a place in a running order, never a folder — so it neither takes the
+  // drop as a filing nor lights up as if it would.
+  // Lit only when a track is what is over the row: `over` is not set during a
+  // library drag, and saying so once keeps the row's parts from disagreeing.
+  const filing = over && !dragging;
+
   return (
     <li
+      draggable={drag?.draggable}
+      onDragStart={drag?.onDragStart}
+      onDragEnd={drag?.onDragEnd}
       onDragOver={event => {
+        if (dragging) return drag?.onDragOver(event);
+
         event.preventDefault();
         setOver(true);
       }}
       onDragLeave={() => setOver(false)}
       onDrop={event => {
+        if (dragging) return drag?.onDrop(event);
+
         event.preventDefault();
         setOver(false);
         onDropTrack(event);
@@ -64,11 +89,13 @@ const LibraryRow = ({
           : 'border-transparent text-studio-muted hover:bg-studio-surface',
         // Filing a track is a commitment, so the row it would go into is filled
         // rather than outlined: it is unmistakable at a glance mid-service.
-        over && 'border-studio-accent bg-studio-accent text-studio-onaccent',
+        filing && 'border-studio-accent bg-studio-accent text-studio-onaccent',
+        drag && 'cursor-grab active:cursor-grabbing',
+        lifted && LIFTED_SLOT,
       )}
     >
       <button type="button" onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-2 text-left">
-        <Music className={cn('size-3.5 shrink-0', over ? 'text-studio-onaccent' : 'text-studio-faint')} />
+        <Music className={cn('size-3.5 shrink-0', filing ? 'text-studio-onaccent' : 'text-studio-faint')} />
         <span className={cn('min-w-0 flex-1 truncate', selected && 'font-semibold')}>{label}</span>
       </button>
 
@@ -79,7 +106,7 @@ const LibraryRow = ({
         <span
           className={cn(
             'text-[11px] tabular-nums transition-opacity duration-150',
-            over ? 'text-white/80' : 'text-studio-faint',
+            filing ? 'text-white/80' : 'text-studio-faint',
             onDelete && 'group-hover/library:opacity-0 group-focus-within/library:opacity-0',
           )}
         >
@@ -96,7 +123,7 @@ const LibraryRow = ({
               'absolute inset-0 flex items-center justify-center rounded-studio opacity-0 transition',
               'duration-150 group-hover/library:opacity-100 focus-visible:opacity-100 focus:outline-none',
               'focus-visible:ring-2 focus-visible:ring-studio-accent/40',
-              over ? 'text-studio-onaccent' : 'text-studio-faint hover:text-studio-danger',
+              filing ? 'text-studio-onaccent' : 'text-studio-faint hover:text-studio-danger',
             )}
           >
             <Trash2 className="size-3.5" />
@@ -134,6 +161,7 @@ export const AudioPanel = () => {
     setTrackCategory,
     trackList,
     moveTrack,
+    moveCategory,
     play,
   } = useAudio();
 
@@ -158,6 +186,10 @@ export const AudioPanel = () => {
   const reorder = useTrackReorder(shown, (id, beforeId) =>
     void moveTrack(id, beforeId, open === ALL ? null : open),
   );
+
+  // The list of libraries is a running order too: the one a service starts from
+  // belongs at the top, wherever its name falls in the alphabet.
+  const libraries = useLibraryReorder(categories, (id, beforeId) => void moveCategory(id, beforeId));
 
   const file = (event: DragEvent, categoryId: string | null) => {
     const id = event.dataTransfer.getData('text/plain');
@@ -234,6 +266,7 @@ export const AudioPanel = () => {
         <ul
           className="studio-scroll border-studio-divider max-h-40 overflow-y-auto border-b py-1 sm:max-h-none
             sm:border-r sm:border-b-0"
+          {...libraries.list()}
         >
           <li
             className="text-studio-faint flex items-center justify-between gap-2 px-3 py-1.5 text-[11px]
@@ -257,9 +290,10 @@ export const AudioPanel = () => {
             selected={open === ALL}
             onSelect={() => setLibrary(ALL)}
             onDropTrack={event => file(event, null)}
+            dragging={Boolean(libraries.lifted)}
           />
 
-          {categories.map(category => (
+          {libraries.items.map(category => (
             <LibraryRow
               key={category.id}
               label={category.name}
@@ -268,6 +302,9 @@ export const AudioPanel = () => {
               onSelect={() => setLibrary(category.id)}
               onDropTrack={event => file(event, category.id)}
               onDelete={() => void removeCategory(category.id)}
+              drag={libraries.row(category.id)}
+              dragging={Boolean(libraries.lifted)}
+              lifted={libraries.lifted === category.id}
             />
           ))}
 

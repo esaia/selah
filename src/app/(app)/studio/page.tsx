@@ -63,7 +63,14 @@ export default async function StudioPage() {
     // The operator's own running order, with the order they were added in as
     // the tie-break for rows that have never been dragged.
     supabase.from('audio_tracks').select('*').eq('user_id', user.id).order('position').order('created_at'),
-    supabase.from('audio_categories').select('id, name').eq('user_id', user.id).order('name'),
+    // The libraries in the order the operator dragged them into, with the name
+    // as the tie-break for any that have never been moved.
+    supabase
+      .from('audio_categories')
+      .select('id, name, position')
+      .eq('user_id', user.id)
+      .order('position')
+      .order('name'),
   ]);
 
   const audio: AudioInitial = {

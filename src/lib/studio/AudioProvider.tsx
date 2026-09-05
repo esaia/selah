@@ -36,6 +36,8 @@ export interface Track {
 export interface Category {
   id: string;
   name: string;
+  /** Where the library sits in the operator's own order of libraries. */
+  position: number;
 }
 
 /**
@@ -155,6 +157,8 @@ interface AudioValue {
   setTrackCategory: (id: string, categoryId: string | null) => Promise<void>;
   addCategory: (name: string) => Promise<void>;
   removeCategory: (id: string) => Promise<void>;
+  /** Drop a library in front of another, or at the end when `beforeId` is null. */
+  moveCategory: (id: string, beforeId: string | null) => Promise<void>;
 
 
   /** `from` is the library the track was started out of: null is All tracks. */
@@ -209,9 +213,12 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
   // The highest position handed out, so a new track lands at the end rather
   // than in front of everything the operator has already arranged.
   const lastPosition = useRef(Math.max(0, ...initial.tracks.map(track => track.position)));
+  // The same, for the libraries: a new one is made at the bottom of the list
+  // rather than in the middle of an order the operator has already arranged.
+  const lastCategoryPosition = useRef(Math.max(0, ...initial.categories.map(category => category.position)));
 
   const [tracks, setTracks] = useState<Track[]>(initial.tracks);
-  const [categories, setCategories] = useState<Category[]>(initial.categories);
+  const [libraries, setLibraries] = useState<Category[]>(initial.categories);
   const [chosen, setChosen] = useState<Track | null>(null);
   const [playing, setPlaying] = useState(false);
   const [played, setPlayed] = useState(0);
@@ -571,6 +578,66 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
   );
 
   /**
+   * The libraries in the operator's own order. Sorted here rather than at every
+   * place that lists them, so the Audio tab and the console rail can never
+   * disagree about which library comes first.
+   */
+  const categories = useMemo(
+    () => [...libraries].sort((a, b) => a.position - b.position || a.name.localeCompare(b.name)),
+    [libraries],
+  );
+
+  /**
+   * Drop a library in front of another, or at the end when `beforeId` is null.
+   * Only the libraries whose place actually changed are written — the same
+   * bargain `moveTrack` makes, so dragging the last one to the top is not a
+   * round trip per row in between.
+   */
+  const moveCategory = useCallback<AudioValue['moveCategory']>(
+    async (id, beforeId) => {
+      if (id === beforeId) return;
+
+      const moved = categories.find(category => category.id === id);
+
+      if (!moved) return;
+
+      const without = categories.filter(category => category.id !== id);
+      const target = beforeId ? without.findIndex(category => category.id === beforeId) : -1;
+      const at = target === -1 ? without.length : target;
+      const ordered = [...without.slice(0, at), moved, ...without.slice(at)];
+
+      if (ordered.every((category, index) => category.id === categories[index].id)) return;
+
+      const places = new Map(ordered.map((category, index) => [category.id, index + 1]));
+
+      setLibraries(current =>
+        current.map(category => {
+          const place = places.get(category.id);
+
+          return place === undefined ? category : { ...category, position: place };
+        }),
+      );
+
+      lastCategoryPosition.current = Math.max(lastCategoryPosition.current, ordered.length);
+
+      await Promise.all(
+        ordered
+          .filter(category => places.get(category.id) !== category.position)
+          .map(category =>
+            save(
+              db
+                .from('audio_categories')
+                .update({ position: places.get(category.id) as number })
+                .eq('id', category.id),
+              'the library order',
+            ),
+          ),
+      );
+    },
+    [categories, db],
+  );
+
+  /**
    * Drop a track in front of another, or at the end when `beforeId` is null.
    * Only the list being looked at is renumbered — and only the rows whose place
    * in it actually moved are written.
@@ -686,15 +753,20 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       addCategory: async name => {
         const { data } = await db
           .from('audio_categories')
-          .insert({ user_id: initial.userId, name })
+          .insert({ user_id: initial.userId, name, position: (lastCategoryPosition.current += 1) })
           .select()
           .single();
 
-        if (data) setCategories(current => [...current, { id: data.id, name: data.name }]);
+        if (data)
+          setLibraries(current => [
+            ...current,
+            { id: data.id, name: data.name, position: data.position },
+          ]);
       },
+      moveCategory,
       removeCategory: async id => {
         await db.from('audio_categories').delete().eq('id', id);
-        setCategories(current => current.filter(category => category.id !== id));
+        setLibraries(current => current.filter(category => category.id !== id));
       },
       play,
       playTrack: (track, from) => (current?.id === track.id ? togglePlay() : play(track, from)),
@@ -736,6 +808,7 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       fadeMs,
       initial.userId,
       missing,
+      moveCategory,
       moveTrack,
       muted,
       play,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type CSSProperties, type DragEvent } from 'react';
+import { useState, type CSSProperties, type DragEvent, type HTMLAttributes } from 'react';
 import { ChevronDown, ChevronUp, ListMusic, Music, Pause, Play } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
@@ -8,6 +8,7 @@ import { useAudio, type Track } from '@/lib/studio/AudioProvider';
 import { useStudio } from '@/lib/studio/StudioProvider';
 
 import { DROP_ZONE } from './dropZone';
+import { useLibraryReorder } from './libraryDrag';
 import { LIFTED_SLOT } from './sortable';
 import { useTrackReorder } from './trackDrag';
 
@@ -72,17 +73,22 @@ const LibraryRow = ({
   count,
   selected,
   onSelect,
+  lifted,
+  ...drag
 }: {
   icon: React.ReactNode;
   label: string;
   count: number;
   selected: boolean;
   onSelect: () => void;
-}) => (
+  /** True while this row is the one in the air. */
+  lifted?: boolean;
+} & HTMLAttributes<HTMLButtonElement> & { draggable?: boolean }) => (
   <button
     type="button"
     onClick={onSelect}
     aria-pressed={selected}
+    {...drag}
     className={cn(
       'flex w-full items-center gap-2 border-l-2 py-1 pr-3 pl-2.5 text-left transition-colors duration-150',
       'focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-accent/40 focus-visible:ring-inset',
@@ -92,6 +98,8 @@ const LibraryRow = ({
       selected
         ? 'border-studio-accent bg-studio-surface text-studio-text'
         : 'border-transparent text-studio-muted hover:bg-studio-surface',
+      drag.draggable && 'cursor-grab active:cursor-grabbing',
+      lifted && LIFTED_SLOT,
     )}
   >
     <span className="shrink-0 text-studio-faint">{icon}</span>
@@ -124,6 +132,7 @@ export const AudioPlaylist = () => {
     setTrackCategory,
     trackList,
     moveTrack,
+    moveCategory,
   } = useAudio();
   const { setTab } = useStudio();
 
@@ -141,6 +150,11 @@ export const AudioPlaylist = () => {
   const reorder = useTrackReorder(shown, (id, beforeId) =>
     void moveTrack(id, beforeId, open === ALL ? null : open),
   );
+
+  // The libraries carry an order of their own — the one a service starts from
+  // belongs at the top, whatever its name.
+  const libraries = useLibraryReorder(categories, (id, beforeId) => void moveCategory(id, beforeId));
+
   const span = runtime(shown);
 
   // Dropped straight onto the rail, a file is meant for the library the
@@ -191,7 +205,10 @@ export const AudioPlaylist = () => {
           list above their contents, collapsible when the passages below need
           the room. */}
       {listsOpen ? (
-        <div className="studio-scroll max-h-28 shrink-0 overflow-y-auto border-b border-studio-divider py-1">
+        <div
+          className="studio-scroll max-h-28 shrink-0 overflow-y-auto border-b border-studio-divider py-1"
+          {...libraries.list()}
+        >
           <LibraryRow
             icon={<ListMusic className="size-3.5" />}
             label="All tracks"
@@ -200,7 +217,7 @@ export const AudioPlaylist = () => {
             onSelect={() => setView(ALL)}
           />
 
-          {categories.map(category => (
+          {libraries.items.map(category => (
             <LibraryRow
               key={category.id}
               icon={<Music className="size-3.5" />}
@@ -208,6 +225,8 @@ export const AudioPlaylist = () => {
               count={tracks.filter(track => (track.categoryId ?? null) === category.id).length}
               selected={open === category.id}
               onSelect={() => setView(category.id)}
+              lifted={libraries.lifted === category.id}
+              {...libraries.row(category.id)}
             />
           ))}
         </div>
