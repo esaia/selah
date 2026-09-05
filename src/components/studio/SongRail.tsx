@@ -560,6 +560,18 @@ const SongList = ({
       // playlist, out of the library for good on a shelf — where it asks
       // first, because that one cannot be undone.
       onKeyDown={event => {
+        // Select all, but only once the operator has picked a row: ⌘A with
+        // nothing selected is the browser's own gesture over the whole page,
+        // and taking it from them to highlight a list they were not working
+        // in would be a surprise.
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
+          if (picked.length === 0) return;
+
+          event.preventDefault();
+          setPicked(items.map(item => item.id));
+          return;
+        }
+
         if (event.key !== 'Delete' && event.key !== 'Backspace') return;
         if (chosen.length === 0) return;
 

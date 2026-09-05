@@ -34,7 +34,6 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
     importSongs,
     saveSong,
     removeSongs,
-    clearSongs,
     playlists,
     open,
     songCue,
@@ -43,7 +42,6 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [busy, setBusy] = useState(false);
-  const [confirmingClear, setConfirmingClear] = useState(false);
   const [confirmingRemove, setConfirmingRemove] = useState<Song[] | null>(null);
   const [editingSlide, setEditingSlide] = useState<{ song: Song; index: number } | null>(null);
   const [editing, setEditing] = useState<Song | null>(null);
@@ -161,11 +159,6 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
 
         <SongRail onEdit={setEditing} onRemove={setConfirmingRemove} onSearch={onSearch} />
 
-        {songs.length > 0 ? (
-          <Button variant="ghost" onClick={() => setConfirmingClear(true)}>
-            Remove all songs
-          </Button>
-        ) : null}
       </div>
 
       <ConfirmDialog
@@ -181,18 +174,6 @@ export const LyricsPanel = ({ onSearch }: { onSearch: () => void }) => {
         onConfirm={() => {
           if (confirmingRemove) void removeSongs(confirmingRemove.map(song => song.id));
           setConfirmingRemove(null);
-        }}
-      />
-
-      <ConfirmDialog
-        open={confirmingClear}
-        title="Remove all songs?"
-        message={`This deletes all ${songs.length} imported songs and empties the playlist. The bundle itself is untouched — you can import it again.`}
-        confirmLabel="Remove all songs"
-        onCancel={() => setConfirmingClear(false)}
-        onConfirm={() => {
-          void clearSongs();
-          setConfirmingClear(false);
         }}
       />
 

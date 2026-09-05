@@ -245,7 +245,6 @@ interface StudioValue {
   /** Drop one slide from a song, from the grid rather than the editor. */
   removeSlide: (song: Song, slideId: string) => Promise<void>;
   removeSongs: (ids: string[]) => Promise<void>;
-  clearSongs: () => Promise<void>;
   publishLyrics: (song: Song, slideIndex: number) => void;
   selectLyric: (song: Song, slideIndex: number) => void;
 
@@ -1833,19 +1832,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       setSongLangs,
       removeSlide,
       removeSongs,
-      clearSongs: async () => {
-        await db.from('songs').delete().eq('user_id', initial.settings.user_id);
-
-        setSongs([]);
-        setActiveSong(null);
-        setPlaylists(current => current.map(list => ({ ...list, songs: [] })));
-        setWorkspace(current => ({ ...current, live: current.live?.kind === 'lyrics' ? null : current.live }));
-
-        await save(
-          db.from('song_playlists').update({ songs: [] }).eq('user_id', initial.settings.user_id),
-          'the playlists',
-        );
-      },
       publishLyrics,
       selectLyric,
       showData,
@@ -1874,8 +1860,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       clearCard,
       clearProjector,
       client,
-      db,
-      initial.settings.user_id,
       extendBlock,
       goLive,
       importSongs,
