@@ -34,7 +34,6 @@ import {
   type TimerState,
 } from "./model";
 
-/** A ten-minute countdown with a one-minute wrap-up, stopped at the top. */
 const state = (): TimerState => {
   const base = emptyTimerState();
 
@@ -116,11 +115,9 @@ describe("a countdown run", () => {
     const running = startRun(state(), t0);
     const added = adjustRun(running, MINUTE, t0 + 5 * MINUTE);
 
-    // Six minutes left of the same ten: only the elapsed time moved.
     expect(timerReading(added, t0 + 5 * MINUTE)?.text).toBe("6:00");
     expect(totalOf(added)).toBe(totalOf(running));
 
-    // And it stops at the top rather than running past the start.
     expect(
       timerReading(
         adjustRun(added, 10 * MINUTE, t0 + 5 * MINUTE),
@@ -201,8 +198,6 @@ describe("arming", () => {
 
     expect(running.playedId).toBe(running.activeId);
 
-    // Arming the next item moves the pointer; what was given stays what was
-    // given, and a reset afterwards does not take it back either.
     const armed = armTimer(pauseRun(running, 2_000), "second");
 
     expect(armed.activeId).toBe("second");
@@ -237,8 +232,6 @@ describe("the other two kinds", () => {
       timers: [{ ...base.timers[0], kind: "clock" as const }],
     };
 
-    // Local time, built the same way the reading does, so the assertion holds
-    // wherever the tests run.
     const at = new Date(2026, 0, 1, 16, 15, 30).getTime();
     const reading = timerReading(clock, at);
 
@@ -381,7 +374,6 @@ describe("clearOutputs", () => {
 });
 
 describe("the last ten seconds", () => {
-  /** A ten-minute countdown, started at t=0 and read `left` from the end. */
   const at = (left: number) =>
     timerReading(startRun(state(), 0), 10 * MINUTE - left);
 
@@ -463,7 +455,6 @@ describe("timerIsLive", () => {
 });
 
 describe("reorderTimers", () => {
-  /** Four timers, every one of them following the one above it. */
   const chain = () =>
     ["a", "b", "c", "d"].map((id, at) =>
       newTimer({ id, name: id, linked: at > 0 }),
@@ -479,8 +470,6 @@ describe("reorderTimers", () => {
   });
 
   it("breaks the link of a row that lands under a different neighbour", () => {
-    // "b" moved to the end: it no longer follows "a", "c" no longer follows
-    // "b", and "d" no longer follows "c".
     expect(linksOf(reorderTimers(chain(), ["a", "c", "d", "b"]))).toEqual([
       "a-",
       "c-",
@@ -490,7 +479,6 @@ describe("reorderTimers", () => {
   });
 
   it("leaves the joins a drag never came near alone", () => {
-    // The last pair is untouched by swapping the first two.
     expect(linksOf(reorderTimers(chain(), ["b", "a", "c", "d"]))).toEqual([
       "b-",
       "a-",
@@ -502,7 +490,6 @@ describe("reorderTimers", () => {
   it("keeps every row when the list has moved on under the drag", () => {
     const timers = [...chain(), newTimer({ id: "e", name: "e" })];
 
-    // A stale drag that never saw "e", and mentions an id that has gone.
     expect(
       reorderTimers(timers, ["gone", "b", "a", "c", "d"]).map(
         (timer) => timer.id,
@@ -532,7 +519,6 @@ describe("the row menu's operations", () => {
   it("breaks the join it was inserted through, and leaves the others", () => {
     const after = insertTimer(chain(), "b", "above", newTimer({ id: "new" }));
 
-    // "b" follows the new row now, so its promise goes; "c" still follows "b".
     expect(after.map((timer) => timer.linked)).toEqual([
       false,
       false,
@@ -569,7 +555,6 @@ describe("the row menu's operations", () => {
 });
 
 describe("the final stretch", () => {
-  /** A five-minute countdown whose last thirty seconds are the red ones. */
   const thirty = (): TimerState => {
     const base = emptyTimerState();
 

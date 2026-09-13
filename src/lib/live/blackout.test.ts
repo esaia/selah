@@ -8,8 +8,6 @@ describe('reading a blackout back', () => {
     expect(asBlackout({ audience: 'yes', stage: 1 })).toEqual(NO_BLACKOUT);
   });
 
-  // A row written before screens could be blacked says nothing about them, and
-  // a screen nobody asked to black must come up showing what is live.
   it('is not black when there is nothing to read', () => {
     expect(asBlackout(null)).toEqual(NO_BLACKOUT);
     expect(asBlackout(undefined)).toEqual(NO_BLACKOUT);

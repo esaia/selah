@@ -12,5 +12,4 @@ export const createClient = () =>
 
 let browserClient: ReturnType<typeof createClient> | null = null;
 
-/** One client per document, so realtime channels and auth state are shared. */
 export const supabase = () => (browserClient ??= createClient());

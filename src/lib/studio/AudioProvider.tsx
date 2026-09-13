@@ -17,39 +17,24 @@ import { supabase } from '@/lib/supabase/client';
 import { useStudio } from '@/lib/studio/StudioProvider';
 import { save } from '@/lib/supabase/save';
 
-
 export interface Track {
   id: string;
   title: string;
   artist: string;
-  /** A URL the operator added. Absent for a file on this machine. */
   src?: string | null;
-  /** The IndexedDB record this track plays from, for a local file. */
   localId?: string | null;
   categoryId?: string | null;
   durationMs?: number | null;
-  /** Where the track sits in the All tracks order. */
   position: number;
-  /** Where it sits in the library it is filed in, which is its own order. */
   libraryPosition: number;
 }
 
 export interface Category {
   id: string;
   name: string;
-  /** Where the library sits in the operator's own order of libraries. */
   position: number;
 }
 
-/**
- * What happens when a track runs out.
- *
- * `one` is the element's own `loop`, so a bed under a prayer never has a gap.
- * `all` plays on down the library it was started from — a library *is* the
- * running order here, so "the next one" is a question the console can always
- * answer — and comes back round to the top rather than stopping the service
- * dead at the last track.
- */
 export type Repeat = 'off' | 'one' | 'all';
 
 const REPEAT_NEXT: Record<Repeat, Repeat> = { off: 'all', all: 'one', one: 'off' };
@@ -58,14 +43,6 @@ const DEFAULT_FADE_MS = 700;
 const FADE_STEP_MS = 40;
 const PROBE_TIMEOUT_MS = 8000;
 
-/**
- * What was cued when the tab last had it, so a reload mid-service comes back to
- * the same track at the same place rather than to an empty transport.
- *
- * Per-machine, and deliberately not in the database: which laptop is playing
- * the bed is not something the session's other screens have any business
- * knowing, and a local file's bytes never leave this browser anyway.
- */
 const RESUME_KEY = 'studioAudioResume';
 
 interface Resume {
@@ -73,12 +50,6 @@ interface Resume {
   seconds: number;
 }
 
-/**
- * Read through an external store rather than an effect, the way the preview
- * panel reads its mode: the server has nothing to say about what this browser
- * was playing, so it renders the empty transport and the client corrects it in
- * the same commit instead of a paint later.
- */
 const resumeListeners = new Set<() => void>();
 let resumeSnapshot: Resume | null | undefined;
 
@@ -110,18 +81,12 @@ const resumeStore = {
       if (next) localStorage.setItem(RESUME_KEY, JSON.stringify(next));
       else localStorage.removeItem(RESUME_KEY);
     } catch {
-      // Non-critical.
     }
 
     resumeListeners.forEach(listener => listener());
   },
 };
 
-/**
- * Move the playhead as soon as there is enough of the track to move it. A
- * `currentTime` written straight after `src` is dropped on the floor, because
- * the element has no idea yet how long the thing is.
- */
 const startAtSeconds = (audio: HTMLAudioElement, seconds: number) => {
   if (!seconds) return;
 
@@ -152,25 +117,20 @@ interface AudioValue {
   addUrlTrack: (input: { title: string; src: string }) => Promise<void>;
   addLocalFiles: (files: Iterable<File>) => Promise<Track[]>;
   removeTrack: (id: string) => Promise<void>;
-  /** One list in the order it is dragged into: null is All tracks. */
   trackList: (libraryId: string | null) => Track[];
   moveTrack: (id: string, beforeId: string | null, libraryId: string | null) => Promise<void>;
   setTrackCategory: (id: string, categoryId: string | null) => Promise<void>;
   addCategory: (name: string) => Promise<void>;
   renameCategory: (id: string, name: string) => Promise<void>;
   removeCategory: (id: string) => Promise<void>;
-  /** Drop a library in front of another, or at the end when `beforeId` is null. */
   moveCategory: (id: string, beforeId: string | null) => Promise<void>;
 
-
-  /** `from` is the library the track was started out of: null is All tracks. */
   play: (track: Track, from?: string | null) => void;
   playTrack: (track: Track, from?: string | null) => void;
   togglePlay: () => void;
   stop: () => void;
   seek: (seconds: number) => void;
   setVolume: (value: number) => void;
-  /** Off → the whole library → this track → off, the way a player cycles it. */
   cycleRepeat: () => void;
   toggleMute: () => void;
   setFadeMs: (value: number) => void;
@@ -192,34 +152,16 @@ export interface AudioInitial {
   categories: Category[];
 }
 
-/**
- * The console's music.
- *
- * One `<audio>` element for the page, because two overlapping tracks in a
- * service is always a mistake. A track is either a URL or a file on this
- * machine; the file's bytes stay in IndexedDB and never reach a server, so the
- * row in the database is metadata only and a track whose file is on the other
- * laptop shows as unavailable rather than silently failing to play.
- */
 export const AudioProvider = ({ initial, children }: { initial: AudioInitial; children: ReactNode }) => {
   const db = useMemo(() => supabase(), []);
-  // This provider sits inside the studio's, so a ceiling met here is announced
-  // in the one place the console shows them all.
   const { room, noteLimit } = useStudio();
   const element = useRef<HTMLAudioElement>(null);
   const fadeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const objectUrls = useRef(new Map<string, string>());
   const probed = useRef(new Set<string>());
-  // The last whole second written, so a running track is not a write per frame.
   const rememberedAt = useRef(-1);
-  // The library the current track was started out of, which is the list the
-  // one after it comes from. Null is All tracks.
   const startedFrom = useRef<string | null>(null);
-  // The highest position handed out, so a new track lands at the end rather
-  // than in front of everything the operator has already arranged.
   const lastPosition = useRef(Math.max(0, ...initial.tracks.map(track => track.position)));
-  // The same, for the libraries: a new one is made at the bottom of the list
-  // rather than in the middle of an order the operator has already arranged.
   const lastCategoryPosition = useRef(Math.max(0, ...initial.categories.map(category => category.position)));
 
   const [tracks, setTracks] = useState<Track[]>(initial.tracks);
@@ -235,28 +177,18 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
   const [missing, setMissing] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
 
-  /** Keep the tab's own note of what is cued and where it has got to. */
   const remember = useCallback((track: Track | null, seconds: number) => {
     rememberedAt.current = Math.floor(seconds);
     resumeStore.set(track ? { id: track.id, seconds } : null);
   }, []);
 
-  // Whatever was cued when this tab was last open. It stands in for the current
-  // track until something is actually played, so a reload mid-service comes
-  // back to the same track at the same place — stopped, because a browser will
-  // not let a page make a sound it was not asked to, and a refresh that
-  // restarts the bed at full volume is worse than one that waits for a click.
   const stored = useSyncExternalStore(resumeStore.subscribe, resumeStore.get, resumeStore.getServer);
   const cued = chosen === null && stored ? (tracks.find(track => track.id === stored.id) ?? null) : null;
 
   const current = chosen ?? cued;
   const position = cued ? (stored?.seconds ?? 0) : played;
-  // The length the library already knows, so the scrubber reads right on a
-  // track the element has not loaded a byte of yet.
   const duration = cued ? (cued.durationMs ?? 0) / 1000 : ran;
 
-    // Which local files this machine actually holds. A library row can outlive
-  // the browser it was added on, and the operator needs to see which.
   useEffect(() => {
     void loadLocalFiles()
       .then(stored => {
@@ -269,7 +201,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
         );
       })
       .catch(() => {});
-    // Recomputed only when the library changes, not on every render.
   }, [tracks]);
 
   useEffect(() => {
@@ -288,7 +219,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
     }
   };
 
-  /** Ramp the element's volume, or cut when the operator has fades turned off. */
   const fadeTo = useCallback(
     (target: number, done?: () => void) => {
       const audio = element.current;
@@ -321,7 +251,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
     [fadeMs],
   );
 
-  /** Where a track's audio actually comes from on this machine. */
   const sourceFor = useCallback(async (track: Track): Promise<string | null> => {
     if (track.src) return track.src;
     if (!track.localId) return null;
@@ -358,9 +287,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
           return;
         }
 
-        // Only a track picked up from the last session starts anywhere but at
-        // its beginning; once anything has been played this page is the
-        // authority on where it is.
         const cue = resumeStore.get();
         const startAt = chosen === null && cue?.id === track.id ? cue.seconds : 0;
 
@@ -389,9 +315,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
 
     if (!audio) return;
 
-    // The transport goes at the click; only the sound is allowed its ramp.
-    // Holding the bar open for the length of the fade left the operator looking
-    // at controls for a track they had already dismissed.
     setChosen(null);
     setPlaying(false);
     remember(null, 0);
@@ -407,9 +330,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
 
     if (!audio || !current) return;
 
-    // The button answers the click, not the fade: the state flips now and the
-    // ramp runs behind it. Waiting for the fade meant a transport that looked
-    // broken for up to five seconds.
     if (playing) {
       setPlaying(false);
 
@@ -417,9 +337,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       return;
     }
 
-    // Resuming an element that has lost its source — the blob URL went with a
-    // reload, or an earlier load errored — silently rejects and leaves the
-    // button stuck showing Play. Reload the track instead of pretending.
     if (!audio.src || audio.error) {
       play(current);
       return;
@@ -431,15 +348,11 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       .play()
       .then(() => fadeTo(volume))
       .catch(() => {
-        // A rejection here is nearly always the autoplay policy or a source
-        // that has gone away; starting the track over covers both.
         setPlaying(false);
         play(current);
       });
   }, [current, fadeTo, play, playing, volume]);
 
-  // Probe durations in the background so the library can show lengths without
-  // the operator having to play every track to find the two-minute one.
   useEffect(() => {
     const pending = tracks.find(
       track => !track.durationMs && !probed.current.has(track.id) && !missing.has(track.id),
@@ -466,7 +379,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
 
         const ms = Math.round(probe.duration * 1000);
 
-        // A zero is a failed read, not a zero-length track — never cache it.
         if (!ms || cancelled) return;
 
         setTracks(current => current.map(track => (track.id === pending.id ? { ...track, durationMs: ms } : track)));
@@ -488,8 +400,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
         .select()
         .single();
 
-      // A rejected insert used to leave the operator staring at a library that
-      // simply never grew. Say so instead.
       if (failed) setError(`“${title}” could not be saved: ${failed.message}`);
 
       if (data) {
@@ -567,11 +477,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
     [db, remember],
   );
 
-  /**
-   * One list, in the order the operator dragged it into: All tracks, or one of
-   * their libraries. A library keeps an order of its own, so arranging a
-   * running order inside it leaves All tracks exactly as it was.
-   */
   const trackList = useCallback<AudioValue['trackList']>(
     libraryId =>
       libraryId === null
@@ -582,22 +487,11 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
     [tracks],
   );
 
-  /**
-   * The libraries in the operator's own order. Sorted here rather than at every
-   * place that lists them, so the Audio tab and the console rail can never
-   * disagree about which library comes first.
-   */
   const categories = useMemo(
     () => [...libraries].sort((a, b) => a.position - b.position || a.name.localeCompare(b.name)),
     [libraries],
   );
 
-  /**
-   * Drop a library in front of another, or at the end when `beforeId` is null.
-   * Only the libraries whose place actually changed are written — the same
-   * bargain `moveTrack` makes, so dragging the last one to the top is not a
-   * round trip per row in between.
-   */
   const moveCategory = useCallback<AudioValue['moveCategory']>(
     async (id, beforeId) => {
       if (id === beforeId) return;
@@ -642,11 +536,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
     [categories, db],
   );
 
-  /**
-   * Drop a track in front of another, or at the end when `beforeId` is null.
-   * Only the list being looked at is renumbered — and only the rows whose place
-   * in it actually moved are written.
-   */
   const moveTrack = useCallback<AudioValue['moveTrack']>(
     async (id, beforeId, libraryId) => {
       if (id === beforeId) return;
@@ -697,16 +586,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
     [db, trackList],
   );
 
-  /**
-   * What follows a track that has just run out: the next one in the library it
-   * was started from, wrapping round to the top.
-   *
-   * Tracks this machine does not hold are stepped over rather than played into
-   * an error — a library can name files that live on the other laptop, and
-   * stopping dead at one of them mid-service is the thing the mode exists to
-   * prevent. The list is walked round to the track itself, so a library of one
-   * repeats rather than falling silent.
-   */
   const after = (track: Track | null): Track | null => {
     if (!track) return null;
 
@@ -738,8 +617,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
       trackList,
       moveTrack,
       setTrackCategory: async (id, categoryId) => {
-        // Filed at the end of its new library, which is where a track dropped
-        // onto one is expected to land.
         const libraryPosition =
           Math.max(
             0,
@@ -756,9 +633,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
         );
       },
       addCategory: async name => {
-        // A music shelf is a shelf like any other, and the plan counts them.
-        // The refusal is said next door — this provider has no notice of its
-        // own, and the console shows every ceiling in the same place.
         if (!room('audio_categories', 1, libraries.length)) {
           noteLimit('audio_categories');
           return;
@@ -794,8 +668,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
 
         if (!audio) return;
 
-        // Nothing is loaded yet on a track restored from a reload, so the scrub
-        // moves the point it will start from rather than being swallowed.
         if (!audio.src || audio.error) {
           remember(current, seconds);
           return;
@@ -809,8 +681,6 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
         if (element.current && !fadeTimer.current) element.current.volume = next;
       },
       cycleRepeat: () => setRepeat(current => REPEAT_NEXT[current]),
-      // Mute rides on the element rather than the volume slider, so unmuting
-      // returns to exactly the level the operator had set.
       toggleMute: () => setMuted(current => !current),
       setFadeMs: next => setFadeMsState(Math.min(5000, Math.max(0, next))),
     }),
@@ -858,13 +728,10 @@ export const AudioProvider = ({ initial, children }: { initial: AudioInitial; ch
 
           setPlayed(seconds);
 
-          // Once a second is plenty to come back to, and spares the disk a
-          // write on every frame the element paints.
           if (current && Math.floor(seconds) !== rememberedAt.current) remember(current, seconds);
         }}
         onDurationChange={event => setRan(event.currentTarget.duration || 0)}
         onEnded={() => {
-          // A track that has run out comes back at its start, not at its end.
           if (current) remember(current, 0);
 
           const next = repeat === 'all' ? after(current) : null;

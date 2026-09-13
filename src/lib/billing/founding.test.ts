@@ -16,11 +16,6 @@ import {
   tierNow,
 } from './founding';
 
-/**
- * The rungs are where the money is. Seat 10 pays $9 and seat 11 pays $14, and
- * a fence-post error either gives a church a price we did not offer or takes
- * one back that we did.
- */
 describe('the ladder', () => {
   it('holds fifteen spots below the standard price', () => {
     expect(FOUNDING_SPOTS).toBe(15);
@@ -48,12 +43,6 @@ describe('the ladder', () => {
   });
 });
 
-/**
- * A year is sold on the same rung as a month, so seat 7 is a founding seat
- * whichever way the church pays. What differs is the number, and a rung whose
- * yearly price did not come out below twelve of its monthly ones would be an
- * offer we advertise and do not make.
- */
 describe('paying by the year', () => {
   it('prices a year on the rung the seat lands on', () => {
     expect(priceOf(tierForSeat(1), 'annual').price).toBe('$89');
@@ -69,8 +58,6 @@ describe('paying by the year', () => {
 
   it('is two months free, give or take the rounding to a round price', () => {
     for (const tier of FOUNDING_TIERS) {
-      // Ten months' worth, and never more than the dollar the price is
-      // rounded down by.
       expect(tier.annual.priceCents).toBeLessThanOrEqual(tier.monthly.priceCents * 10);
       expect(tier.annual.priceCents).toBeGreaterThanOrEqual(tier.monthly.priceCents * 10 - 100);
     }
@@ -90,8 +77,6 @@ describe('paying by the year', () => {
   it('reads a cadence off a query string, and falls to the month', () => {
     expect(cadenceOf('annual')).toBe('annual');
     expect(cadenceOf('monthly')).toBe('monthly');
-    // Anything else is a month: a value we do not recognise must never be the
-    // one that charges a church for a year.
     expect(cadenceOf(undefined)).toBe('monthly');
     expect(cadenceOf('yearly')).toBe('monthly');
     expect(cadenceOf('ANNUAL')).toBe('monthly');
@@ -110,8 +95,6 @@ describe('what the page counts down', () => {
   it('counts down the rung being sold, not the whole ladder', () => {
     expect(spotsLeftInTier(0)).toBe(10);
     expect(spotsLeftInTier(7)).toBe(3);
-    // The tenth spot going does not leave "0 left" on screen: it moves the
-    // count on to the five at $14.
     expect(spotsLeftInTier(10)).toBe(5);
     expect(spotsLeftInTier(14)).toBe(1);
   });
@@ -119,7 +102,6 @@ describe('what the page counts down', () => {
   it('knows how big the rung being sold is', () => {
     expect(spotsInTier(0)).toBe(10);
     expect(spotsInTier(9)).toBe(10);
-    // The tenth going takes the count on to the five at $14.
     expect(spotsInTier(10)).toBe(5);
     expect(spotsInTier(14)).toBe(5);
     expect(spotsInTier(15)).toBeNull();

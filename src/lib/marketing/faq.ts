@@ -1,9 +1,3 @@
-/**
- * The questions a church actually asks before they sign up.
- *
- * One list, read by the home page's own section and by `/faq`, so a question
- * answered once never drifts into two answers.
- */
 export const FAQ = [
   {
     q: 'What is LlamaPresenter?',

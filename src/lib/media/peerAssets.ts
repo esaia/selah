@@ -1,45 +1,15 @@
-/**
- * Peer-to-peer transfer of the operator's own backgrounds.
- *
- * A picture the operator drags in lives in this browser's IndexedDB and
- * nowhere else — there is no bucket to upload it to, which is the same reason
- * the music library keeps its files locally. That is fine while the projector
- * is a second tab on the same machine, and useless the moment /show is a
- * different computer: it has never seen the file and cannot be handed a blob
- * URL, which dies with the document that minted it.
- *
- * So the console serves the file directly. /show asks over the session's
- * realtime channel, the two negotiate a WebRTC data channel, and a few
- * megabytes of JPEG travel across the room's LAN rather than through a
- * broadcast channel sized for a few kB of verse text.
- *
- * The channel is only the switchboard: it carries offers, answers and ICE
- * candidates, and the picture itself never touches it. Nothing here knows the
- * signalling is Supabase — it takes a `SignalTransport`, which keeps the
- * handshake testable and the dependency one-way.
- */
 
 import type { SignalTransport } from '@/lib/live/protocol';
 import type { LocalFileMeta } from '@/lib/types';
 
 import type { LocalFile } from './localMedia';
 
-/**
- * Google's public STUN, for the case where the two machines are on different
- * networks. On one church LAN the host candidates match and it is never
- * needed. There is deliberately no TURN: relaying media through a third party
- * is what this is avoiding, and a projector unreachable even by STUN is a
- * network problem worth seeing rather than papering over.
- */
 const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 
-/** SCTP delivers a message whole; 16kB is the size every implementation takes. */
 const CHUNK = 16 * 1024;
 
-/** Pause above this much queued, resume at half — keeps memory flat on a big file. */
 const BUFFER_HIGH = 512 * 1024;
 
-/** Long enough for a handshake plus a slow first chunk, short enough to retry. */
 const TIMEOUT_MS = 25000;
 
 export type ReceivedFile = LocalFileMeta & { file: Blob };
@@ -58,7 +28,6 @@ const drain = (channel: RTCDataChannel) =>
     channel.addEventListener('bufferedamountlow', done);
   });
 
-/** Metadata first so the receiver knows what it is assembling, then the bytes. */
 const sendFile = async (channel: RTCDataChannel, record: LocalFile) => {
   const buffer = await record.file.arrayBuffer();
 
@@ -81,13 +50,6 @@ const sendFile = async (channel: RTCDataChannel, record: LocalFile) => {
   }
 };
 
-/**
- * The console side: answer whoever asks for a file this machine holds.
- *
- * `resolve` is handed an id and returns the stored record, or nothing when
- * this console does not have it — the ordinary case when two consoles share a
- * session and only one of them owns the picture.
- */
 export const serveAssets = (
   resolve: (id: string) => Promise<LocalFile | null | undefined>,
   transport: SignalTransport,
@@ -101,7 +63,6 @@ export const serveAssets = (
       try {
         open.pc.close();
       } catch {
-        // Already gone.
       }
 
       sessions.delete(session);
@@ -194,8 +155,6 @@ export const serveAssets = (
 
       if (!open) return;
 
-      // Candidates outrun the answer often enough to matter; one added before
-      // the remote description exists is simply thrown away by the browser.
       if (open.pc.remoteDescription && open.pc.localDescription) {
         open.pc.addIceCandidate(payload.candidate).catch(() => {});
       } else {
@@ -210,14 +169,6 @@ export const serveAssets = (
   };
 };
 
-/**
- * The projector side: fetch one background by id from whichever console has
- * it. Resolves with a `Blob` and the metadata that came with it.
- *
- * A session can hold two consoles — the desk machine and a phone — and both
- * will answer. The first answer wins and the loser's candidates are ignored,
- * rather than two half-open connections fighting over one channel.
- */
 export const requestAsset = (
   id: string,
   transport: SignalTransport,
@@ -246,7 +197,6 @@ export const requestAsset = (
       try {
         pc.close();
       } catch {
-        // Already gone.
       }
 
       if (error) reject(error);

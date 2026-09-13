@@ -1,18 +1,4 @@
-/**
- * What part of the song a slide is: verse, chorus, bridge, tag.
- *
- * ProPresenter's own vocabulary, because it is the one every worship leader in
- * the room already speaks — "take it from the bridge" has to mean something the
- * operator can find without reading four slides to work out which is which.
- *
- * A group is stored as a plain string on the slide rather than as an id into a
- * table. It survives an export, a paste and a name nobody here thought of
- * ("Vamp 2", "Nino"), and the colour is derived from the name rather than
- * chosen alongside it — two slides marked Chorus are the same colour because
- * they say the same word, and never drift apart.
- */
 
-/** The families, in the order the picker offers them. */
 const FAMILIES = [
   { match: 'prechorus', color: '#ec4899' },
   { match: 'pre-chorus', color: '#ec4899' },
@@ -30,24 +16,14 @@ const FAMILIES = [
   { match: 'blank', color: '#111827' },
 ];
 
-/** Anything the families do not know, marked but not guessed at. */
 const OTHER = '#64748b';
 
-/**
- * The ink a group is drawn in.
- *
- * Matched on the front of the name so the numbered ones come out the same
- * colour as the family — Verse 1 and Verse 4 are both blue, which is what makes
- * a column of stripes readable at a glance. Pre-chorus is checked before
- * chorus, or every pre-chorus in the world would come out red.
- */
 export const colorOf = (group: string): string => {
   const name = group.trim().toLowerCase();
 
   return FAMILIES.find(family => name.startsWith(family.match))?.color ?? OTHER;
 };
 
-/** What the picker offers, as ProPresenter offers it. */
 export const GROUPS = [
   'Verse',
   'Verse 1',
@@ -70,7 +46,6 @@ export const GROUPS = [
   'Blank',
 ];
 
-/** `verse 1` typed by hand, as `Verse 1` on the card. */
 const tidy = (name: string): string => {
   const trimmed = name.trim().replace(/\s+/g, ' ');
   const known = GROUPS.find(group => group.toLowerCase() === trimmed.toLowerCase());
@@ -78,15 +53,6 @@ const tidy = (name: string): string => {
   return known ?? trimmed;
 };
 
-/**
- * The group a header line names, or nothing if the line is words to sing.
- *
- * Every lyric sheet worth importing marks its sections, and all of them do it
- * one of two ways: in brackets, as Genius and Ultimate Guitar write it, or with
- * a colon on a line of its own, as a chord chart does. Whatever follows a colon
- * inside the brackets is who sings it, which is a credit rather than a section,
- * so it is dropped.
- */
 export const headerOf = (line: string): string | null => {
   const trimmed = line.trim();
 
@@ -95,50 +61,24 @@ export const headerOf = (line: string): string | null => {
 
   if (!named) return null;
 
-  // "Verse 1: Charity Gayle" is one section sung by one person, not two.
   const section = named.split(':')[0].trim();
 
   return section ? tidy(section) : null;
 };
 
-/**
- * One space-separated token that reads as a chord, never a word.
- *
- * The root stays case-sensitive — a chord chart always capitalizes it ("Em",
- * never "em") — so a lowercase one-letter line ("a", "i") reads as the word
- * it is rather than a chord nobody wrote.
- */
 const CHORD_SYMBOL =
   /^[A-G](?:#|b)?(?:maj7|maj9|maj|min7|min|m7|m9|m11|m13|m6|m|sus2|sus4|sus|add9|add11|add2|dim7|dim|aug|6|7|9|11|13)?(?:\/[A-G](?:#|b)?)?$/;
 const CHORD_MARKER = /^(?:N\.?C\.?|%|x\d+|\(x\d+\))$/i;
 const isChordToken = (token: string): boolean => CHORD_MARKER.test(token) || CHORD_SYMBOL.test(token);
 
-/**
- * A line of nothing but chords, as a tab site prints above the words.
- *
- * Ultimate Guitar's `[ch]...[/ch]` wrapper gets stripped before this ever
- * sees the text, but the chord symbols it wrapped — "E E B B F# F# G#m F#" —
- * stay behind on their own line. Every token on it has to read as a chord, so
- * a lyric line made of short words never trips it.
- */
 export const isChordLine = (line: string): boolean => {
   const tokens = line.trim().split(/\s+/).filter(Boolean);
 
   return tokens.length > 0 && tokens.every(isChordToken);
 };
 
-/** "With Capo at 4th:" / "No Capo" — playing instructions, not words to sing. */
 const isCapoLine = (line: string): boolean => /^(with\s+)?capo\b|^no\s+capo\b/i.test(line.trim());
 
-/**
- * A lyric sheet as its sections.
- *
- * The header lines come out of the words — nobody wants "[Chorus]" on the
- * projector — and become the group the slides under them carry. Anything
- * before the first header belongs to no section, which is the honest answer
- * for a sheet that has none. Chord lines and capo notes are dropped the same
- * way: a chart, not a lyric sheet, put them there.
- */
 export const sectionsOf = (text: string): { group: string; text: string }[] => {
   const sections: { group: string; text: string }[] = [{ group: '', text: '' }];
 
@@ -159,17 +99,6 @@ export const sectionsOf = (text: string): { group: string; text: string }[] => {
   return sections.filter(section => section.text.trim().length > 0);
 };
 
-/**
- * The words, without whatever the page put above them.
- *
- * A lyrics site wraps the sheet in furniture — a contributor count, the title
- * again with the word "Lyrics" after it — and it arrives as the first two
- * slides of an import, which is two slides the operator deletes by hand every
- * single time. Where a sheet marks its sections, anything above the first
- * marker is that furniture. Where it marks none, nothing is dropped: there is
- * no way to tell a preamble from the first verse, and losing a verse is far
- * worse than keeping a line nobody wanted.
- */
 export const withoutPreamble = (text: string): string => {
   const lines = text.split('\n');
   const first = lines.findIndex(line => headerOf(line));

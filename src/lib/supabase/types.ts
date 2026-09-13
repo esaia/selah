@@ -1,14 +1,3 @@
-/**
- * Hand-written to match supabase/migrations. Regenerate with
- *   pnpm supabase gen types typescript --local > src/lib/supabase/types.ts
- * once the local stack is running.
- */
-/**
- * A jsonb column. Deliberately `unknown` rather than a recursive Json union:
- * the app stores real shapes in these columns (a slide, a style, a list of
- * blocks) and an interface without an index signature is not assignable to
- * such a union. Reads are narrowed at the edge — see lib/studio/settings.ts.
- */
 type Json = unknown;
 
 type Row<T> = { Row: T; Insert: Partial<T>; Update: Partial<T>; Relationships: [] };
@@ -27,7 +16,6 @@ export interface Database {
       }>;
       subscriptions: Row<{
         user_id: string;
-        /** Who is billing them. 'dodo' for every row we write. */
         provider: string;
         provider_customer_id: string | null;
         provider_subscription_id: string | null;
@@ -35,15 +23,11 @@ export interface Database {
         status: string;
         current_period_end: string | null;
         cancel_at_period_end: boolean;
-        /** The timestamp on the webhook event that last wrote this row. */
         event_at: string | null;
-        /** Which founding spot this church took, once and for good. */
         founding_seat: number | null;
-        /** When that spot was taken at checkout; null once it is paid for. */
         founding_reserved_at: string | null;
         updated_at: string;
       }>;
-      /** One row, one switch: whether the plan ceilings are being enforced. */
       billing_config: Row<{ id: boolean; enforce: boolean }>;
       sessions: Row<{
         id: string;
@@ -197,14 +181,12 @@ export interface Database {
         verses: Json;
         fetched_at: string;
       }>;
-      /** A translation the operator added, in one of the six or a language of their own. */
       bible_translations: Row<{
         id: string;
         user_id: string;
         lang: string;
         label: string;
         psalms: string;
-        /** What an `x:` language is called, and its 66 book names. Null for one of ours. */
         lang_label: string | null;
         book_names: Json;
         format: string | null;
@@ -212,7 +194,6 @@ export interface Database {
         verse_count: number;
         created_at: string;
       }>;
-      /** Its chapters, in the same shape `bible_text` holds ours. */
       bible_translation_text: Row<{
         translation_id: string;
         book: number;
@@ -224,19 +205,15 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
-      /** Verses whose text contains a phrase, in one translation and optionally one book. */
       bible_search: {
         Args: { p_lang: string; p_version: string; p_query: string; p_book?: number | null; p_limit?: number };
         Returns: { book: number; wigni: number; chapter: number; verse: number; text: string }[];
       };
-      /** The same, in a translation the operator uploaded. Runs as the caller, so RLS is the check. */
       bible_custom_search: {
         Args: { p_translation: string; p_query: string; p_book?: number | null; p_limit?: number };
         Returns: { book: number; wigni: number; chapter: number; verse: number; text: string }[];
       };
-      /** How many of the fifteen founding spots are gone, live reservations included. */
       founding_claimed: { Args: Record<string, never>; Returns: number };
-      /** Take the next founding spot for a user, and return its number. Service role only. */
       claim_founding_seat: { Args: { uid: string }; Returns: number };
     };
     Enums: Record<string, never>;

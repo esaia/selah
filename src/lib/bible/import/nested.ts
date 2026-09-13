@@ -2,22 +2,6 @@ import { bookByName, bookByPosition, type CanonBook } from '@/lib/bible/import/c
 import { scanXml, tidy } from '@/lib/bible/import/xml';
 import type { BibleFormat, ParsedBible, ParsedBook, ParsedChapter } from '@/lib/bible/import/types';
 
-/**
- * The three formats that put a verse inside an element.
- *
- * Zefania, OpenSong and Beblia are the same file with different tag names:
- * book holds chapter holds verse, and the words are the verse element's own
- * text. They differ in one thing that matters — whether a book is named
- * (`<b n="Genesis">`) or numbered (`<BIBLEBOOK bnumber="1">`) — and `canon.ts`
- * answers both, so one reader covers all three rather than three readers
- * covering one file each.
- *
- * Notes are dropped rather than kept. A cross-reference or a translator's
- * footnote is apparatus for a reader with a page in front of them; on a wall
- * behind a preacher it is a superscript nobody can follow and a line of text
- * that pushes the verse smaller.
- */
-
 interface Dialect {
   book: string[];
   chapter: string[];
@@ -29,7 +13,6 @@ const DIALECTS: Record<'zefania' | 'opensong', Dialect> = {
   opensong: { book: ['b', 'book'], chapter: ['c', 'chapter'], verse: ['v', 'verse'] },
 };
 
-/** Everything inside one of these is apparatus, not scripture. */
 const NOTES = new Set(['note', 'f', 'x', 'xref', 'gr', 'rf', 'fn']);
 
 const numberOf = (value: string | undefined): number => {
@@ -38,19 +21,6 @@ const numberOf = (value: string | undefined): number => {
   return found ? Number(found) : 0;
 };
 
-/**
- * Which book this is, from whatever the element called it: a number in
- * canonical order, or a written-out name.
- *
- * A number wins wherever one is to be had, because it cannot be misread —
- * `n` carries the number in one dialect and the name in another, and a file
- * that gives both a number and a name should be read by the number and
- * *named* by the name rather than dropped for having said too much.
- *
- * Null for a book we do not carry — an Apocrypha division in a file that has
- * one — which is skipped rather than refused, because the 66 in it are still
- * a Bible.
- */
 const numeric = (value: string | undefined) => (value && /^\d+$/.test(value.trim()) ? Number(value) : 0);
 
 const bookOf = (attrs: Record<string, string>): CanonBook | null => {
@@ -64,7 +34,6 @@ const bookOf = (attrs: Record<string, string>): CanonBook | null => {
   return named ? bookByName(named) : null;
 };
 
-/** What the file calls the book, when that is a name rather than a number. */
 const bookNameOf = (attrs: Record<string, string>): string | undefined => {
   const named = (attrs.bname ?? attrs.name ?? attrs.n ?? '').trim();
 
@@ -124,8 +93,6 @@ export const parseNested = (source: string, format: BibleFormat): ParsedBible =>
     if (kind === 'open' && dialect.book.includes(tag)) {
       const found = bookOf(attrs);
 
-      // Zefania puts the name in `bname`, OpenSong in the `n` that also
-      // identifies it. It is what gives an added language its own book names.
       book = found ? { position: found.position, name: bookNameOf(attrs), chapters: [] } : null;
 
       if (book) books.push(book);
@@ -153,7 +120,6 @@ export const parseNested = (source: string, format: BibleFormat): ParsedBible =>
       continue;
     }
 
-    // A line break inside a verse is a line break in the words, not a join.
     if (verse !== null && !noteDepth && (tag === 'br' || tag === 'p')) words.push(' ');
 
     if (!name && (attrs.biblename || attrs.name || attrs.translation)) {

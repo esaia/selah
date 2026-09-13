@@ -13,7 +13,6 @@ describe('the archives', () => {
 });
 
 describe('a filename as a name', () => {
-  // The difference between a list that can be skimmed and one that cannot.
   it('puts the spaces back', () => {
     expect(titleOf('AdilabadGondiBible.xml')).toBe('Adilabad Gondi');
     expect(titleOf('Albanian1872Bible.xml')).toBe('Albanian 1872');
@@ -84,8 +83,6 @@ describe('searching the list', () => {
     expect(entryMatches(entry, '')).toBe(true);
   });
 
-  // Otherwise a second word widens the result, which is the opposite of what
-  // typing more is for.
   it('needs every word to match, not any of them', () => {
     expect(entryMatches(entry, 'russian rst')).toBe(true);
     expect(entryMatches(entry, 'russian kjv')).toBe(false);

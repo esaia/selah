@@ -1,45 +1,11 @@
 import { emptyShowData, type ShowData, type Song, type SongLang, type SongSlide } from '@/lib/types';
 
-/**
- * The languages a song is sung in.
- *
- * Not the Bible catalogue: a congregation sings in languages we hold no
- * scripture for, so a song's languages are the operator's own words rather
- * than a row in `lib/bible/languages.json`. What that costs is a stable id —
- * a label is renamed on a Sunday morning, and renaming it must not move a word
- * of text.
- *
- * The words themselves live on the slide, never in a second song, so the two
- * languages of a line cannot drift apart: `slide.text` is always whichever
- * language sits first, and `slide.alt` holds the rest by id. That is what
- * makes a song written before any of this — and every song a ProPresenter
- * bundle imports — a song with one language and nothing else to say.
- */
-
-/**
- * A song is sung in one language, or in one and its translation.
- *
- * Two rather than three: a third block of sung text is a wall on the screen
- * and nobody in the room is reading it — and the stage and the lower third
- * each carry one language of their own besides, so a song already reaches the
- * room three ways.
- */
 export const MAX_SONG_LANGS = 2;
 
-/**
- * The id of the language a song already had before it was given any — the one
- * the import or the paste put there, which is to say the song itself.
- *
- * It is only an id: nothing reads it as a name, and a reorder can move it off
- * the front like any other. What it marks is the one language the song cannot
- * be stripped of, wherever it has since been dragged.
- */
 export const PRIMARY_ID = 'primary';
 
-/** The words the song arrived with, which are not the operator's to delete. */
 export const isOriginal = (langId: string) => langId === PRIMARY_ID;
 
-/** The languages as stored, alongside the two picks. */
 export interface StoredLangs {
   list: SongLang[];
   stage: string;
@@ -47,14 +13,6 @@ export interface StoredLangs {
   cards: string;
 }
 
-/**
- * What the database gave back, cleaned up.
- *
- * A song row outlives the console that wrote it, and the column is free-form
- * JSON — so an entry with no id, a duplicate of one already listed, or a pick
- * naming a language that has since been removed is dropped here rather than
- * halfway down a render. Mirrors `asOrder`/`asFlags` in `lib/studio/settings.ts`.
- */
 export const asSongLangs = (value: unknown): StoredLangs => {
   const stored = (value ?? {}) as { list?: unknown; stage?: unknown; lower3rd?: unknown; cards?: unknown };
   const listed = Array.isArray(stored.list) ? stored.list : [];
@@ -79,11 +37,6 @@ export const asSongLangs = (value: unknown): StoredLangs => {
   return { list, stage: pick(stored.stage), lower3rd: pick(stored.lower3rd), cards: pick(stored.cards) };
 };
 
-/**
- * A song row as the console holds it. The words are already in `slides`; this
- * only has to put the list and the picks back where the rest of the app reads
- * them, and leave a plain song looking exactly like one.
- */
 export const songFromRow = (row: {
   id: string;
   title: string;
@@ -107,7 +60,6 @@ export const songFromRow = (row: {
   };
 };
 
-/** What the `langs` column holds. */
 export const songLangsRow = (song: Song): StoredLangs => ({
   list: song.langs ?? [],
   stage: song.stageLang ?? '',
@@ -115,31 +67,21 @@ export const songLangsRow = (song: Song): StoredLangs => ({
   cards: song.cardLang ?? '',
 });
 
-/** The song's languages, in the order they are projected. */
 export const langsOf = (song: Song): SongLang[] =>
   song.langs?.length ? song.langs : [{ id: PRIMARY_ID, label: '', on: true }];
 
-/** The ones the operator has switched on, in that same order. */
 export const armedLangs = (song: Song): SongLang[] => langsOf(song).filter(lang => lang.on);
 
-/** Has this song been given languages at all, or is it the plain kind? */
 export const isMultilingual = (song: Song): boolean => (song.langs?.length ?? 0) > 1;
 
-/** Every language's words for one slide, by id. */
 const wordsOf = (song: Song, slide: SongSlide): Record<string, string> => ({
   ...slide.alt,
   [langsOf(song)[0].id]: slide.text,
 });
 
-/** One language's words for one slide. */
 export const textOf = (song: Song, slide: SongSlide, langId: string): string =>
   (langId === langsOf(song)[0].id ? slide.text : slide.alt?.[langId]) ?? '';
 
-/**
- * The slide with one language's words replaced. Emptying a language drops it
- * from the slide rather than leaving a blank behind — a slide carries only the
- * languages it has.
- */
 export const withText = (song: Song, slide: SongSlide, langId: string, text: string): SongSlide => {
   if (langId === langsOf(song)[0].id) return { ...slide, text };
 
@@ -154,7 +96,6 @@ export const withText = (song: Song, slide: SongSlide, langId: string, text: str
   return withAlt(slide, alt);
 };
 
-/** The slide carrying exactly these other languages, and no empty `alt` key. */
 const withAlt = (slide: SongSlide, alt: Record<string, string>): SongSlide => {
   const next = { ...slide };
 
@@ -163,19 +104,9 @@ const withAlt = (slide: SongSlide, alt: Record<string, string>): SongSlide => {
   return Object.keys(alt).length > 0 ? { ...next, alt } : next;
 };
 
-/** Does this slide say anything, in any of the song's languages? */
 export const hasWords = (slide: SongSlide): boolean =>
   slide.text.trim().length > 0 || Object.values(slide.alt ?? {}).some(text => text.trim().length > 0);
 
-/**
- * Every slide rewritten so the first language's words sit in `text`.
- *
- * The one place that moves words between the two homes, so removing a language
- * and reordering them share it. A language the slide had nothing for stays
- * nothing — including when it is the one being promoted, which leaves a slide
- * with an empty first language and its words still in `alt`, exactly as the
- * operator left it.
- */
 const rewritten = (song: Song, next: SongLang[]): SongSlide[] => {
   const first = next[0]?.id ?? PRIMARY_ID;
 
@@ -191,12 +122,9 @@ const rewritten = (song: Song, next: SongLang[]): SongSlide[] => {
   });
 };
 
-/** The song with `list` as its languages, and the picks it can still keep. */
 const withLangs = (song: Song, list: SongLang[]): Song => {
   const slides = rewritten(song, list);
 
-  // One language is no language: the song goes back to being the plain kind,
-  // which is what every reader that has never heard of this already draws.
   if (list.length <= 1) {
     return {
       ...song,
@@ -220,7 +148,6 @@ const withLangs = (song: Song, list: SongLang[]): Song => {
   };
 };
 
-/** A language added at the end, if there is room for it. */
 export const addLang = (song: Song, lang: SongLang): Song => {
   const list = langsOf(song);
 
@@ -229,16 +156,6 @@ export const addLang = (song: Song, lang: SongLang): Song => {
   return withLangs(song, [...list, lang]);
 };
 
-/**
- * A language dropped, and its words with it.
- *
- * One stays: the original, wherever it has since been dragged to. Those are
- * the words a `.pro` import or a paste put there, and dropping them is a song
- * disappearing rather than a language being removed. A translation the
- * operator typed is theirs to take back, first in the list or not — taking it
- * off the top simply moves the language below it back into `slide.text`, which
- * is where the original's words were going to end up anyway.
- */
 export const removeLang = (song: Song, langId: string): Song => {
   const list = langsOf(song);
 
@@ -250,22 +167,16 @@ export const removeLang = (song: Song, langId: string): Song => {
   );
 };
 
-/** A new label for a language. The id and every word stay where they are. */
 export const renameLang = (song: Song, langId: string, label: string): Song => ({
   ...song,
   langs: langsOf(song).map(lang => (lang.id === langId ? { ...lang, label } : lang)),
 });
 
-/** A language switched on or off. */
 export const armLang = (song: Song, langId: string, on: boolean): Song => ({
   ...song,
   langs: langsOf(song).map(lang => (lang.id === langId ? { ...lang, on } : lang)),
 });
 
-/**
- * The languages in a new order, tolerating a list that has drifted — unknown
- * ids ignored, omitted ones kept on the end — the way `asOrder` does.
- */
 export const reorderLangs = (song: Song, ids: string[]): Song => {
   const list = langsOf(song);
   const moved = ids
@@ -276,12 +187,6 @@ export const reorderLangs = (song: Song, ids: string[]): Song => {
   return withLangs(song, [...moved, ...list.filter(lang => !moved.some(kept => kept.id === lang.id))]);
 };
 
-/**
- * The language an output that shows one of them reads: the operator's pick
- * while it is still on, and the first one still on otherwise. The pick is kept
- * either way, so switching a language back on restores it — the same bargain
- * `stageLangOf` in `lib/studio/settings.ts` makes for verses.
- */
 const chosen = (song: Song, pick?: string): string => {
   const armed = armedLangs(song);
 
@@ -292,40 +197,14 @@ export const stageLangOf = (song: Song): string => chosen(song, song.stageLang);
 
 export const lower3rdLangOf = (song: Song): string => chosen(song, song.lower3rdLang);
 
-/**
- * The language the console's own cards are read in.
- *
- * Unlike the two output picks this does not have to be switched on: the
- * operator reads the cards in the language they think in, and what the room
- * sees is a separate question. Falls back to whatever leads the projector.
- */
 export const cardLangOf = (song: Song): string => {
   const list = langsOf(song);
 
   return list.find(lang => lang.id === song.cardLang)?.id ?? armedLangs(song)[0]?.id ?? list[0].id;
 };
 
-/** Two languages are the same language when the operator has given them the same name. */
 const key = (label: string) => label.trim().toLowerCase();
 
-/**
- * Every other song wearing the same switches, where the names agree.
- *
- * A bilingual service is a dozen songs with the same two languages in them,
- * and setting "English on, Georgian to the stage" a dozen times is the sort of
- * thing an operator does once and then forgets on the thirteenth. So a switch
- * thrown on one song is thrown on every song that calls a language by the same
- * name — which is exactly the operator's own statement that they are the same
- * language, since nothing else in a free-form name can say so.
- *
- * Only the switches travel: which languages are on, and which of them the
- * stage and the lower third read. The words, the order and the names
- * themselves stay each song's own. A language with no name yet matches
- * nothing, or every unnamed row in the library would move at once.
- *
- * Returns only the songs that actually change, so the caller writes nothing it
- * does not have to.
- */
 export const syncSwitches = (songs: Song[], source: Song): Song[] => {
   if (!isMultilingual(source)) return [];
 
@@ -336,9 +215,6 @@ export const syncSwitches = (songs: Song[], source: Song): Song[] => {
         key(lang.label),
         {
           on: lang.on,
-          // The stored pick, never the fallback: a song whose pick has been
-          // switched off reads as the first one on, and copying that would
-          // write a choice the operator never made.
           stage: lang.id === source.stageLang,
           lower3rd: lang.id === source.lower3rdLang,
         },
@@ -372,20 +248,6 @@ export const syncSwitches = (songs: Song[], source: Song): Song[] => {
   return changed;
 };
 
-/**
- * One slide as the outputs receive it.
- *
- * The only place `showData.lyrics` is built. Every language that is on and has
- * words for this slide travels, and each output narrows — the projector stacks
- * them, the stage and the lower third take the one they were pointed at. A
- * song with one language sends what it has always sent, down to the absent
- * `langs` key, so nothing about an ordinary song changes on the wire.
- *
- * `text` stays the first language's words either way. `/show`, `/lower3rd` and
- * `/stage` are unattended pages that stay open across a deploy, and a
- * `session_state` row outlives the console that wrote it — an output that has
- * never heard of `langs` shows one language rather than a blank wall.
- */
 export const lyricsShowData = (song: Song, slide: SongSlide): ShowData => {
   const blocks = armedLangs(song)
     .map(lang => ({ id: lang.id, label: lang.label, text: textOf(song, slide, lang.id) }))
@@ -407,11 +269,9 @@ export const lyricsShowData = (song: Song, slide: SongSlide): ShowData => {
   };
 };
 
-/** One slide's languages as an output draws them, newest shape or oldest. */
 export const lyricBlocks = (lyrics: NonNullable<ShowData['lyrics']>): { id: string; label: string; text: string }[] =>
   lyrics.langs?.length ? lyrics.langs : [{ id: PRIMARY_ID, label: '', text: lyrics.text }];
 
-/** The words an output showing one language should draw. */
 export const lyricFor = (lyrics: NonNullable<ShowData['lyrics']>, langId?: string): string => {
   const blocks = lyricBlocks(lyrics);
 

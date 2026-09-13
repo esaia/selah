@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { FlipHorizontal2, FlipVertical2, Maximize2, Minimize2 } from 'lucide-react';
 
-/** Which output the chrome is dressing, and the key its toggles are saved under. */
 export type OutputKind = 'show' | 'stage' | 'lower3rd';
 
 type Toggle = 'mirror' | 'flip';
@@ -22,18 +21,11 @@ const writeToggle = (kind: OutputKind, toggle: Toggle, on: boolean) => {
   try {
     localStorage.setItem(keyFor(kind, toggle), on ? '1' : '0');
   } catch {
-    // Non-critical: the toggle still holds for this run.
   }
 };
 
-/**
- * Client-only, without a state write on mount: the server renders no chrome,
- * so hydration matches, and the toggles below are only ever read where there is
- * a `localStorage` to read them from.
- */
 const useMounted = () => useSyncExternalStore(() => () => {}, () => true, () => false);
 
-/** How long the cluster stays up after the operator last moved the mouse. */
 const IDLE_MS = 2500;
 
 const CHROME_BUTTON =
@@ -42,18 +34,6 @@ const CHROME_BUTTON =
 
 const CHROME_BUTTON_ON = 'bg-white/10 text-white/80';
 
-/**
- * The controls an output page carries for the person standing in front of it:
- * a flip each way — a screen bounced off a mirror, or a projector hung upside
- * down — and fullscreen. Nothing here
- * is pushed from the console and nothing here is published back — these are
- * properties of the machine the page is open on, which is why they are saved
- * in its own `localStorage` and not in the session.
- *
- * The cluster follows the mouse rather than sitting there: `/lower3rd` is
- * captured by OBS, and three grey buttons burnt into a broadcast is the thing
- * to avoid. A browser source never moves a pointer, so it never sees them.
- */
 export const OutputChrome = ({
   kind,
   children,
@@ -61,12 +41,8 @@ export const OutputChrome = ({
 }: {
   kind: OutputKind;
   children: ReactNode;
-  /** Start out of the way rather than showing once, for a page that is on air. */
   hiddenAtRest?: boolean;
 }) => {
-  // Nothing until mounted: the toggles live in `localStorage`, which the server
-  // cannot read, and the console renders these pages into its own preview with
-  // `?preview`, where controls would be furniture over the operator's slide.
   const mounted = useMounted();
   const [mirror, setMirror] = useState(() => typeof window !== 'undefined' && readToggle(kind, 'mirror'));
   const [flip, setFlip] = useState(() => typeof window !== 'undefined' && readToggle(kind, 'flip'));
@@ -115,15 +91,10 @@ export const OutputChrome = ({
     [kind],
   );
 
-  // One transform for both axes: flipping each way in turn is the same screen
-  // turned upside down, and a projector bounced off a mirror rig needs exactly
-  // that as often as it needs either on its own.
   const transform = ready ? `${mirror ? 'scaleX(-1) ' : ''}${flip ? 'scaleY(-1)' : ''}`.trim() : '';
 
   return (
     <>
-      {/* The flip is the whole output, controls excepted: those are the
-          operator's, and a mirrored button is one nobody can read. */}
       <div className="h-dvh w-full" style={transform ? { transform } : undefined}>
         {children}
       </div>

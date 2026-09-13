@@ -2,24 +2,8 @@ import { bookByOsis } from '@/lib/bible/import/canon';
 import { scanXml, tidy } from '@/lib/bible/import/xml';
 import type { ParsedBible, ParsedBook, ParsedChapter } from '@/lib/bible/import/types';
 
-/**
- * OSIS, which names every verse twice over.
- *
- * A verse is either wrapped — `<verse osisID="Gen.1.1">…</verse>` — or marked
- * with an empty element and left to run until the next mark. Both are legal
- * and both are in the wild, so this reads the `osisID` and lets the words run
- * until *anything* ends them: the closing tag, the end marker, or the next
- * verse starting. That covers the two arrangements without having to know
- * which one the file chose.
- *
- * `osisID` carries the book, the chapter and the verse together, so nothing
- * else has to be tracked: a `<div type="book">` that lies about which book it
- * is cannot put verses in the wrong one.
- */
-
 const NOTES = new Set(['note', 'rdg', 'figure']);
 
-/** `Gen.1.1`, or the first of `Gen.1.1-Gen.1.3`. */
 const refOf = (osisId: string) => {
   const [book, chapter, verse] = osisId.split('-')[0].split('.');
   const found = book ? bookByOsis(book) : null;
@@ -80,8 +64,6 @@ export const parseOsis = (source: string): ParsedBible => {
     }
 
     if (tag === 'work') {
-      // The header's `<work>` holds the translation's real name in a `<title>`.
-      // `osisWork` is an id — "kjv" — and is only the fallback.
       inWork = kind === 'open';
 
       if (kind !== 'close' && !name) name = attrs.osiswork ?? '';
@@ -90,9 +72,6 @@ export const parseOsis = (source: string): ParsedBible => {
     }
 
     if (tag === 'title' && kind === 'open') {
-      // A psalm's superscription and a section heading are both `title`, and
-      // neither is a verse. Sending them nowhere is easier to defend than
-      // guessing which one this is — except in the header, where it is the name.
       titled = inWork;
       noteDepth += 1;
       continue;

@@ -1,13 +1,5 @@
 import { Tick } from './Tick';
 
-/**
- * The rows a comparison table should not pretend to win.
- *
- * The table above it carries only the places the two products differ. What
- * both do well is listed here, once, in small type — leaving it out entirely
- * would be the dishonest kind of comparison, and giving each line a row of its
- * own would bury the differences under a wall of matching ticks.
- */
 export const BothCover = ({ theirs, items }: { theirs: string; items: string[] }) => (
   <div className="mt-10 rounded-studio-lg border border-site-rule bg-site-bg p-6 sm:p-8">
     <h3 className="font-valera text-xl tracking-tight text-site-ink">What both do</h3>

@@ -19,32 +19,12 @@ export interface StageInitial {
   projector: Partial<ProjectorStyle>;
   stageLang?: Lang;
   timer: TimerState;
-  /** The operator has taken the stage monitor to black. */
   black: boolean;
 }
 
-/**
- * The stage display: a confidence monitor for whoever is standing up.
- *
- * Kept apart from `/show` on purpose — the congregation is meant to be reading
- * the verse, not a countdown — though the console can arm the timer onto the
- * projector as well, for the minutes before a service when the clock *is* the
- * point.
- *
- * It has two faces. A run that has been started takes the whole screen, because
- * while a countdown is going it is the only thing being asked for. The rest of
- * the service the screen is far more use showing the slides, which is what it
- * does.
- *
- * Nothing ticks over the channel. The payload says when the run started; this
- * page counts the seconds itself, which is what keeps a screen on a slow
- * connection from drifting.
- */
 export const StageOutput = ({ outputKey, initial }: { outputKey: string; initial: StageInitial }) => {
   const [state, setState] = useState<StageInitial>(initial);
 
-  // The stage prints a reference under every verse, so it needs to know the
-  // operator's own languages exactly as the projector and the overlay do.
   useCustomLangs(state.projector.langs);
 
   useEffect(() => {
@@ -70,9 +50,6 @@ export const StageOutput = ({ outputKey, initial }: { outputKey: string; initial
   return (
     <OutputChrome kind="stage">
       <div className="relative h-dvh w-full bg-black">
-        {/* The Stage key blacks the monitor without touching the run: the count
-            is still going, and the person standing there gets it back exactly
-            where it is the moment the key is pressed again. */}
         {state.black ? <div className="absolute inset-0 z-20 bg-black" /> : null}
 
         {timerIsLive(state.timer) ? (

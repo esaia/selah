@@ -18,32 +18,12 @@ export interface LiveChannel {
 
 const emptyRoles = (): Record<Role, number> => ({ console: 0, show: 0, lower3rd: 0, stage: 0 });
 
-/**
- * Join a session's realtime channel.
- *
- * The channel name carries the session's unguessable output_key, which is what
- * lets an unauthenticated projector or OBS Browser Source join: knowing the URL
- * is the credential, exactly as the old relay room worked.
- *
- * `self: false` means a sender never receives its own broadcast, which is what
- * removes the echo-suppression bookkeeping the relay version needed.
- */
 export const newPeerId = () => Math.random().toString(36).slice(2, 10);
 
 export const openLiveChannel = (
   outputKey: string,
   role: Role,
   peerId = newPeerId(),
-  /**
-   * Whether this peer counts as a device in the room.
-   *
-   * Listening and being counted are two different things, and the console's
-   * preview needs the first without the second: it embeds the real /lower3rd
-   * page, so it joins the channel exactly as OBS does, and the Present menu
-   * read it back as a stream that was connected when nothing was watching.
-   * A preview that does not track is still handed every slide — presence
-   * feeds the counter and nothing else.
-   */
   announce = true,
 ): LiveChannel => {
   const slideHandlers = new Set<(payload: SlidePayload) => void>();

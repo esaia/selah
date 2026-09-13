@@ -14,7 +14,6 @@ const song = (id: string, title: string, libraryId?: string): Song => ({ id, tit
 const songs = [
   song('a', 'Way maker', 'main'),
   song('b', 'Silent night', 'xmas'),
-  // Imported by a console that has never heard of libraries.
   song('c', 'Amazing grace'),
 ];
 
@@ -32,8 +31,6 @@ describe('songsInLibrary', () => {
     expect(songsInLibrary(songs, libraries, 'gone')).toEqual([]);
   });
 
-  // With no libraries at all there is no first one, so the unfiled song has
-  // nowhere to be — but a song that names its shelf is still on it.
   it('keeps a song that names its shelf, and shelves the unfiled nowhere', () => {
     expect(songsInLibrary(songs, [], 'main').map(item => item.id)).toEqual(['a']);
   });

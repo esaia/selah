@@ -115,36 +115,14 @@ export interface StudioSession {
   outputKey: string;
 }
 
-/** What the subscription row says beyond the plan name. */
 export interface Billing {
-  /** Dodo's own word for it: active, past_due, on_hold, cancelled, paused… */
   status: string;
-  /** When the next payment is due, or when a cancelled run ends. */
   renewsAt: string | null;
-  /** Cancelled, but paid up until `renewsAt`. */
   ending: boolean;
 }
 
-/**
- * Where an imported Bible goes.
- *
- * The language is the only thing the operator is asked, because it is the only
- * thing the file cannot answer: it decides the book names and the book order,
- * and a file carries no opinion about either. `psalms` is measured off the
- * file and is here only for a caller that knows better.
- */
 export interface TranslationInto {
-  /**
-   * Which language it is read in: one of the six we hold translations of, or
-   * an `x:` code for any of the other 180-odd.
-   *
-   * A language of the operator's own is not a lesser kind of language — it is
-   * how a Spanish church reads a Spanish Bible, and it has to be a language
-   * rather than a translation filed under English because `showData` is keyed
-   * by language and the two could otherwise never share a slide.
-   */
   lang: Lang;
-  /** What it is called, for a language we ship no row for. */
   langLabel?: string;
   label?: string;
   psalms?: 'lxx' | 'masoretic';
@@ -152,49 +130,34 @@ export interface TranslationInto {
 
 export interface StudioInitial {
   session: StudioSession;
-  /** Who is signed in, so the console can say so. */
   email: string;
-  /** Their Google profile photo, if they have one. */
   avatarUrl: string | null;
-  /** Whether the signed-in operator can reach /admin. */
   isAdmin: boolean;
-  /** An anonymous "try for free" visitor rather than a real account. */
   isGuest: boolean;
   settings: SettingsRow;
-  /** The Bibles the operator uploaded. Rows of their own, so they arrive beside the settings. */
   translations: CustomTranslation[];
   workspace: {
     blocks: Block[];
     live: Live;
     activeSongId: string | null;
-    /** The library or playlist the panel was showing, if it said. */
     open: OpenList | null;
     tab: Tab;
     cardSize: number;
-    /** The name-card form as the operator left it, unvalidated. */
     cardDraft: unknown;
   };
   songs: Song[];
   libraries: SongLibrary[];
   playlists: SongPlaylist[];
-  /** The people the operator has saved, and who is on the stream right now. */
   cards: NameCard[];
   card: unknown;
-  /** Which screens were black when the console was last open. */
   blackout: unknown;
   showData: ShowData;
   nextShowData: ShowData;
   timer: TimerState;
   plan: string;
   billing: Billing;
-  /**
-   * How many founding spots are gone, so the account panel can name the price
-   * the checkout route is actually about to charge. Handed in rather than
-   * fetched, like everything else the console opens with.
-   */
   claimedSpots: number;
 }
-
 
 interface StudioValue {
   session: StudioSession;
@@ -204,45 +167,11 @@ interface StudioValue {
   isGuest: boolean;
   plan: string;
   billing: Billing;
-  /** How many founding spots are gone; what Pro costs follows from it. */
   claimedSpots: number;
-  /**
-   * Whether `adding` more of something still fits under the operator's plan.
-   *
-   * The console's half of the rule — what greys a button out and puts the
-   * ceiling in words before a click fails. The other half is a trigger in
-   * Postgres, which is the one that cannot be got around; see
-   * `lib/billing/limits`. `current` defaults to what the provider is already
-   * holding, and is passed explicitly for the counts it does not keep — the
-   * length of one running order, or the audio library next door.
-   */
   room: (key: LimitKey, adding?: number, current?: number) => boolean;
-  /**
-   * How much of each ceiling the operator is actually using.
-   *
-   * The account panel reads it to show a plan as what it costs *them* — "15 of
-   * 15 songs" rather than a bullet about songs — which is both more honest and
-   * more use than a feature list. Sparse: the two counts the provider does not
-   * hold are absent rather than zero.
-   */
   usage: Partial<Record<LimitKey, number>>;
-  /**
-   * The ceiling the operator just walked into, in words, or null.
-   *
-   * A plan limit is refused in several places — the rail's two plus buttons, a
-   * song dragged onto a running order, an import — and most of those callers
-   * have nowhere to put an error. Rather than ask each of them to catch, the
-   * refusal is written here and the console shows it once, in one place.
-   */
   limitNotice: string | null;
   dismissLimit: () => void;
-  /**
-   * Say a ceiling was met, without throwing.
-   *
-   * For a caller that has already decided not to do the thing and only needs
-   * the operator told — the audio library next door, which lives in its own
-   * provider and has no error path of its own to put a sentence in.
-   */
   noteLimit: (key: LimitKey) => void;
 
   settings: Settings;
@@ -251,25 +180,10 @@ interface StudioValue {
   setAdminLang: (lang: Lang) => void;
   addLang: (lang: Lang) => void;
   removeLang: (lang: Lang) => void;
-  /**
-   * The Bibles the operator uploaded, and what they are read under. Held here
-   * rather than in `settings` because they are rows of their own — a few
-   * megabytes of scripture is not a settings column.
-   */
   translations: CustomTranslation[];
-  /**
-   * Read a Bible file and file it under a language. `label` defaults to what
-   * the file calls itself, `psalms` to that language's own split.
-   */
   importTranslation: (files: Iterable<File>, into: TranslationInto) => Promise<void>;
-  /** The same, for translations ticked in a public archive. */
   importFromArchive: (entries: ArchiveEntry[], into: TranslationInto) => Promise<void>;
   removeTranslation: (id: string) => Promise<void>;
-  /**
-   * How far an import has got, or null when none is running. `done`/`total`
-   * count the chapters of the one being written; `from`/`of` count the
-   * translations, for a tick list that is more than one long.
-   */
   importing: { done: number; total: number; label: string; from: number; of: number } | null;
   setLocalBackground: (file: LocalFileMeta | null) => void;
 
@@ -278,7 +192,6 @@ interface StudioValue {
   loading: boolean;
 
   addPassage: (request: { book: number; chapter: number; from?: number | null; to?: number | null }) => Promise<Block | null>;
-  /** One verse on that side, or the rest of the chapter when `span` says so. */
   extendBlock: (id: string, side: 'start' | 'end', span?: 'verse' | 'chapter') => Promise<void>;
   removeGroup: (id: string, groupIndex: number) => Promise<void>;
   joinGroup: (id: string, groupIndex: number) => void;
@@ -286,7 +199,6 @@ interface StudioValue {
   removeBlock: (id: string) => void;
   moveBlock: (id: string, direction: number) => void;
   moveBlockTo: (id: string, insertIndex: number) => void;
-  /** The whole running order at once, as a drag leaves it. */
   orderBlocks: (ids: string[]) => void;
   toggleBlockCollapsed: (id: string) => void;
   setAllCollapsed: (collapsed: boolean) => void;
@@ -298,16 +210,8 @@ interface StudioValue {
   stepLive: (direction: number) => void;
   clearProjector: () => void;
 
-  /** Saved name cards, who is on the stream, and the form being filled in. */
   cards: NameCard[];
   cardRun: CardRun | null;
-  /**
-   * The card being written, and with it the design and hold every strap uses.
-   *
-   * It lives here rather than in the panel because it is saved with the rest
-   * of the workspace: a look chosen before the service is still chosen after a
-   * reload.
-   */
   cardDraft: CardDraft;
   setCardDraft: (updater: (draft: CardDraft) => CardDraft) => void;
   showCard: (card: NameCard, holdMs?: number) => void;
@@ -317,26 +221,11 @@ interface StudioValue {
 
   songs: Song[];
   activeSongId: string | null;
-  /** The song last asked for off the rail, which is what the panel scrolls to. */
   songCue: { id: string; at: number } | null;
-  /** Slides picked out in the grid, by id — what a lyrics-tab Delete or copy reaches. */
   selectedSlides: Set<string>;
   setSelectedSlides: Dispatch<SetStateAction<Set<string>>>;
-  /**
-   * Open a song. `from` says which list it was picked out of, because that is
-   * what the workspace shows: a song picked off the playlist is one item of a
-   * running order the operator is working through, and one picked out of the
-   * library is the only thing they asked to see.
-   */
   setActiveSongId: (id: string | null) => void;
 
-  /**
-   * The shelves and the running orders, and which of them the panel is showing.
-   *
-   * A library holds songs — one library each, so moving a song files it
-   * somewhere else rather than copying it — and a playlist only names them in
-   * an order, so deleting one takes the order and nothing else.
-   */
   libraries: SongLibrary[];
   playlists: SongPlaylist[];
   open: OpenList;
@@ -346,55 +235,28 @@ interface StudioValue {
   renameList: (open: OpenList, name: string) => Promise<void>;
   removeList: (open: OpenList) => Promise<void>;
   orderLists: (kind: OpenList['kind'], ids: string[]) => Promise<void>;
-  /**
-   * File songs on another shelf; they leave the one they were on.
-   *
-   * These four take a list because the rail selects one: a Sunday's worth of
-   * songs dragged onto a playlist is one act to the operator, and should be
-   * one write rather than eleven.
-   */
   moveSongsToLibrary: (songIds: string[], libraryId: string) => Promise<void>;
-  /** Put songs at a place in a running order, moving any already on it. */
   placeInPlaylist: (playlistId: string, songIds: string[], index: number) => Promise<void>;
   orderPlaylist: (playlistId: string, songIds: string[]) => Promise<void>;
   removeFromPlaylist: (playlistId: string, songIds: string[]) => Promise<void>;
 
-  /**
-   * Bring songs in. Given a name, they arrive on a new library of their own —
-   * a bundle is somebody's library already, and tipping it into the one on
-   * screen mixes two collections that were never meant to be one.
-   */
   importSongs: (songs: Song[], intoNewLibrary?: string) => Promise<void>;
-  /** Writes the song and hands back the row, whose id is the database's, not the draft's. */
   saveSong: (song: Song) => Promise<Song | undefined>;
   reorderSlides: (song: Song, ids: string[]) => Promise<void>;
-  /**
-   * The song's languages as the rail leaves them — added, renamed, reordered,
-   * switched off — written and, when that song is live, sent again.
-   */
   setSongLangs: (song: Song) => Promise<void>;
-  /** Drop one slide from a song, from the grid rather than the editor. */
   removeSlide: (song: Song, slideId: string) => Promise<void>;
-  /** Drop several slides from a song at once — a multi-selected Delete. */
   removeSlides: (song: Song, slideIds: string[]) => Promise<void>;
-  /** Copy slides' words in after another slide, from the grid rather than the editor. */
   pasteSlides: (song: Song, afterSlideId: string, slides: Omit<SongSlide, 'id'>[]) => Promise<void>;
   removeSongs: (ids: string[]) => Promise<void>;
   publishLyrics: (song: Song, slideIndex: number) => void;
   selectLyric: (song: Song, slideIndex: number) => void;
 
   showData: ShowData;
-  /** What the stage display has been told is coming after it. */
   nextShowData: ShowData;
 
   timer: TimerState;
-  /**
-   * Every timer edit goes through here, which is what lets the transport
-   * helpers in `lib/timer/model` stay pure functions of the whole state.
-   */
   updateTimer: (updater: (state: TimerState) => TimerState) => void;
 
-  /** Which screens are black, and the key that takes one there and back. */
   blackout: Blackout;
   toggleBlackout: (screen: Screen) => void;
 
@@ -422,15 +284,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   const client = useQueryClient();
   const db = useMemo(() => supabase(), []);
 
-  /**
-   * A ceiling the operator has just met, held until they dismiss it.
-   *
-   * `refuse` is what the console's own checks call; `failed` is for a write the
-   * database turned away, which is the same event arriving from the other side.
-   * Both still throw, because the operation genuinely did not happen and the
-   * callers that do catch — the import panel, the song editor — show the
-   * message where the operator is already looking.
-   */
   const [limitNotice, setLimitNotice] = useState<string | null>(null);
 
   const noteLimit = useCallback((key: LimitKey) => setLimitNotice(limitMessage(key)), []);
@@ -453,15 +306,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
   const [translations, setTranslations] = useState<CustomTranslation[]>(initial.translations);
 
-  /**
-   * Tell the book and psalm code about the languages the operator added.
-   *
-   * `specOf` is called from pure modules that have no business reaching into
-   * React, so the set is registered rather than threaded through. It happens
-   * here, in a memo rather than an effect, because the first render already
-   * draws book names — an effect would paint the browse list in English and
-   * then correct it.
-   */
   useMemo(() => registerLangs(langSpecsOf(translations)), [translations]);
   const [importing, setImporting] = useState<StudioValue['importing']>(null);
   const [settings, setSettings] = useState<Settings>(() => fromRow(initial.settings, initial.translations));
@@ -469,16 +313,12 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     blocks: initial.workspace.blocks,
     live: initial.workspace.live,
   });
-  // Read by `addPassage`, which must see how many are on the board without
-  // being rebuilt every time one of them is collapsed or dragged.
   const workspaceRef = useRef(workspace);
 
   useEffect(() => {
     workspaceRef.current = workspace;
   }, [workspace]);
 
-  // Read by `addLang`, which must see the current language set without being
-  // rebuilt on every settings change — the same arrangement as `songsRef`.
   const settingsRef = useRef(settings);
 
   useEffect(() => {
@@ -487,9 +327,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
   const [songs, setSongs] = useState<Song[]>(initial.songs);
 
-  // Read by `saveSong` when it propagates a switch to the songs that share a
-  // language name. A ref rather than a dependency: rebuilding that callback on
-  // every song edit would rebuild half the console with it.
   const songsRef = useRef(songs);
 
   useEffect(() => {
@@ -497,23 +334,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   }, [songs]);
   const [activeSongId, setActiveSong] = useState<string | null>(initial.workspace.activeSongId);
 
-  /**
-   * The song the operator has just asked to see, and when they asked.
-   *
-   * Opening a song off the rail takes the panel to it; a slide going live only
-   * lights its row. The two must not be the same signal — a running order is
-   * laid out end to end, so a slide sent from the song after the one being
-   * read would otherwise scroll the panel out from under the operator
-   * mid-service. The count is what makes asking for the same song twice a
-   * second request rather than no change at all.
-   */
   const [songCue, setSongCue] = useState<{ id: string; at: number } | null>(null);
 
-  /**
-   * Slides picked out in the grid — a marquee drag, or a ctrl/shift-click —
-   * held apart from `live` because a selection is never sent to the projector
-   * on its own. It only says which cards a Delete or a copy reaches.
-   */
   const [selectedSlides, setSelectedSlides] = useState<Set<string>>(new Set());
 
   const setActiveSongId = useCallback<StudioValue['setActiveSongId']>(id => {
@@ -524,9 +346,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   const [libraries, setLibraries] = useState<SongLibrary[]>(initial.libraries);
   const [playlists, setPlaylists] = useState<SongPlaylist[]>(initial.playlists);
 
-  // What the panel is showing. A row that names a list which has since been
-  // deleted, and a console that has never said, both fall back to the first
-  // library — the shelf every song already filed is on.
   const [openList, setOpenList] = useState<OpenList | null>(initial.workspace.open);
 
   const open = useMemo<OpenList>(() => {
@@ -550,16 +369,9 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
   const [timer, setTimer] = useState<TimerState>(() => asTimerState(initial.timer));
   const [peers, setPeers] = useState({ console: 0, show: 0, lower3rd: 0, stage: 0 });
 
-  // The people the operator has saved, and which of them is on the stream.
-  // `cardRun` is deliberately not part of `workspace`: a name card is laid
-  // over the live slide rather than being one, so it must not travel with the
-  // block list or clear when the projector clears.
   const [cards, setCards] = useState<NameCard[]>(initial.cards);
   const [cardRun, setCardRun] = useState<CardRun | null>(() => withCardSkew(asCardRun(initial.card)));
 
-  // Which screens are dark. Not part of `showData`: blacking a projector does
-  // not take the verse off it, and the slide the console is holding has to be
-  // the slide that comes back when the key is pressed again.
   const [blackout, setBlackout] = useState<Blackout>(() => asBlackout(initial.blackout));
   const [cardDraft, setDraft] = useState<CardDraft>(() => asDraft(initial.workspace.cardDraft));
 
@@ -567,12 +379,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
   const { blocks, live } = workspace;
 
-  // ------------------------------------------------------------ live channel
-
   const channelRef = useRef<LiveChannel | null>(null);
 
-  // The look the outputs must be told about, derived rather than mirrored: it
-  // is a pure function of the settings and is needed on every push.
   const wireStyle = useMemo(
     () => ({
       projector: projectorStyle(settings, translations),
@@ -583,60 +391,38 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [settings, translations],
   );
 
-  // The last slide pushed. Held in a ref because a look change has to re-send
-  // it without making the slide itself a dependency of that effect — that would
-  // push twice for every verse.
   const showRef = useRef<ShowData>(showData);
 
-  // What that push actually carried, as a string. The armed-language effect
-  // below compares the slide it would send against this, so a push it has
-  // already made — or one `publish` made a moment earlier — is not made twice.
   const pushedRef = useRef(JSON.stringify([initial.showData, initial.nextShowData]));
 
   useEffect(() => {
     showRef.current = showData;
   }, [showData]);
 
-  // The same, for what is coming next. The console's stage preview draws it,
-  // and the look and timer effects re-send it, which is why it is both.
   const nextRef = useRef<ShowData>(initial.nextShowData);
 
   useEffect(() => {
     nextRef.current = nextShowData;
   }, [nextShowData]);
 
-  // The timer travels with the slide, so a new verse or a look change carries
-  // the run along with it and an output never has to ask for it.
   const timerRef = useRef<TimerState>(timer);
 
   useEffect(() => {
     timerRef.current = timer;
   }, [timer]);
 
-  // The name card on the stream, held in a ref for the same reason: every push
-  // carries it, and none of them should be a dependency of the others.
   const cardRef = useRef<CardRun | null>(cardRun);
 
   useEffect(() => {
     cardRef.current = cardRun;
   }, [cardRun]);
 
-  // And the dark screens, for the same reason: every push carries them, so a
-  // new verse cannot light a screen the operator has blacked.
   const blackoutRef = useRef<Blackout>(blackout);
 
   useEffect(() => {
     blackoutRef.current = blackout;
   }, [blackout]);
 
-  /**
-   * One payload, built in one place.
-   *
-   * `sentAt` is stamped here rather than kept in the timer state: a clock
-   * reading changes every millisecond, and holding one in state would mean a
-   * save and a render for a number nothing reads except at the moment it
-   * lands. The outputs use it to correct for the clock skew between machines.
-   */
   const payloadOf = useCallback(
     (slide: ShowData, next: ShowData, run: TimerState): SlidePayload => ({
       showData: slide,
@@ -646,19 +432,12 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       streamLang: wireStyle.streamLang,
       stageLang: wireStyle.stageLang,
       timer: { ...run, sentAt: Date.now() },
-      // Whoever is on the stream overlay right now. Read from a ref for the
-      // same reason the timer is: a slide change must carry the card along
-      // unchanged rather than take it down.
       card: cardRef.current && { ...cardRef.current, sentAt: Date.now() },
       blackout: blackoutRef.current,
     }),
     [wireStyle],
   );
 
-  // The look effect below re-sends the current slide whenever the style
-  // changes. On mount there is no change to announce — and publishing then
-  // would overwrite the session's stored slide with whatever this console had
-  // loaded, which is how reopening the console blanked a live projector.
   const styleSettled = useRef(false);
 
   useEffect(() => {
@@ -667,8 +446,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
     const offPresence = channel.onPresence(setPeers);
 
-    // This console serves its own backgrounds to any projector that asks. The
-    // bytes go peer to peer; only the handshake rides the channel.
     const transport: SignalTransport = {
       peerId: channel.peerId,
       send: channel.sendSignal,
@@ -684,21 +461,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     };
   }, [initial.session.outputKey]);
 
-  /**
-   * The single point that puts a slide on the outputs.
-   *
-   * It writes the session's state row first — that is what a projector reads
-   * when it joins or reloads — then broadcasts, which is what makes the change
-   * instant for the outputs already watching.
-   */
   const pushShow = useCallback(
     (payload: ShowData, next: ShowData = emptyShowData()) => {
-      // A slide that says nothing new keeps its object, the way the outputs
-      // keep theirs. The preview panel reads "a new slide has arrived" off the
-      // reference, and re-sending the words already on screen — dragging the
-      // cards around behind a live one, or a look change re-pushing it — would
-      // otherwise crossfade the panel out and back for a change it does not
-      // draw.
       const slide = keepSame(showRef.current, payload);
       const after = keepSame(nextRef.current, next);
 
@@ -728,8 +492,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [db, initial.session.id, payloadOf, wireStyle],
   );
 
-  // A look change has to reach the outputs too — they cannot read the settings
-  // row themselves, so the current slide is re-sent with the new style.
   useEffect(() => {
     if (!styleSettled.current) {
       styleSettled.current = true;
@@ -754,15 +516,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     );
   }, [db, initial.session.id, payloadOf, wireStyle]);
 
-  /**
-   * The timer's own push.
-   *
-   * The broadcast is immediate, because an operator pressing start expects the
-   * screen to move; the row is debounced, because renaming a timer is a
-   * keystroke at a time and none of them is worth a round trip. Nothing here
-   * fires per tick — an output counts the seconds itself, and only a change of
-   * *shape* gets this far.
-   */
   const timerSettled = useRef(false);
 
   useEffect(() => {
@@ -778,19 +531,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     void save(db.from('session_state').update({ timer: next }).eq('session_id', initial.session.id), 'the stage timer');
   });
 
-  /**
-   * What happens when the armed run reaches zero: the item below it starts
-   * itself, or the timer takes itself off the screens. Which of the two —
-   * or neither — is `finishAction`, and this is the alarm that carries it out.
-   *
-   * Waited out rather than watched. The run already says when it will end, so
-   * this is one timeout for the whole segment instead of a tick that has to be
-   * running on every tab — and every edit to the run (a pause, a drag, ±1m)
-   * re-runs the effect and moves the alarm with it.
-   *
-   * The console alone does this. It is the desk acting a little late, and an
-   * output that started or cleared timers of its own would be a second one.
-   */
   useEffect(() => {
     if (!timer.running) return;
 
@@ -801,8 +541,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
     const wait = setTimeout(() => {
       setTimer(current =>
-        // Stopped or cleared in the meantime: the alarm was set for a run that
-        // is no longer going, and acting on it now would restart the desk.
         !current.running
           ? current
           : action.kind === 'start'
@@ -814,16 +552,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     return () => clearTimeout(wait);
   }, [timer]);
 
-  // ------------------------------------------------------------ name cards
-
-  /**
-   * A card's own push.
-   *
-   * It publishes the slide unchanged and lets the card ride along in the
-   * payload, which is what keeps the projector and the stage untouched: they
-   * receive the same verse they already had, and only the stream overlay finds
-   * something new to draw.
-   */
   const publishCard = useCallback(
     (run: CardRun | null) => {
       setCardRun(run);
@@ -846,17 +574,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
   const clearCard = useCallback(() => publishCard(null), [publishCard]);
 
-  // ------------------------------------------------------------ blackout
-
-  /**
-   * The Audience and Stage keys.
-   *
-   * Published the way a card is: the slide goes out unchanged and the flag
-   * rides along with it, so the output that was told to go black is the only
-   * one that finds anything new. The row is written too, because a projector
-   * that reloads while the room is dark must come back dark rather than light
-   * the wall up mid-prayer.
-   */
   const toggleBlackout = useCallback<StudioValue['toggleBlackout']>(
     screen => {
       const next = toggleScreen(blackoutRef.current, screen);
@@ -874,16 +591,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [db, initial.session.id, payloadOf],
   );
 
-  /**
-   * Taking a finished card down.
-   *
-   * The overlays already stop drawing one whose hold has run out — they count
-   * from their own clocks, which is the whole point of sending `firedAt`
-   * instead of a countdown. This is only the console catching up with them, so
-   * the panel stops calling the card live and the stored row does not keep a
-   * card that is long gone. Waited out rather than polled, for the same reason
-   * the linked timers above are.
-   */
   useEffect(() => {
     const left = remainingOf(cardRun);
 
@@ -904,11 +611,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
   const saveCard = useCallback<StudioValue['saveCard']>(
     async card => {
-      // A card written in the console has a placeholder id until it is saved;
-      // leaving it off lets Postgres mint the real one.
       const saved = hasRealId(card.id) ? { id: card.id } : {};
 
-      // Editing a saved card is always allowed; only a new one is counted.
       if (!saved.id && !allows(initial.plan, initial.isGuest, 'name_cards', cards.length)) refuse('name_cards');
 
       const { data, error } = await db
@@ -945,14 +649,11 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
       setCards(current => current.filter(card => card.id !== id));
 
-      // A card taken out of the library while it is on the stream comes off it.
       if (cardRef.current?.card.id === id) publishCard(null);
     },
     [db, failed, publishCard],
   );
 
-  /** Normalised on the way out, so a hand-typed duration or a stale row can
-   *  never reach an output half-formed. */
   const updateTimer = useCallback<StudioValue['updateTimer']>(updater => {
     setTimer(current => {
       const next = asTimerState(updater(current));
@@ -960,8 +661,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       return JSON.stringify(next) === JSON.stringify(current) ? current : next;
     });
   }, []);
-
-  // ------------------------------------------------------------ persistence
 
   useDebouncedSave(settings, next => {
     void save(db.from('settings').update(toRow(next)).eq('user_id', initial.settings.user_id), 'your settings');
@@ -988,22 +687,10 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     setSettings(current => ({ ...current, ...patch }));
   }, []);
 
-  /** The stacking order on the projector, as the operator dragged it. */
   const setLangOrder = useCallback((order: Lang[]) => {
     setSettings(current => (order.length === current.langOrder.length ? { ...current, langOrder: order } : current));
   }, []);
 
-  /**
-   * Switch the language the cards are read in, carrying a translation that
-   * belongs to it.
-   *
-   * `adminVersion` is a translation id, and an id means nothing outside its own
-   * language — so it cannot survive a change of `adminLang` on its own. Left
-   * alone it points at the previous language's translation, every verse 404s,
-   * and the cards keep showing what they showed before while the dropdown
-   * beside them displays its first option as though it were selected. Setting
-   * both together is the only way the pair is ever meaningful.
-   */
   const setAdminLang = useCallback((lang: Lang) => {
     setSettings(current =>
       current.adminLang === lang
@@ -1011,39 +698,11 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
         : {
             ...current,
             adminLang: lang,
-            // An armed language reads in whatever the projector carries; only
-            // an unarmed one needs a browsing translation of its own.
             adminVersion: current.versions[lang] || defaultVersionOf(lang),
           },
     );
   }, []);
 
-  /**
-   * Put a language on the projector: armed, on its default translation, at the
-   * bottom of the stack. Adding past the ceiling is a no-op rather than a
-   * silent shuffle — the button that calls this is hidden by then anyway.
-   */
-  /**
-   * Arm another language.
-   *
-   * Two ceilings meet here and the lower one wins: MAX_LANGS is how many fit on
-   * a slide before it stops being readable, and the plan's is how many this
-   * account may keep. Silent, like the MAX_LANGS check always was — the picker
-   * has already said which rows it will not add.
-   */
-  /**
-   * Arm another language.
-   *
-   * Two ceilings meet here and they are not the same kind of thing. MAX_LANGS
-   * is how many fit on a slide before it stops being readable — the picker is
-   * simply not offered at that point, so there is nothing to explain. The
-   * plan's ceiling is lower and the picker is still on screen, so walking into
-   * it silently is the confusing case: it has to say so.
-   *
-   * The plan check is deliberately outside the updater. React may call an
-   * updater more than once, and a refusal that announces itself is a side
-   * effect that must happen exactly as often as the click did.
-   */
   const addLang = useCallback(
     (lang: Lang) => {
       const order = settingsRef.current.langOrder;
@@ -1065,12 +724,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [initial.plan, initial.isGuest],
   );
 
-  /**
-   * Take a language off. English stays whatever happens — it is what the
-   * outputs fall back to. The stream and stage picks are left alone: they
-   * already fall back to the first armed language, and keeping them means
-   * adding the language back restores what it was set to.
-   */
   const removeLang = useCallback((lang: Lang) => {
     setSettings(current => {
       if (lang === REQUIRED_LANG || !current.langOrder.includes(lang)) return current;
@@ -1093,31 +746,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     });
   }, []);
 
-  // -------------------------------------------------------- their own Bible
-
-  /**
-   * A Bible the operator uploaded, from file to picker.
-   *
-   * The file is read here rather than posted anywhere: parsing is pure and
-   * lives in `lib/bible/import`, and the rows go up under RLS the way the
-   * console writes everything else. A whole Bible is about 1,200 chapters, so
-   * they go in batches and the panel counts them.
-   *
-   * The metadata row is written first, because it is what the ceiling is
-   * checked against and what the chapters hang off — and if a batch fails it
-   * is deleted again, taking the half-written chapters with it on cascade. A
-   * translation that is half a Bible is worse than none: it looks armed and
-   * goes blank in the middle of a reading.
-   */
-  /**
-   * One parsed Bible into rows, which is the half both ways in share.
-   *
-   * The metadata row goes first, because it is what the ceiling is checked
-   * against and what the chapters hang off — and if a batch fails it is
-   * deleted again, taking the half-written chapters with it on cascade. A
-   * translation that is half a Bible is worse than none: it looks armed and
-   * goes blank in the middle of a reading.
-   */
   const storeTranslation = useCallback(
     async (bible: ParsedBible, { lang, langLabel, label, psalms }: TranslationInto, from = 0, of = 1) => {
       const id = crypto.randomUUID();
@@ -1127,15 +755,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
         id,
         lang,
         label: (label || bible.name || 'Uploaded translation').trim(),
-        // Measured off the file, because it is a fact about the file and not a
-        // preference — and the obvious guess is wrong often enough to matter.
-        // A file with no psalms in it has nothing to measure and takes the
-        // language's own split. See `import/psalms.ts`.
         psalms: psalms ?? detectPsalms(bible) ?? specOf(lang).psalms,
         langLabel: own ? (langLabel || 'Added language').trim() : undefined,
-        // The file's own book names when it carries them — Zefania, OpenSong
-        // and USX do — and English otherwise, which is a smaller wrong on a
-        // reference line than a blank.
         bookNames: own ? (bookNamesOf(bible, specOf(REQUIRED_LANG).names) ?? undefined) : undefined,
       };
 
@@ -1179,13 +800,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [db, failed, initial.settings.user_id],
   );
 
-  /**
-   * A Bible the operator uploaded, from file to picker.
-   *
-   * The file is read here rather than posted anywhere: parsing is pure and
-   * lives in `lib/bible/import`, and the rows go up under RLS the way the
-   * console writes everything else.
-   */
   const importTranslation = useCallback<StudioValue['importTranslation']>(
     async (files, into) => {
       if (!allows(initial.plan, initial.isGuest, 'translations', translations.length)) refuse('translations');
@@ -1207,19 +821,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [initial.plan, initial.isGuest, refuse, storeTranslation, translations.length],
   );
 
-  /**
-   * The same, for files picked out of a public archive.
-   *
-   * Downloaded by this browser straight from the archive — both of them serve
-   * every origin — so nothing of ours stands in the middle and no file is ever
-   * uploaded anywhere. Reaching the network at all is what the *import* does;
-   * the reading afterwards is our own rows, exactly as it is for a translation
-   * we mirrored ourselves.
-   *
-   * One entry at a time rather than all at once: the ceiling is counted as
-   * each lands, so a free account ticking three is told after the first rather
-   * than after three downloads of five megabytes each.
-   */
   const importFromArchive = useCallback<StudioValue['importFromArchive']>(
     async (entries, into) => {
       setImporting({ done: 0, total: 0, label: entries[0]?.name ?? '', from: 0, of: entries.length });
@@ -1243,13 +844,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [initial.plan, initial.isGuest, refuse, storeTranslation, translations.length],
   );
 
-  /**
-   * Take one away.
-   *
-   * Any language reading it is put back on its own default here rather than
-   * left to `asVersion` on the next reload — the console is open, and a
-   * translation whose rows have just gone would 404 every verse until then.
-   */
   const removeTranslation = useCallback<StudioValue['removeTranslation']>(
     async id => {
       const { error } = await db.from('bible_translations').delete().eq('id', id);
@@ -1282,24 +876,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     );
   }, []);
 
-  // ------------------------------------------------------------ passages
-
-  /**
-   * Every language that has to be fetched: the armed ones plus the one being
-   * browsed, each with the translation it is read in.
-   *
-   * A block holds one array per language, so a language can only carry one
-   * translation at a time — there is no reading the KJV off the cards while
-   * the WEB goes on the wall. When the language being browsed is also armed,
-   * the armed row's choice is the one that counts: it is the translation the
-   * room sees, and the cards are how the operator checks what the room sees.
-   * `adminVersion` only decides for a language that is not on the projector at
-   * all.
-   *
-   * Getting this backwards is what made the projector's own dropdown look
-   * broken: picking a translation there changed nothing, because the browsing
-   * language quietly overrode it.
-   */
   const targets = useMemo((): Target[] => {
     const langs = new Set<Lang>(settings.langOrder.filter(lang => settings.enabled[lang]));
     langs.add(settings.adminLang);
@@ -1320,9 +896,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
   const addPassage = useCallback<StudioValue['addPassage']>(
     async ({ book, chapter, from = null, to = null }) => {
-      // Checked before the fetch: refusing after the passage has been pulled
-      // down wastes the wait and tells the operator nothing they could not have
-      // been told immediately.
       if (!allows(initial.plan, initial.isGuest, 'passages', workspaceRef.current.blocks.length)) refuse('passages');
 
       setLoading(true);
@@ -1353,8 +926,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
           data,
         };
 
-        // Newest at the top: the operator adds the passage they are about to
-        // use, and the list is read from the top down.
         setWorkspace(current => ({ ...current, blocks: [block, ...current.blocks] }));
 
         return block;
@@ -1365,16 +936,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [client, initial.plan, initial.isGuest, refuse, settings.adminLang, targets],
   );
 
-  /**
-   * Refetch one block into a new shape — used by extending and trimming.
-   *
-   * The pointer moves in the same update as the shape, because `verseIndex` is
-   * an index into `groups`: prepending shifts every card along by one, and a
-   * render that had the new groups but the old index would be pointing at the
-   * verse before the live one. That render pushes, so the preview and both
-   * outputs crossfaded to a neighbouring verse and back for a change that put
-   * nothing new on screen.
-   */
   const reloadBlock = useCallback(
     async (block: Block, verses: number[], groups: number[][], moveLive: (live: Live) => Live = live => live) => {
       setLoading(true);
@@ -1435,10 +996,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
       const drop = () => setWorkspace(current => removeBlockIn(current, id));
 
-      // The first card has nothing before it to keep, so its cut takes itself
-      // and the passage starts one verse later: every card behind it slides
-      // down one, and `planDropFirst` has already walked the live pointer back
-      // with them.
       if (groupIndex === 0) {
         const plan = planDropFirst(block, live);
 
@@ -1453,8 +1010,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
         return;
       }
 
-      // Every other card takes the rest of the passage with it, so a pointer
-      // at or past the cut has nothing left to point at.
       const plan = planTrim(block, groupIndex);
 
       if (plan === undefined) return;
@@ -1507,9 +1062,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     }
   }, [blocks, client, settings.adminLang, targets]);
 
-  // Changing which languages are armed, or which translation any of them uses,
-  // invalidates every open passage. Tracked as a string so re-fetching — which
-  // replaces `blocks` — cannot retrigger it.
   const settingsKey = `${settings.adminLang}|${settings.adminVersion}|${settings.langOrder
     .map(lang => `${lang}:${settings.enabled[lang] ? 1 : 0}:${settings.versions[lang]}`)
     .join('|')}`;
@@ -1522,13 +1074,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     void refreshBlocks();
   }, [refreshBlocks, settingsKey]);
 
-  // ------------------------------------------------------------ going live
-
   const publish = useCallback(
     (block: Block, groupIndex: number) => {
-      // The card after this one goes with it, for the stage display. Off the
-      // end of the block it comes back empty, which is what the screen should
-      // say — the running order does not read on into the next passage.
       pushShow(slideOf(block, groupIndex, settings.enabled), slideOf(block, groupIndex + 1, settings.enabled));
 
       setWorkspace(current => ({ ...current, live: { blockId: block.id, verseIndex: groupIndex } }));
@@ -1536,18 +1083,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [pushShow, settings.enabled],
   );
 
-  /**
-   * Arming a language has to reach the card that is already on screen.
-   *
-   * The look effect re-sends the style, but the verses ride in the payload, so
-   * a language switched on mid-service would not appear until the operator
-   * moved to another card. This rebuilds the live slide from the block instead.
-   *
-   * Keyed on what the slide would be rather than on the settings, because
-   * arming a language also triggers the re-fetch that gets its verses: the
-   * toggle alone would push a slide with the language still empty, and this
-   * way the push waits for the data and happens once.
-   */
   const liveSlide = useMemo(() => {
     if (!live || live.kind === 'lyrics') return null;
 
@@ -1568,16 +1103,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     pushShow(liveSlide[0], liveSlide[1]);
   }, [liveSlide, pushShow]);
 
-  /**
-   * The same, for a song on the wall.
-   *
-   * Rebuilt from the song rather than from the pointer, so anything that
-   * changes the song a slide belongs to — switching a language off, renaming
-   * one, dragging one to the front, fixing a typo — reaches the outputs
-   * without every one of those paths having to remember to send it. Which is
-   * how a language switched off went on being sung: the send lived in the one
-   * action, and any other way to the same change had no send of its own.
-   */
   const liveLyric = useMemo(() => {
     if (live?.kind !== 'lyrics') return null;
 
@@ -1601,12 +1126,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     pushShow(liveLyric[0], liveLyric[1]);
   }, [liveLyric, pushShow]);
 
-  /**
-   * Join or split cards, and put the result on the outputs when the card that
-   * changed is the one on screen. Regrouping only rewrites the workspace, so
-   * without this the projector keeps the slide it was last handed — joining the
-   * live verse with the next one left the single verse showing.
-   */
   const regroupCards = useCallback(
     (operate: (workspace: Workspace, id: string, groupIndex: number) => Workspace, id: string, groupIndex: number) => {
       const before: Workspace = { blocks, live };
@@ -1635,7 +1154,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [blocks, publish],
   );
 
-  /** Clicking the card that is already live takes the projector back to black. */
   const clearProjector = useCallback(() => {
     pushShow(emptyShowData());
     setWorkspace(current => ({ ...current, live: null }));
@@ -1664,10 +1182,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       pushShow(lyricsShowData(song, slide), after ? lyricsShowData(song, after) : emptyShowData());
       setWorkspace(current => ({ ...current, live: { kind: 'lyrics', songId: song.id, slideIndex } }));
 
-      // A running order is laid out end to end, so the slide that went up may
-      // belong to the song after the one the rail was lit on. Whatever is on
-      // the wall is what the operator is working on, and the rail says so —
-      // the row lights up, but the panel stays where they left it.
       setActiveSong(song.id);
     },
     [pushShow],
@@ -1706,31 +1220,17 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [blocks, live, publish, publishLyrics, songs],
   );
 
-  // ------------------------------------------------------------ songs
-
-  /**
-   * Where a song written or imported right now belongs: the shelf the operator
-   * is looking at, or the first one when they are looking at a running order.
-   * Importing a Christmas bundle with Christmas open should not file it under
-   * Library because that happens to be first.
-   */
   const filing = open.kind === 'library' && open.id ? open.id : homeOf(libraries);
 
   const importSongs = useCallback<StudioValue['importSongs']>(
     async (imported, intoNewLibrary) => {
       if (imported.length === 0) return;
 
-      // A bundle usually holds songs we already have — a re-import replaces
-      // them rather than doubling them — so only the titles that are new
-      // count against the ceiling.
       const known = new Set(songs.map(song => song.title.toLowerCase()));
       const fresh = imported.filter(song => !known.has(song.title.toLowerCase())).length;
 
       if (!allows(initial.plan, initial.isGuest, 'songs', songs.length, fresh)) refuse('songs');
 
-      // A shelf of its own, named after what was dropped. Two bundles of the
-      // same name are two imports and get two shelves, because that is what
-      // the operator did — the alternative is a silent merge.
       let shelf: string | undefined;
 
       if (intoNewLibrary) {
@@ -1750,9 +1250,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
         }
       }
 
-      // A re-import replaces the song of the same title rather than doubling
-      // it. The conflict target is `title_key`, the stored lowercase title,
-      // because PostgREST cannot name an expression index.
       const { data, error } = await db
         .from('songs')
         .upsert(
@@ -1784,12 +1281,8 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
   const saveSong = useCallback<StudioValue['saveSong']>(
     async song => {
-      // A song written in the console has a placeholder id until it is saved;
-      // leaving it off lets Postgres mint the real one.
       const saved = /^[0-9a-f-]{36}$/i.test(song.id) ? { id: song.id } : {};
 
-      // Only a song that is not in the library yet counts against the ceiling;
-      // editing one already there is always allowed, whatever the plan.
       if (!saved.id && !songs.some(item => item.title.toLowerCase() === song.title.toLowerCase())) {
         if (!allows(initial.plan, initial.isGuest, 'songs', songs.length)) refuse('songs');
       }
@@ -1807,19 +1300,12 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
         .select()
         .single();
 
-      // One title per library is a unique index, and Postgres says so in its own
-      // words. The operator gets ours.
       if (error?.code === '23505') throw new Error(`A song called “${song.title}” is already in the library.`);
       if (error) throw failed(error);
       if (!data) return;
 
       const written = songFromRow(data);
 
-      // A switch thrown here is thrown on every song that calls a language by
-      // the same name: a bilingual service is a dozen songs with the same two
-      // languages, and setting each of them by hand is the thing an operator
-      // does eleven times and forgets on the twelfth. Only the switches
-      // travel, and only to songs they would actually change.
       const alike = syncSwitches(songsRef.current, written);
 
       if (alike.length > 0) {
@@ -1840,7 +1326,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
         return [...without, written].sort((a, b) => a.title.localeCompare(b.title));
       });
 
-      // A slide that was live and has since been edited away clears the output.
       setWorkspace(current => {
         if (current.live?.kind !== 'lyrics' || current.live.songId !== song.id) return current;
 
@@ -1852,30 +1337,15 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [db, failed, filing, initial.plan, initial.isGuest, initial.settings.user_id, refuse, songs],
   );
 
-  /**
-   * A song's languages, changed while the song may be on the wall.
-   *
-   * Only a write: the effect above notices that the live song has changed and
-   * sends the slide again, so a language switched off reaches the room without
-   * waiting for the next slide.
-   */
   const setSongLangs = useCallback<StudioValue['setSongLangs']>(
     async next => {
       const before = songsRef.current.find(song => song.id === next.id);
 
-      // Moved here first, written second. A radio that waits for the round
-      // trip before it moves reads as a control that did not take the click —
-      // and this is a control the operator uses mid-service, where a beat of
-      // "did that work?" is a beat spent looking at the console instead of the
-      // room. The effect that watches `songs` sends the slide again, so the
-      // wall follows the click at the same moment the rail does.
       setSongs(current => current.map(song => (song.id === next.id ? next : song)));
 
       try {
         await saveSong(next);
       } catch (failure) {
-        // Nothing agreed to the change, so the rail goes back to what the
-        // database still holds rather than showing a switch that is not set.
         if (before) setSongs(current => current.map(song => (song.id === before.id ? before : song)));
 
         throw failure;
@@ -1884,29 +1354,11 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [saveSong],
   );
 
-  /**
-   * A song's slides in a new order, dragged on the cards themselves.
-   *
-   * Applied here first and written afterwards. The drag hands its order over on
-   * release and forgets it — it is the list's order now, not the drag's — so
-   * waiting for the round trip meant the cards fell back into the order they
-   * were dragged out of and rearranged again a moment later, in front of the
-   * operator, which reads as the words moving by themselves.
-   *
-   * The live pointer is an index into the list, so moving a card has to move
-   * the pointer with the slide it names — exactly as a block operation does —
-   * or the projector would keep the index and show whatever slid into it. The
-   * slide is republished rather than merely repointed: its words have not
-   * changed, but the one *after* it may have, and the stage display draws that.
-   */
   const reorderSlides = useCallback<StudioValue['reorderSlides']>(
     async (song, ids) => {
       const byId = new Map(song.slides.map(slide => [slide.id, slide]));
       const slides = ids.map(id => byId.get(id)).filter((slide): slide is SongSlide => Boolean(slide));
 
-      // A drag that arrived at a list this one does not recognise — a slide
-      // deleted on another console mid-drag — is dropped rather than applied
-      // half-way.
       if (slides.length !== song.slides.length) return;
 
       const moved: Song = { ...song, slides };
@@ -1924,35 +1376,16 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       try {
         await saveSong(moved);
       } catch {
-        // The order on screen is one nothing agreed to keep, so it goes back to
-        // the one the database still holds rather than sitting there looking
-        // saved.
         setSongs(current => current.map(item => (item.id === song.id ? song : item)));
       }
     },
     [live, publishLyrics, saveSong],
   );
 
-  /**
-   * One slide out of a song, taken from the card itself.
-   *
-   * The editor could already do this, but reaching a slide there is opening a
-   * dialog, finding the row and coming back — and the operator is looking
-   * straight at the card they mean. So the grid deletes the way ProPresenter's
-   * does.
-   *
-   * The live pointer is an index into the list, so dropping a card ahead of it
-   * has to move it: `saveSong` only clears a pointer that has run off the end,
-   * which would leave slide 7 live and showing what used to be slide 8. The
-   * slide is republished rather than merely repointed, because the stage
-   * display draws the one *after* it and that has changed.
-   */
   const removeSlide = useCallback<StudioValue['removeSlide']>(
     async (song, slideId) => {
       const slides = song.slides.filter(slide => slide.id !== slideId);
 
-      // Not in this song, or the last one standing — a song with no slides is
-      // a row the grid cannot draw and the editor is the place to empty one.
       if (slides.length === song.slides.length || slides.length === 0) return;
 
       const trimmed: Song = { ...song, slides };
@@ -1964,7 +1397,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       if (onScreen) {
         const at = slides.findIndex(slide => slide.id === onScreen);
 
-        // The card that was on the projector is the one that just went.
         if (at >= 0) publishLyrics(trimmed, at);
         else clearProjector();
       }
@@ -1972,19 +1404,12 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       try {
         await saveSong(trimmed);
       } catch {
-        // Nothing agreed to keep the shorter song, so the grid goes back to the
-        // one the database still holds.
         setSongs(current => current.map(item => (item.id === song.id ? song : item)));
       }
     },
     [clearProjector, live, publishLyrics, saveSong],
   );
 
-  /**
-   * The slides a marquee or a ctrl/shift-click picked out, dropped from a song
-   * in one save — the multi-selected half of what `removeSlide` does one at a
-   * time.
-   */
   const removeSlides = useCallback<StudioValue['removeSlides']>(
     async (song, slideIds) => {
       const drop = new Set(slideIds);
@@ -2014,19 +1439,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [clearProjector, live, publishLyrics, saveSong],
   );
 
-  /**
-   * Copied slides' words, inserted right after another slide — the ⌘/Ctrl+V
-   * half of the pair in `Console.tsx`, mirroring `removeSlide` above rather
-   * than the editor.
-   *
-   * Never sends anything to the projector, even when the anchor is the live
-   * slide itself: pasting is filing, and filing must never reach for the wall
-   * the room is looking at, whatever it duplicates. What it does have to do
-   * is keep the live *pointer* correct — an index, so a paste landing ahead of
-   * it in the same song has to slide it along the same way `removeSlide`
-   * does, or it would end up pointing at whichever slide the insert pushed
-   * into its old spot instead of the one actually on screen.
-   */
   const pasteSlides = useCallback<StudioValue['pasteSlides']>(
     async (song, afterSlideId, clips) => {
       const at = song.slides.findIndex(item => item.id === afterSlideId);
@@ -2065,9 +1477,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       setSongs(current => current.filter(song => !ids.includes(song.id)));
       setActiveSong(current => (current && ids.includes(current) ? null : current));
 
-      // A deleted song leaves every running order it was on. The lists are
-      // rewritten locally and in the row, because a playlist naming a song
-      // that no longer exists would keep a gap in the order for ever.
       setPlaylists(current =>
         current.map(list => {
           if (!list.songs.some(songId => ids.includes(songId))) return list;
@@ -2088,15 +1497,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [db],
   );
 
-  /**
-   * The lists themselves.
-   *
-   * Written straight through rather than debounced: naming a playlist or
-   * filing a song is a deliberate act with a visible result, and the operator
-   * who does it at 10:29 and closes the laptop should find it there at 10:30.
-   * Local state moves first so the rail answers the click, and the write is
-   * what the next console reads.
-   */
   const addLibrary = useCallback<StudioValue['addLibrary']>(
     async name => {
       const { data, error } = await db
@@ -2150,15 +1550,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [db],
   );
 
-  /**
-   * A list dropped.
-   *
-   * A playlist takes only the order with it. A library would take its songs,
-   * which is a library being deleted and a hundred songs going quietly with
-   * it — so they are filed on the first library that remains instead, and the
-   * last library cannot go at all, because then there would be nowhere to put
-   * the next import.
-   */
   const removeList = useCallback<StudioValue['removeList']>(
     async list => {
       if (list.kind === 'playlist') {
@@ -2187,8 +1578,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
   const orderLists = useCallback<StudioValue['orderLists']>(
     async (kind, ids) => {
-      // A list made on another console mid-drag keeps its place on the end
-      // rather than dropping out of the order.
       const sorted = <T extends { id: string }>(current: T[]) => [
         ...ids.map(id => current.find(item => item.id === id)).filter((item): item is T => Boolean(item)),
         ...current.filter(item => !ids.includes(item.id)),
@@ -2226,16 +1615,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [db],
   );
 
-  /** One running order, rewritten whole — the shape a drag leaves it in. */
-  /**
-   * The running order, moved locally first and then written.
-   *
-   * Local state leads because a drag has to answer instantly, which means the
-   * write can still be refused after the songs have visibly moved — a plan
-   * ceiling is exactly such a refusal. So the optimistic move is remembered and
-   * put back: a running order the database would not take must not sit on
-   * screen looking saved until the next reload quietly loses it.
-   */
   const writePlaylist = useCallback(
     async (playlistId: string, songIds: string[]) => {
       let before: string[] | null = null;
@@ -2273,17 +1652,11 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
 
       const landing = list.songs.filter(id => !songIds.includes(id)).length + songIds.length;
 
-      // Only growing past the ceiling is refused. Dragging songs around inside
-      // a running order that is already over the line leaves it the same
-      // length, and has to keep working — see `roomForList`.
       if (!allowsList(initial.plan, initial.isGuest, 'songs_per_playlist', landing, list.songs.length)) {
         refuse('songs_per_playlist');
       }
 
       const without = list.songs.filter(id => !songIds.includes(id));
-      // Taking them out first shifts every later slot down by one, so the drop
-      // lands where the line was drawn rather than one place further on for
-      // each song that was already above it.
       const above = list.songs.filter((id, at) => songIds.includes(id) && at < index).length;
 
       without.splice(Math.max(0, Math.min(index - above, without.length)), 0, ...songIds);
@@ -2321,13 +1694,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
     [playlists, writePlaylist],
   );
 
-  /**
-   * What the operator has, counted where the console already knows it.
-   *
-   * `sessions` is 1 because a console holds exactly one; the two that are not
-   * here — a single playlist's length, and the audio library — belong to a
-   * caller and a sibling provider, and are passed in.
-   */
   const counts = useMemo<Partial<Record<LimitKey, number>>>(
     () => ({
       sessions: 1,
@@ -2335,9 +1701,6 @@ export const StudioProvider = ({ initial, children }: { initial: StudioInitial; 
       songs: songs.length,
       libraries: libraries.length,
       playlists: playlists.length,
-      // The longest running order, since that is the one that will hit the
-      // ceiling first — a count of "all songs on all playlists" would be a
-      // number the limit is not about.
       songs_per_playlist: playlists.reduce((most, list) => Math.max(most, list.songs.length), 0),
       name_cards: cards.length,
       languages: settings.langOrder.length,

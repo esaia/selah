@@ -13,43 +13,19 @@ import {
   type FoundingTierId,
 } from '@/lib/billing/founding';
 
-/**
- * Early pricing, drawn the same way everywhere it is offered.
- *
- * Each rung is its price, the word `forever`, who it is for, and one mark per
- * spot — one number per rung, in whichever way the reader has said they would
- * pay. A ladder still showing $9 while the card under it says $89 is two
- * offers on one page, so the switch moves both. The last rung has no marks, because it is the one that never fills,
- * and that absence is the point of the whole row. Underneath, the one line
- * that says what the offer is.
- *
- * **It carries no palette of its own.** The console is dark and the marketing
- * pages are cream, and neither is allowed to name the other's tokens, so the
- * colours arrive as custom properties from whichever side is drawing it. That
- * is what lets the pricing page, the home page and the account panel show the
- * same thing rather than three drifting versions of it.
- */
-
-/** What a caller has to set. Both wrappers below are the worked examples. */
 export interface SpotColors {
-  /** A spot already taken. */
   '--spot-taken': string;
-  /** The spot the reader would take. */
   '--spot-next': string;
-  /** The ground of a spot nobody is in. */
   '--spot-open': string;
-  /** Its outline. */
   '--spot-line': string;
 }
 
-/** Where each drawn rung starts and stops, as seat numbers. */
 export const GROUPS = MARK_GROUPS.map((tier, index) => ({
   tier,
   from: index === 0 ? 0 : (MARK_GROUPS[index - 1].lastSeat ?? 0),
   to: tier.lastSeat ?? 0,
 }));
 
-/** How long the row takes to deal itself out, per mark. */
 const STEP = 42;
 
 const Mark = ({ state, delay, size }: { state: 'taken' | 'next' | 'open'; delay: number; size: number }) => (
@@ -66,7 +42,6 @@ const Mark = ({ state, delay, size }: { state: 'taken' | 'next' | 'open'; delay:
       }`}
     />
 
-    {/* One ring, going out once, around the spot the reader would take. */}
     {state === 'next' ? (
       <span
         aria-hidden
@@ -79,14 +54,6 @@ const Mark = ({ state, delay, size }: { state: 'taken' | 'next' | 'open'; delay:
 
 const gapFor = (size: number) => Math.max(4, Math.round(size / 2.8));
 
-/**
- * One rung's marks, for a caller that puts its own label over each group —
- * the pricing page does, so its `$14` stays above the five it describes even
- * when the row wraps on a phone.
- *
- * `claimed` is the whole count, not the slice: the deal-out stagger has to run
- * on across the gap, or the second group looks like a separate animation.
- */
 export const SpotGroup = ({
   claimed,
   from,
@@ -111,15 +78,11 @@ export const SpotGroup = ({
   );
 };
 
-/** The spot colours, plus the two the type needs. */
 export interface LadderColors extends SpotColors {
-  /** Prices and the line underneath. */
   '--ladder-strong': string;
-  /** `forever`, the rung labels, and a rung that has filled. */
   '--ladder-faint': string;
 }
 
-/** Words for a rung. The prices come from the ladder; this is the copy. */
 const GROUP_COPY: Record<FoundingTierId, string> = {
   founding: 'first 10 subscribers',
   early: 'next 5 subscribers',
@@ -129,7 +92,6 @@ const GROUP_COPY: Record<FoundingTierId, string> = {
 const STRONG = 'text-[color:var(--ladder-strong)]';
 const FAINT = 'text-[color:var(--ladder-faint)]';
 
-/** A price, the period it buys, whether it lasts, and who it is for. */
 const Rung = ({
   price,
   per,
@@ -139,7 +101,6 @@ const Rung = ({
   size,
 }: {
   price: string;
-  /** `/month` or `/year`, tight against the number. */
   per: string;
   copy: string;
   forever: boolean;
@@ -147,20 +108,12 @@ const Rung = ({
   size: number;
 }) => (
   <p className={gone || !forever ? FAINT : STRONG}>
-    {/* Counted rather than swapped: the switch moves $9 to $89, and a number
-        that changes without moving leaves the reader checking whether it
-        did. */}
     <CountingPrice
       value={price}
       className={`inline-block font-valera tracking-tight ${gone ? 'line-through' : ''}`}
       style={{ fontSize: size, lineHeight: 1.1 }}
     />
 
-    {/* The period is stuck to the number, because "$89 forever" on its own
-        reads as one payment and never again — which is not what is on offer.
-        `forever` is about the rate, and only says so after the year it buys:
-        the question every early-pricing page gets asked, answered beside the
-        price rather than three sections down in the questions. */}
     <span className={`text-sm ${FAINT}`}>
       {per}
       {forever ? ' forever' : ''}
@@ -177,17 +130,12 @@ export const FoundingLadder = ({
   className = '',
 }: {
   claimed: number;
-  /** Which way the reader has said they would pay. Monthly where none is offered. */
   cadence?: Cadence;
-  /** Smaller type and marks, for the account panel beside a running service. */
   compact?: boolean;
   className?: string;
 }) => {
   const standard = FOUNDING_TIERS[FOUNDING_TIERS.length - 1];
 
-  // Once every spot is gone the row retires rather than standing there full:
-  // fifteen filled squares forever is decoration, not information. What is
-  // worth keeping is why Pro costs what it costs.
   if (soldOut(claimed)) {
     return (
       <p className={`max-w-prose leading-relaxed ${FAINT} ${compact ? 'text-xs' : 'text-[17px]'} ${className}`}>
@@ -214,8 +162,6 @@ export const FoundingLadder = ({
               size={price}
             />
 
-            {/* Each rung draws its own slice, so a label stays over the marks
-                it describes when the row wraps on a phone. */}
             <SpotGroup claimed={claimed} from={from} to={to} size={mark} className={compact ? 'mt-2.5' : 'mt-3.5'} />
           </div>
         ))}

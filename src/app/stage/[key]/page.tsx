@@ -8,13 +8,6 @@ import { emptyShowData, isLang, type ProjectorStyle, type ShowData } from '@/lib
 
 export const metadata = { title: 'Stage', robots: { index: false } };
 
-/**
- * The stage display, addressed by the same session key as the projector.
- *
- * Rendered from the stored row so a monitor switched on mid-service already
- * shows the slide, what is coming and the run in progress, rather than a black
- * screen until the operator next touches something.
- */
 export default async function StagePage({ params }: PageProps<'/stage/[key]'>) {
   const { key } = await params;
 
@@ -35,7 +28,6 @@ export default async function StagePage({ params }: PageProps<'/stage/[key]'>) {
     projector: (state?.projector as Partial<ProjectorStyle>) ?? {},
     stageLang: isLang(state?.stage_lang) ? state.stage_lang : undefined,
     timer: asTimerState(state?.timer),
-    // A monitor switched back on while the stage is black stays black.
     black: asBlackout(state?.blackout).stage,
   };
 

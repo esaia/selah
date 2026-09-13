@@ -14,8 +14,6 @@ const bible: ParsedBible = {
         { number: 1, verses: [[2, 'And the earth'], [1, 'In the beginning']] },
       ],
     },
-    // James: 59th in canonical order, and the book the two orderings disagree
-    // about — 62 in English numbering, 48 in the Georgian one the app counts in.
     { position: 59, chapters: [{ number: 1, verses: [[1, 'James, a servant']] }] },
   ],
 };

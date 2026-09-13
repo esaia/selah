@@ -21,56 +21,11 @@ import { LANGS, REQUIRED_LANG, type Lang, type ProjectorStyle, type ShowData } f
 
 import { TimerScreen, useTimerNow } from './TimerScreen';
 
-/**
- * The stage display, for the person standing in front of the room: what is on
- * the screen now, what comes next, the time, and anything the operator has to
- * say to them.
- *
- * The layout is fixed on purpose. A stage monitor is an instrument rather than
- * a look — it sits in someone's peripheral vision for an hour — so it is black,
- * text only, never the projector's background art, and nothing on it moves.
- * Slides cut rather than fade: motion at the edge of vision is exactly what a
- * person on stage does not need.
- *
- * The hierarchy does the work. The live slide is large and white; what is
- * coming is smaller, amber and outlined, so a glance can never mistake one for
- * the other. The rail on the right is where anything that is not a slide goes,
- * so there is one place to look for it.
- *
- * The run is not on this face at all. While a countdown matters it takes the
- * whole screen, and once the operator has cleared it the stage is done with
- * it — a second, smaller copy of the digits down the side would only be one
- * more thing to disbelieve.
- *
- * Every size on it is a fraction of the frame it was handed, measured — never a
- * viewport unit. The same component is a 4K screen in the hall and a 300px card
- * in the console, and `vw` sized the card for the console's *window*: padding
- * wider than the panels it was meant to inset, which is what emptied them.
- */
-
-/**
- * Which language the stage reads. The operator picks it in the console and it
- * travels with the slide; a payload from before that pick existed — or a row a
- * monitor read on the way up — falls back to the first language the room is
- * actually shown.
- */
 const langOf = (projector: Partial<ProjectorStyle>, chosen: Lang | undefined): Lang =>
   chosen && projector.enabled?.[chosen]
     ? chosen
     : ((projector.order ?? LANGS).find(lang => projector.enabled?.[lang]) ?? REQUIRED_LANG);
 
-/**
- * A slide as lines of plain text.
- *
- * A song is one block of words and nothing else, in the one language the song
- * points at the stage — the pick rides inside the slide, so the panel showing
- * what is coming next resolves the same language without the stage knowing
- * anything about songs. No title: the band knows what they are playing, and
- * the line under every slide only takes room from the words being sung.
- *
- * Verses do keep their reference on a line of its own, because "what is on
- * screen" for someone about to read aloud includes which verse it is.
- */
 const stageLines = (slide: ShowData | undefined, lang: Lang): { text: string[]; ref: string } => {
   if (slide?.lyrics) {
     return { text: [lyricFor(slide.lyrics, slide.lyrics.stage).split('\n').join(' ')], ref: '' };
@@ -87,35 +42,15 @@ const stageLines = (slide: ShowData | undefined, lang: Lang): { text: string[]; 
   return { text: verses.map(verse => plain(verse.bv)), ref };
 };
 
-/** The furniture, as fractions of the frame's height. */
 const PAD = 0.035;
 const GAP = 0.028;
 const RADIUS = 0.022;
 const INSET = 0.025;
 
-/**
- * The caption under each box. It has a floor for the same reason the timer
- * screen's name does — set from a 300px card it would otherwise be a grey
- * smudge — and it never wraps, because two lines of caption would eat the
- * panel it is naming.
- */
 const LABEL = { size: 0.032, gap: 0.012, min: 8 };
 
-/** The share of a panel its text may take before it starts coming down in size. */
 const TEXT_SHARE = 0.92;
 
-/**
- * One labelled box, and the room inside it.
- *
- * The label sits under the box in small caps, the way a stage display has
- * always drawn them: it costs a few pixels and removes every doubt about which
- * box is which for someone reading the screen for the first time.
- *
- * What goes in the box is positioned rather than sized in percentages. A child
- * asking for `height: 100%` of a flex item whose own height is still being
- * worked out is the other half of how these panels came out empty — measuring
- * nothing, and drawing their text at a pixel.
- */
 const Panel = ({
   label,
   color,
@@ -157,13 +92,6 @@ const Panel = ({
   </div>
 );
 
-/**
- * A slide fitted to the box it was given rather than the other way round.
- *
- * `fitText` writes the size straight onto the node, so a long slide comes down
- * in size without a re-render and without the panel moving — the room was set
- * aside for it either way.
- */
 const Slide = ({ slide, lang, color }: { slide: ShowData | undefined; lang: Lang; color: string }) => {
   const [boxRef, box] = useBox();
   const textRef = useRef<HTMLDivElement>(null);
@@ -174,8 +102,6 @@ const Slide = ({ slide, lang, color }: { slide: ShowData | undefined; lang: Lang
   useLayoutEffect(() => {
     const refit = () =>
       fitText(textRef.current, box.height * TEXT_SHARE, {
-        // No floor worth the name: a slide that cannot be set at a readable
-        // size in the box it has should come down in size, not out of it.
         min: 4,
         max: Math.max(6, box.height * 0.5),
       });
@@ -189,8 +115,6 @@ const Slide = ({ slide, lang, color }: { slide: ShowData | undefined; lang: Lang
     <div ref={boxRef} className="flex size-full items-center overflow-hidden">
       <div ref={textRef} className="w-full leading-tight" style={{ color }}>
         {text.length === 0 ? (
-          // Nothing live is a fact worth stating. A panel that simply went
-          // black would read as a screen that had stopped working.
           <p className="text-white/25">—</p>
         ) : (
           text.map((line, index) => <p key={index}>{line}</p>)
@@ -202,16 +126,9 @@ const Slide = ({ slide, lang, color }: { slide: ShowData | undefined; lang: Lang
   );
 };
 
-/**
- * Roughly how wide a reading is, in ems. Tabular figures are near enough a
- * fixed width and a colon is much narrower; measuring the text properly would
- * mean a layout pass per tick for a number that only changes when the digit
- * count does.
- */
 const widthInEms = (text: string) =>
   [...text].reduce((sum, char) => sum + (char === ':' ? 0.34 : char === '-' ? 0.42 : 0.62), 0);
 
-/** A reading on the right rail — the clock, or what is left of the run. */
 const Readout = ({ text, color }: { text: string; color: string }) => {
   const [boxRef, box] = useBox();
 
@@ -231,13 +148,6 @@ const Readout = ({ text, color }: { text: string; color: string }) => {
   );
 };
 
-/**
- * The notes the operator has put up, fitted to the box between them.
- *
- * Each keeps its own colour and weight — the operator chose them to mean
- * something — so this is not a slide with the text swapped in. They stack, in
- * the order the console has them.
- */
 const Note = ({
   message,
   now,
@@ -250,8 +160,6 @@ const Note = ({
   const own = useFlash(message.flashAt, now);
 
   return (
-    // No size of its own: the block around it is fitted, and every note in it
-    // is set at whatever size the whole lot fits at.
     <p
       style={{
         color: MESSAGE_COLORS[message.color],
@@ -292,8 +200,6 @@ const Notes = ({
     <div ref={boxRef} className="flex size-full items-center overflow-hidden">
       <div ref={textRef} className="w-full space-y-[0.12em] text-center leading-tight">
         {messages.length === 0 ? (
-          // An empty box rather than no box: the rail keeps its shape all
-          // service, so a note appearing never shifts the clock under it.
           <p className="text-white/20">—</p>
         ) : (
           messages.map(message => (
@@ -305,25 +211,10 @@ const Notes = ({
   );
 };
 
-
-/**
- * How much of the running order the panel will hold at a readable size. More
- * than this and every line comes down until none of them can be read from the
- * back, which serves nobody: a person on stage wants where they are and what is
- * next, not the whole service at once.
- */
 const AGENDA_ROWS = 6;
 
-/**
- * How many line-heights a full panel of rows takes, in ems: every row is a line
- * and a third, and all but the first carry the gap above them.
- */
 const AGENDA_LINES = AGENDA_ROWS * 1.35 + (AGENDA_ROWS - 1) * 0.28;
 
-/**
- * The window of the running order worth showing: what is up, one behind it for
- * bearing, and everything still to come until the panel is full.
- */
 const agendaWindow = (timers: StageTimer[], activeId: string) => {
   if (timers.length <= AGENDA_ROWS) return { rows: timers, from: 0 };
 
@@ -333,23 +224,6 @@ const agendaWindow = (timers: StageTimer[], activeId: string) => {
   return { rows: timers.slice(from, from + AGENDA_ROWS), from };
 };
 
-/**
- * The running order, as the person standing up needs it: what is on now, and
- * what follows.
- *
- * It is the console's timer list and nothing else — the same rows the operator
- * types the service into — so the count on screen and the agenda beside it can
- * never disagree about what is happening.
- *
- * The armed item is white, the one after it amber like the next slide, and the
- * rest are dim: the three weights this screen uses everywhere else, so reading
- * it costs a glance. The last item a run was actually started on keeps a tick
- * and a little more light than the dim ones — on a stage screen "what have we
- * done" is asked as often as "what is next", and arming the next item is not
- * the same as having given the last. The durations are the ones that were planned rather than
- * what is left — a second number counting down beside the count itself would
- * only be one more thing to disbelieve.
- */
 const Agenda = ({ timer }: { timer: TimerState }) => {
   const [boxRef, box] = useBox();
   const textRef = useRef<HTMLDivElement>(null);
@@ -360,11 +234,6 @@ const Agenda = ({ timer }: { timer: TimerState }) => {
 
   useLayoutEffect(() => {
     const refit = () =>
-      // A lower ceiling than a slide's: six lines that fit are the point here,
-      // not one line as large as the box will take. The ceiling is the size a
-      // *full* panel would settle on, so the agenda is set at one size all
-      // service — with two items left, fitting them to the box blew the type up
-      // to twice what the same panel had been showing a minute earlier.
       fitText(textRef.current, box.height * TEXT_SHARE, {
         min: 4,
         max: Math.max(6, (box.height * TEXT_SHARE) / AGENDA_LINES),
@@ -377,9 +246,6 @@ const Agenda = ({ timer }: { timer: TimerState }) => {
 
   return (
     <div ref={boxRef} className="flex size-full items-center overflow-hidden">
-      {/* A little more leading than the slides get, for the same reason the
-          timer's name has it: a row is exactly one line tall and clips what
-          hangs below it, which in Georgian is most of the alphabet. */}
       <div ref={textRef} className="w-full leading-[1.35]">
         {rows.length === 0 ? (
           <p className="text-center text-white/20">—</p>
@@ -406,9 +272,6 @@ const Agenda = ({ timer }: { timer: TimerState }) => {
                   marginTop: index === 0 ? 0 : '0.28em',
                 }}
               >
-                {/* A marker rather than a filled row: a lit bar at the edge of
-                    someone's vision reads as something having just happened,
-                    which is what the flash is for. */}
                 <span className="w-[0.7em] shrink-0" style={{ opacity: isNow || isDone ? 1 : 0 }}>
                   {isNow ? '▸' : '✓'}
                 </span>
@@ -446,30 +309,15 @@ export const StageScreen = ({
   const now = useTimerNow();
   const lang = langOf(projector, stageLang);
 
-  // One box, deliberately: the frame. Everything on the screen is a fraction of
-  // it, so nothing here waits on a second measurement that can only arrive a
-  // paint late.
   const [frameRef, frame] = useBox();
   const unit = frame.height;
 
-  // A note from the console is the one thing on this screen written *to* the
-  // person standing up, so it has the rail to itself under the clock. The run
-  // is not on this face at all: while a countdown matters it takes the whole
-  // screen, and once it has been cleared the stage is done with it.
   const notes = visibleMessages(timer);
 
-  // A run that is going, on a screen the operator has left showing the slides.
   const onRail = runUnderWay(timer);
 
-  // The operator's Flash blinks the whole screen. On the timer's face it is the
-  // digits that blink, because the digits are the screen; here there is no one
-  // element that is, so the frame wears it and every panel blinks together.
   const flashing = useFlash(timer.flashAt, now);
 
-  // A note the operator has sent full screen is the whole stage for as long as
-  // it is up. The point of that button is that the person standing there should
-  // not have to find the words in the corner of a screen of slides — the same
-  // reason the timer's face gives way to one.
   const takeover = notes.filter(note => note.fullScreen);
 
   if (takeover.length > 0)
@@ -478,8 +326,6 @@ export const StageScreen = ({
         className="size-full bg-black px-[6%] py-[5%] font-sans"
         style={{ animation: flashAnimation(flashing) }}
       >
-        {/* The frame wears the flash here as it does below, so a note under it
-            blinks only when it was the one flashed. */}
         <Notes messages={takeover} now={now} screenFlashing={0} />
       </div>
     );
@@ -511,21 +357,12 @@ export const StageScreen = ({
           </Panel>
         </div>
 
-        {/* The running order sits between the two: it is read the way the clock
-            is, in glances, while a note from the operator is the one thing on
-            this screen that has to be found at once — so it keeps the corner it
-            has always had. */}
         <div className="flex min-h-0 flex-[38] flex-col">
           <Panel label="Agenda" color="#ffffff" unit={unit}>
             <Agenda timer={timer} />
           </Panel>
         </div>
 
-        {/* One box for the two things the operator sends down the rail. A run
-            under way is drawn here rather than over the slides, and a note takes
-            it back the moment one goes up: words written to the person standing
-            there outrank a count they can see coming anyway, and two boxes would
-            mean one of them is empty for most of a service. */}
         <div className="flex min-h-0 flex-[36] flex-col">
           <Panel
             label={notes.length > 0 || !onRail ? 'Stage message' : 'Timer'}
@@ -534,15 +371,8 @@ export const StageScreen = ({
             outlined={notes.length > 0}
           >
             {notes.length === 0 && onRail ? (
-              // The wall clock has its own box above, so it is left off here.
-              // The name and the speaker stay: the agenda names what is armed,
-              // which is not always what is *running* — the operator can arm
-              // the next item while the current one counts down — and a box of
-              // bare digits does not say which of the two it is counting.
               <TimerScreen state={timer} showClock={false} />
             ) : (
-              // The screen's own flash is worn by the frame, so a note under it
-              // blinks only when it was the one flashed.
               <Notes messages={notes} now={now} screenFlashing={0} />
             )}
           </Panel>

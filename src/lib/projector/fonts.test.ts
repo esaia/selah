@@ -35,9 +35,6 @@ describe('resolving a stored value', () => {
     expect(fontFamilyOf(valueOf(hosted), library)).toBe("'llama-custom-2', sans-serif");
   });
 
-  // The ordinary way to get here: the operator deleted a font that a picker
-  // was still set to. An unknown string is not inert — left on the element it
-  // is a live Tailwind utility that may mean something else entirely.
   it('falls back when the font has since been removed', () => {
     expect(fontClassOf(valueOf(google), [])).toBe(DEFAULT_FONT);
     expect(fontFamilyOf(valueOf(google), [])).toBeUndefined();
@@ -48,20 +45,16 @@ describe('resolving a stored value', () => {
     expect(fontClassOf('', library)).toBe(DEFAULT_FONT);
   });
 
-  // A settings row written before this existed passes no library at all.
   it('needs no library to resolve a shipped face', () => {
     expect(fontClassOf('font-banner')).toBe('font-banner');
   });
 });
 
 describe('the CSS family name', () => {
-  // A webfont cannot be aliased — local() matches installed fonts only — so a
-  // Google face has to be drawn under the name Google declares for it.
   it('is the family Google itself declares, for a Google face', () => {
     expect(familyNameOf(google)).toBe('Rubik');
   });
 
-  // Renaming a font must not orphan the @font-face already in the document.
   it('follows the id and not the label, for a hosted file', () => {
     expect(familyNameOf(hosted)).toBe('llama-custom-2');
     expect(familyNameOf({ ...hosted, label: 'Renamed' })).toBe('llama-custom-2');
@@ -78,7 +71,6 @@ describe('what the operator sees', () => {
 
   it('names a font in the summary row without leaking the stored value', () => {
     expect(fontLabelOf(valueOf(hosted), library)).toBe('Brand');
-    // The parenthesised script list belongs in a picker, not in a summary.
     expect(fontLabelOf('font-notosans', library)).toBe('Noto Sans');
     expect(fontLabelOf(valueOf(google), [])).toBe('custom:custom-1'.replace('font-', ''));
   });
@@ -95,8 +87,6 @@ describe('what may be stored', () => {
     expect(asCustomFonts('Rubik')).toEqual([]);
   });
 
-  // A source that would not load is worse than no font: the picker offers it,
-  // the operator picks it, and the wall quietly shows the fallback face.
   it('drops entries whose source could never load', () => {
     expect(asCustomFonts([{ ...hosted, source: 'http://cdn.example.com/brand.woff2' }])).toEqual([]);
     expect(asCustomFonts([{ ...hosted, source: 'https://cdn.example.com/brand.css' }])).toEqual([]);
@@ -135,8 +125,6 @@ describe('the Google stylesheet', () => {
 });
 
 describe('what rides with a slide', () => {
-  // The library is the operator's; a slide carries the one or two faces it
-  // actually draws, the way the stream narrows `enabled` to its one language.
   it('is only the faces the values name', () => {
     expect(fontsUsedBy([valueOf(hosted), 'font-banner'], library)).toEqual([hosted]);
     expect(fontsUsedBy(['font-banner', 'font-inter'], library)).toEqual([]);
@@ -144,7 +132,6 @@ describe('what rides with a slide', () => {
 });
 
 describe('working out what was pasted', () => {
-  // The address bar is what the operator has in hand after looking at a face.
   it('takes a Google Fonts specimen URL', () => {
     expect(parseSource('https://fonts.google.com/specimen/Merriweather')).toEqual({
       kind: 'google',
@@ -177,7 +164,6 @@ describe('working out what was pasted', () => {
     });
   });
 
-  // A link we cannot use must not be mistaken for a family name.
   it('refuses a link that is neither', () => {
     expect(parseSource('https://fonts.google.com/')).toBeNull();
     expect(parseSource('https://example.com/fonts.html')).toBeNull();

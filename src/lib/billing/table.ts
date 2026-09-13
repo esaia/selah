@@ -3,17 +3,6 @@ import { THEMES } from '../projector/themes';
 
 import { FREE_LIMITS, LIMIT_LABELS, type LimitKey } from './limits';
 
-/**
- * The ceilings as a table, grouped the way the console is.
- *
- * Lives here rather than in the account panel because two surfaces now print
- * the same table — the panel an operator opens when they hit a ceiling, and the
- * pricing page someone reads before they have an account — and the two saying
- * different things is exactly the drift `limits.test.ts` exists to prevent one
- * level down. The groups are the tabs an operator already knows, in the order
- * they matter: scripture on the screen is what this app is for, and it comes
- * first even though it is the part we gate least.
- */
 export const LIMIT_GROUPS: { title: string; keys: LimitKey[] }[] = [
   { title: 'Scripture', keys: ['passages', 'languages', 'translations'] },
   { title: 'Songs', keys: ['songs', 'songs_per_playlist', 'playlists'] },
@@ -22,14 +11,6 @@ export const LIMIT_GROUPS: { title: string; keys: LimitKey[] }[] = [
   { title: 'Sessions', keys: ['sessions'] },
 ];
 
-/**
- * What each row is, for a reader who has never opened the console.
- *
- * The console's own panel needs none of this — an operator who has just been
- * refused a fourth name card knows what a name card is. Someone on the pricing
- * page reading a bare noun and a number does not, and "sessions — 1" is the
- * row that makes them close the tab rather than ask.
- */
 export const LIMIT_NOTES: Record<LimitKey, string> = {
   passages: 'Bible passages open in the console at once, each broken into verses and ready to send.',
   translations: 'Upload a Bible of your own and read it under one of the languages we already carry.',
@@ -45,22 +26,11 @@ export const LIMIT_NOTES: Record<LimitKey, string> = {
   sessions: 'Run more than one service or presentation at the same time.',
 };
 
-/** Pro is unlimited everywhere except languages, where three is how many fit. */
 export const proLimitValue = (key: LimitKey) => (key === 'languages' ? String(MAX_LANGS) : 'Unlimited');
 
-/** What Free allows, as the pricing table prints it: a ceiling of none is not a number. */
 export const freeLimitValue = (key: LimitKey) =>
   FREE_LIMITS[key] === 0 ? 'Pro only' : String(FREE_LIMITS[key]);
 
-/**
- * The part of the app no plan touches.
- *
- * Worth printing beside the ceilings, because a table of numbers read on its
- * own looks like a list of things being withheld — and the answer to "what do
- * I get for nothing?" is most of the product. Every line here is the same on
- * both plans by design: a congregation putting a verse on the wall on Sunday
- * morning is never the thing we are charging for.
- */
 export const INCLUDED = [
   {
     title: 'The Bible',
@@ -103,27 +73,11 @@ export const INCLUDED = [
   },
 ];
 
-/* -------------------------------------------------------------------------- */
-/*                        the two plans, line by line                          */
-/* -------------------------------------------------------------------------- */
-
-/**
- * What one line of the comparison says a plan gives you.
- *
- * `true` is a plain "yes", a string is a number or a phrase worth printing, and
- * `false` is a line that plan does not carry. The three are distinct because
- * the page draws them differently: a tick, a tick with the count beside it, and
- * a struck-through line that shows the reader what they would be buying rather
- * than hiding it.
- */
 export type PlanCell = true | false | string;
 
 export interface ComparisonRow {
-  /** What the line is called. The count, when there is one, is `free`/`pro`. */
   label: string;
-  /** The same thing said of one of it, where "1 sessions" would otherwise read. */
   one?: string;
-  /** One sentence for someone who has never opened the console. */
   note?: string;
   free: PlanCell;
   pro: PlanCell;
@@ -134,7 +88,6 @@ export interface ComparisonGroup {
   rows: ComparisonRow[];
 }
 
-/** The row a ceiling makes, read off `limits.json` rather than written twice. */
 const limitRow = (key: LimitKey): ComparisonRow => ({
   label: LIMIT_LABELS[key].many,
   one: LIMIT_LABELS[key].one,
@@ -143,19 +96,6 @@ const limitRow = (key: LimitKey): ComparisonRow => ({
   pro: proLimitValue(key),
 });
 
-/**
- * The whole product down one column per plan.
- *
- * Two lists rather than a three-column table, because that is how someone
- * decides: they read the plan they think they want, top to bottom, and the
- * question they are answering is "is this enough for my church?" — not "which
- * of these two cells differ?". Each group carries both the lines that are the
- * same on both plans and the ceilings that are not, so a reader never has to
- * hold half the answer in their head while they scroll to the other half.
- *
- * Every number here comes from `limits.json` through `limitRow`, so the page,
- * the console's account panel and `free_limit()` in Postgres cannot drift.
- */
 export const COMPARISON: ComparisonGroup[] = [
   {
     title: 'The Bible on the screen',

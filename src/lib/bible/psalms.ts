@@ -1,24 +1,5 @@
 import type { LangSpec } from '@/lib/bible/languages';
 
-/**
- * Psalm numbering.
- *
- * Georgian, Russian and Ukrainian Bibles follow the Septuagint; English and
- * every other language the API carries follow the Masoretic text, Greek's
- * "Septuagint LXX" translation included — `specOf(lang).psalms` is which.
- * From Psalm 9 on the two diverge, and it is not a flat offset — some psalms
- * are split and others merged:
- *
- *   LXX 9        = Heb 9 + 10
- *   LXX 10-112   = Heb 11-113          (+1)
- *   LXX 113      = Heb 114 + 115
- *   LXX 114+115  = Heb 116
- *   LXX 116-145  = Heb 117-146         (+1)
- *   LXX 146+147  = Heb 147
- *   LXX 1-8, 148-150 are identical
- *
- * Verified against the API by comparing verse counts per chapter.
- */
 export const PSALMS_BOOK = 22;
 
 export interface Ref {
@@ -26,7 +7,6 @@ export interface Ref {
   verse: number;
 }
 
-/** Septuagint reference -> Masoretic. */
 export const canonicalToEnglish = (chapter: number, verse: number): Ref => {
   if (chapter <= 8 || chapter >= 148) {
     return { chapter, verse };
@@ -63,7 +43,6 @@ export const canonicalToEnglish = (chapter: number, verse: number): Ref => {
   return { chapter: 147, verse: verse + 11 };
 };
 
-/** Masoretic reference -> Septuagint. */
 export const englishToCanonical = (chapter: number, verse: number): Ref => {
   if (chapter <= 8 || chapter >= 148) {
     return { chapter, verse };
@@ -100,19 +79,10 @@ export const englishToCanonical = (chapter: number, verse: number): Ref => {
   return verse <= 11 ? { chapter: 146, verse } : { chapter: 147, verse: verse - 11 };
 };
 
-/**
- * Which split is being read, rather than which language: an uploaded
- * translation carries its own, and a Masoretic file read under Russian — whose
- * own translations are Septuagint-numbered — would otherwise land Psalm 23 on
- * Psalm 22. `lib/bible/custom.ts` is what answers it for a translation;
- * `specOf(lang).psalms` still answers it for one of ours.
- */
 export type PsalmScheme = LangSpec['psalms'];
 
-/** A translation's own reference -> the shared Septuagint numbering. */
 export const toCanonicalRef = (book: number, psalms: PsalmScheme, chapter: number, verse: number): Ref =>
   book === PSALMS_BOOK && psalms === 'masoretic' ? englishToCanonical(chapter, verse) : { chapter, verse };
 
-/** Shared Septuagint numbering -> the reference that translation uses. */
 export const fromCanonicalRef = (book: number, psalms: PsalmScheme, chapter: number, verse: number): Ref =>
   book === PSALMS_BOOK && psalms === 'masoretic' ? canonicalToEnglish(chapter, verse) : { chapter, verse };

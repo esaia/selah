@@ -4,14 +4,6 @@ import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 
 import { cn } from '@/lib/cn';
 
-/**
- * Text that walks sideways when it does not fit, the way a player shows a long
- * track title, and sits still when it does.
- *
- * The distance is measured rather than guessed, so the animation always stops
- * exactly at the end of the text — and its duration follows that distance, so
- * a slightly-too-long title does not crawl.
- */
 export const Marquee = ({ text, className }: { text: string; className?: string }) => {
   const box = useRef<HTMLSpanElement>(null);
   const inner = useRef<HTMLSpanElement>(null);
@@ -37,8 +29,6 @@ export const Marquee = ({ text, className }: { text: string; className?: string 
 
   const style = {
     '--marquee-shift': `${shift}px`,
-    // Roughly a constant reading speed, with a floor so a short overrun still
-    // moves gently rather than twitching.
     '--marquee-duration': `${Math.max(6, 4 + -shift / 25)}s`,
   } as CSSProperties;
 

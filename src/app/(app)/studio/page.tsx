@@ -17,16 +17,7 @@ export const metadata = { title: 'Console' };
 
 const TABS: Tab[] = ['bible', 'audio', 'lyrics', 'lower3rd', 'stage'];
 
-/**
- * The operator's console.
- *
- * Everything it needs is loaded here rather than fetched after paint: opening
- * the console mid-service and waiting for a spinner is exactly the moment that
- * must not happen.
- */
 export default async function StudioPage() {
-  // Nothing here works without a project; sending them to sign in says so more
-  // usefully than a stack trace.
   if (!configured()) redirect('/login');
 
   const supabase = await createClient();
@@ -51,9 +42,6 @@ export default async function StudioPage() {
         .select('plan, status, current_period_end, cancel_at_period_end')
         .eq('user_id', user.id)
         .maybeSingle(),
-      // Whether to show the Admin link. Read under the operator's own RLS —
-      // this only ever decides whether a link is drawn, never whether /admin
-      // itself lets them in, so there's nothing to gain by forging it.
       supabase.from('profiles').select('is_admin, avatar_url').eq('id', user.id).maybeSingle(),
       supabase
         .from('songs')
@@ -67,28 +55,20 @@ export default async function StudioPage() {
         .eq('user_id', user.id)
         .order('position')
         .order('created_at'),
-      // Saved speakers, in the order the operator dragged them.
       supabase
         .from('name_cards')
         .select('id, title, subtitle, template, position')
         .eq('user_id', user.id)
         .order('position')
         .order('created_at'),
-      // The Bibles the operator uploaded. Metadata only — the chapters
-      // themselves are read a chapter at a time through /api/bible, the same
-      // as ours are.
       supabase
         .from('bible_translations')
         .select('id, lang, label, psalms, lang_label, book_names')
         .eq('user_id', user.id)
         .order('created_at'),
-      // What Pro costs today, so the account panel's upgrade button names the
-      // price the checkout route is about to charge rather than a stale one.
       claimedSpots(),
     ]);
 
-  // The signup trigger creates all of these; a missing row means the account
-  // predates it, and sending them through the console would only fail later.
   if (!settings.data || !session.data) {
     throw new Error('This account is missing its workspace. Sign out and back in to rebuild it.');
   }
@@ -100,11 +80,7 @@ export default async function StudioPage() {
       .select('show_data, next_show_data, timer, card, blackout')
       .eq('session_id', session.data.id)
       .maybeSingle(),
-    // The operator's own running order, with the order they were added in as
-    // the tie-break for rows that have never been dragged.
     supabase.from('audio_tracks').select('*').eq('user_id', user.id).order('position').order('created_at'),
-    // The libraries in the order the operator dragged them into, with the name
-    // as the tie-break for any that have never been moved.
     supabase
       .from('audio_categories')
       .select('id, name, position')
@@ -134,9 +110,6 @@ export default async function StudioPage() {
     email: user.email ?? '',
     avatarUrl: profile.data?.avatar_url ?? null,
     isAdmin: profile.data?.is_admin ?? false,
-    // Anonymous sign-in from the marketing site's "try for free" button: a
-    // real room from the same signup trigger, but with nothing behind it to
-    // let the Present links actually go anywhere.
     isGuest: user.is_anonymous ?? false,
     settings: settings.data as SettingsRow,
     translations: asCustomTranslations(translations.data),
@@ -144,34 +117,19 @@ export default async function StudioPage() {
       blocks: (workspace?.blocks as Block[]) ?? [],
       live: (workspace?.live as Live) ?? null,
       activeSongId: workspace?.active_song_id ?? null,
-      // Which list the panel was showing. A row written before the console had
-      // more than one of each says nothing about it, and the first library is
-      // the honest default — it is where every song already filed lives.
       open:
         workspace?.open_id
           ? { kind: workspace.open_kind === 'playlist' ? 'playlist' : 'library', id: workspace.open_id }
           : null,
       tab: TABS.includes(workspace?.tab as Tab) ? (workspace?.tab as Tab) : 'bible',
       cardSize: workspace?.card_size ?? 190,
-      // The name-card form as the operator left it. A design and a hold picked
-      // before the service should still be picked when the console reopens.
       cardDraft: workspace?.card_draft ?? null,
     },
-    // What the outputs are showing right now. Without this the console reopens
-    // believing nothing is live, and its first style push would tell the
-    // projector the same — blanking a screen mid-service.
     showData: (state?.show_data as ShowData) ?? emptyShowData(),
     nextShowData: (state?.next_show_data as ShowData) ?? emptyShowData(),
-    // The run in progress, for the same reason: a console reopened mid-service
-    // must pick the timer up where it is, not restart it.
     timer: asTimerState(state?.timer),
-    // And the name card, if one was up when the console was closed. Read raw
-    // and validated inside the provider, which is where the hold arithmetic
-    // and the clock correction live.
     cards: (nameCards.data ?? []).map(cardFromRow),
     card: state?.card ?? null,
-    // And which screens were left black, so a console reopened during a prayer
-    // does not report a bright room.
     blackout: state?.blackout ?? null,
     songs: (songs.data ?? []).map(songFromRow),
     libraries: libraries.data ?? [],
@@ -182,8 +140,6 @@ export default async function StudioPage() {
     })),
     plan: subscription.data?.plan ?? 'free',
     claimedSpots: claimed,
-    // What the account panel needs to say more than "Pro": whether the last
-    // payment went through, and when the next one is.
     billing: {
       status: subscription.data?.status ?? 'active',
       renewsAt: subscription.data?.current_period_end ?? null,

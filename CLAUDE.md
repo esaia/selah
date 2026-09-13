@@ -122,6 +122,11 @@ relevant.
 
 ## Conventions
 
+- No comments in code. Names should carry the meaning; if a line needs a
+  comment to be understood, rename or restructure it instead. The one
+  exception is a non-obvious *why* — a workaround for a specific bug, a
+  hidden constraint, an invariant a reader would otherwise violate — and even
+  then keep it to one line.
 - Functional components, named exports, Tailwind 4 utilities inline. Console
   chrome is dark, and only dark — `--color-studio-*` in `globals.css` is the
   whole palette, so no component reaches for `bg-white`, a Tailwind grey or a

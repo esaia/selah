@@ -19,8 +19,6 @@ describe('the language picker', () => {
 });
 
 describe('what a picked language means', () => {
-  // Picking English has to mean the English with the WEB and the KJV behind
-  // it, not a seventh language that happens to share the name.
   it('lands the six we hold on their own codes', () => {
     expect(langOf('en')).toBe('eng');
     expect(langOf('ka')).toBe('geo');
@@ -35,8 +33,6 @@ describe('what a picked language means', () => {
     expect(langOf('ko')).toBe('x:ko');
   });
 
-  // Keyed by the language rather than by the upload, so two Spanish Bibles
-  // added a year apart are one Spanish on the rail and can be read together.
   it('sends two files in the same language to the same place', () => {
     expect(langOf('es')).toBe(langOf('es'));
   });

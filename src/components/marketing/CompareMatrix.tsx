@@ -2,16 +2,6 @@ import Link from 'next/link';
 
 import { Cross, Tick } from './Tick';
 
-/**
- * One answer in the matrix.
- *
- * `true` and `false` are the plain yes and no. A string is the answer that
- * needs a few words — a price, or the way a product does something rather than
- * whether it does it. `{ soon }` is a no we are already fixing, and it says so
- * rather than borrowing a tick it has not earned. `null` is the one a reader
- * deserves too: we could not confirm it, and a table that guesses in that
- * square is worth nothing.
- */
 export type Cell = boolean | string | null | { soon: string };
 
 export type CompareRow = { label: string; cells: Cell[] };
@@ -19,31 +9,11 @@ export type CompareRow = { label: string; cells: Cell[] };
 export type CompareGroup = { title: string; rows: CompareRow[] };
 
 export type CompareColumn = {
-  /** The product, spelled as its makers spell it. */
   name: string;
-  /** Ours is one column among the others, and says so rather than pretending. */
   ours?: boolean;
-  /** The page on this site that argues the comparison at length. */
   href?: string;
 };
 
-/**
- * Every product on one grid.
- *
- * A real table: the feature is the row header, each product a column, so a
- * screen reader reads a square as "Stage display, ProPresenter, yes" and a
- * search engine sees the same. The feature column is sticky because the grid
- * is wider than a phone and the labels are the only way to keep your place.
- *
- * The column that is ours is tinted rather than dressed up. A comparison table
- * written by one of the products in it is worth reading only if the reader can
- * see which column that is.
- *
- * It has no pane of its own to scroll in: past `lg` the grid fits and overflow
- * goes back to visible, which is what lets the header pin against the page
- * rather than against a box inside it. Narrower than that the products have to
- * scroll sideways, and a pinned header is the lesser thing to lose.
- */
 export const CompareMatrix = ({ columns, groups }: { columns: CompareColumn[]; groups: CompareGroup[] }) => (
   <div className="overflow-x-auto rounded-studio-lg border border-site-rule bg-site-bg lg:overflow-visible">
     <table className="w-full min-w-4xl border-separate border-spacing-0 text-left align-middle">
@@ -126,7 +96,6 @@ export const CompareMatrix = ({ columns, groups }: { columns: CompareColumn[]; g
   </div>
 );
 
-/** One square, with the word behind the mark left for a screen reader. */
 const Answer = ({ cell, product, feature }: { cell: Cell; product: string; feature: string }) => {
   if (cell === true) {
     return (

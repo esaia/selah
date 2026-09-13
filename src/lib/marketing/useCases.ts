@@ -3,48 +3,23 @@ import type { CardIcon } from '@/components/marketing/LinkCard';
 
 import { LANGUAGES_ART, type MarketingArt, OUTPUTS_ART, REMOTE_ART, TEMPLATE_ART, TIMER_ART } from './art';
 
-/**
- * The use cases, and everything each page is made of.
- *
- * One row per page: the card that links to it, the metadata, and the copy.
- * They are written rather than generated - a page that says nothing a church
- * could not have guessed is worth less than no page at all - but they share a
- * shape, so `use-cases/[slug]` renders every one of them.
- */
-
 export type UseCase = {
-  /** The path segment, and what the whole row is keyed by. */
   slug: string;
-  /** On the card, in the related list, and in the breadcrumb. */
   name: string;
-  /** The card's one line. */
   card: string;
   icon: CardIcon;
   title: string;
   description: string;
-  /** The headline, split where the yellow stroke starts. */
   headline: [string, string];
   lede: string;
   art: MarketingArt;
-  /** A short screen recording of the feature, shown beneath the "what you
-      get" cards. Most use cases have none - this is for the ones a still
-      drawing can't carry, like adding a translation live in the console. */
   video?: Demo;
-  /** What the church gets, in three or four cards. */
   points: { title: string; body: string }[];
-  /** The same thing again as a running order, because that is how it is used. */
   steps: string[];
   faq: { q: string; a: string }[];
-  /** Slugs of the two or three pages a reader of this one wants next. */
   related: string[];
 };
 
-/**
- * The second console demo the comparison pages show, after the one on adding
- * a translation. It has no use case of its own — searching a passage with
- * several languages armed touches every scripture page equally, so it lives
- * here rather than filed under one of them.
- */
 export const LIVE_SEARCH_DEMO: Demo = {
   title: 'Search once. Every language updates.',
   teaser:
@@ -610,6 +585,4 @@ export const USE_CASES: UseCase[] = [
   },
 ];
 
-/** One row by slug, for the page and its metadata. Not `useCaseOf`: a
- *  top-level function whose name starts with `use` is a hook to eslint. */
 export const findUseCase = (slug: string): UseCase | undefined => USE_CASES.find(item => item.slug === slug);

@@ -27,7 +27,6 @@ describe('textFromHtml', () => {
   it('drops the markup, the scripts and a hymnal’s margin numbers', () => {
     expect(textFromHtml('<script>alert(1)</script><span class="x">a line</span>')).toBe('a line');
     expect(textFromHtml('1  a line')).toBe('a line');
-    // A number that is part of the line stays part of the line.
     expect(textFromHtml('3 blind mice')).toBe('3 blind mice');
   });
 });

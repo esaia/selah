@@ -9,11 +9,6 @@ import { AdminTable, type AdminRow } from './AdminTable';
 
 export const metadata = { title: 'Admin' };
 
-/**
- * Every operator, with the plan they're on. Not part of the console shell —
- * an admin reading this is not running a service — so it draws its own
- * header rather than reusing AppBar.
- */
 export default async function AdminPage() {
   const user = await getAdminUser();
 
@@ -27,9 +22,6 @@ export default async function AdminPage() {
 
   const byUser = new Map((subscriptions ?? []).map(row => [row.user_id, row]));
 
-  // An anonymous "Try free" session gets this same profile row — no email,
-  // no name — so it is indistinguishable from a real signup except by having
-  // neither. Worth reading, not worth listing: this is a page for operators.
   const rows: AdminRow[] = (profiles ?? [])
     .filter(profile => profile.email || profile.full_name)
     .map(profile => {

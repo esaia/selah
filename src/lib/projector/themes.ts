@@ -1,9 +1,3 @@
-// Projector backgrounds, in the order they are offered.
-//
-// Addressed by `src` rather than a Tailwind class: the old app had to spell out
-// `bg-1img` … `bg-33img` because the scanner cannot see a class name built at
-// runtime, which meant the same 33 backgrounds were listed in three places. A
-// plain `background-image` needs the list only here.
 export interface Theme {
   id: string;
   src: string;
@@ -49,22 +43,13 @@ export const THEMES: Theme[] = [
   { id: '20', src: '/images/20.webp', label: 'Background 20' },
 ];
 
-/**
- * What a console starts on, before anyone has chosen anything: a soft prism
- * blur that words sit on without fighting them. Every fallback to "no theme
- * chosen" is this one — the settings row's default, the projector's own, and
- * the theme a local picture is dropped back to when it is removed.
- */
 export const DEFAULT_THEME = '31';
 
-/** The picture for a stored theme id, falling back to the default background. */
 export const themeSrc = (id: string): string =>
   THEMES.find(theme => theme.id === id)?.src ?? themeSrcOf(DEFAULT_THEME);
 
 const themeSrcOf = (id: string) => THEMES.find(theme => theme.id === id)?.src ?? THEMES[0].src;
 
-/** A picture fetched from a URL the operator typed. */
 export const DYNAMIC_THEME = 'dynamicIMG';
 
-/** The operator's own picture, held on their machine rather than in this list. */
 export const LOCAL_THEME = 'localIMG';

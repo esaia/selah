@@ -1,23 +1,5 @@
 import { PHASE_BAR } from '@/lib/timer/model';
 
-/**
- * The stage display, drawn small.
- *
- * The real one measures its own frame and fits the text; a page cannot, so the
- * type is set in `cqi` instead — but on an element *inside* the container, not
- * on the container itself. A query unit resolves against the nearest ancestor
- * container, so `cqi` written on the same element as `@container` silently
- * measures the box one level further out.
- *
- * Everything else is the screen it is of: black, text only, nothing moving.
- * Both slides are boxed so the pair reads as one column, and the colour keeps
- * them apart: the live one white, what is coming amber. Then
- * the rail on the right for everything that is not a slide — the wall clock,
- * then the run, in the same three parts the console's timer face has: whose
- * run it is, how long is left, and how much of it has gone. The green is the
- * timer's own `PHASE_BAR`, so a bar on this page cannot be a green the product
- * never uses.
- */
 export const StageMock = () => (
   <div className="@container aspect-video bg-studio-slide">
     <div className="flex h-full gap-[2.5cqi] p-[3.5cqi] text-[4cqi] text-white">

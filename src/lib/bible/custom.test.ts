@@ -52,8 +52,6 @@ describe('a pick that no longer exists', () => {
     expect(isKnownVersion('eng', 'custom:b2', customs)).toBe(false);
   });
 
-  // An id on the stream would be worse than the wrong name: nobody can read it
-  // and nobody can tell what went wrong from it.
   it('falls back to a name rather than printing an id', () => {
     expect(versionLabel('eng', 'custom:gone', customs)).toBe('WEB-World English Bible');
     expect(versionLabel('eng', 'custom:a1', customs)).toBe('Our own revision');
@@ -67,8 +65,6 @@ describe('psalms', () => {
     expect(psalmSchemeOf('eng', 'KJV King James Version', customs)).toBe('masoretic');
   });
 
-  // The whole reason the upload carries its own: a Masoretic file read under
-  // Russian would otherwise land Psalm 23 on Psalm 22.
   it('follow the upload when it disagrees with the language', () => {
     expect(psalmSchemeOf('ru', 'custom:b2', customs)).toBe('masoretic');
   });
@@ -120,8 +116,6 @@ describe('a language the operator brought', () => {
     expect(specs['x:c3'].versions).toEqual(['custom:c3']);
   });
 
-  // Every file we read is in canonical order, and the psalm split rides with
-  // the translation rather than the language.
   it('is always canonical order', () => {
     expect(langSpecsOf(withSpanish)['x:c3'].order).toBe('eng');
   });

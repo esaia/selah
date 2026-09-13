@@ -24,7 +24,6 @@ const card = newCard({ id: 'c1', title: 'Nathan Jager', subtitle: 'Students Past
 
 describe('reading a card back', () => {
   it('refuses a card with no name', () => {
-    // Half a filled-in form must not reach a livestream as an empty strap.
     expect(asCard({ title: '' })).toBeNull();
     expect(asCard({ title: '   ' })).toBeNull();
     expect(asCard(null)).toBeNull();
@@ -39,8 +38,6 @@ describe('reading a card back', () => {
   });
 
   it('falls back to a design that exists', () => {
-    // These rows outlive the code that wrote them: a template renamed in a
-    // later version must not render as unstyled text over live video.
     expect(asCard({ title: 'Nathan', template: 'no-such-design' })?.template).toBe(DEFAULT_TEMPLATE);
     expect(asCard({ title: 'Nathan', template: 'bracket' })?.template).toBe('bracket');
   });
@@ -54,7 +51,6 @@ describe('reading a run back', () => {
   });
 
   it('leaves a pinned card pinned', () => {
-    // Zero is not "too short", it is "stay until I take you down".
     expect(asCardRun({ card, holdMs: PINNED })?.holdMs).toBe(PINNED);
   });
 
@@ -74,30 +70,23 @@ describe('a saved person', () => {
       subtitle: 'Students Pastor',
       position: 0,
     });
-    // A row written before the column existed still has to draw as something.
     expect(cardFromRow({ ...row, template: 'gone' }).template).toBe(DEFAULT_TEMPLATE);
     expect(cardFromRow({ ...row, subtitle: null, position: null }).subtitle).toBe('');
   });
 
   it('holds for whatever the console is set to', () => {
-    // The hold is a setting, not a property of the person: the same slider
-    // decides for everybody in the list.
     expect(fireCard(cardFromRow(row)).holdMs).toBe(DEFAULT_HOLD_MS);
     expect(fireCard(cardFromRow(row), 20_000).holdMs).toBe(20_000);
   });
 });
 
 describe('the form, read back after a reload', () => {
-  // Both apply to everybody on the list, so losing them to a reload undid the
-  // whole afternoon's setting up.
   it('keeps the design and the hold that were chosen', () => {
     const draft = asDraft({ title: 'Nathan', subtitle: 'Pastor', template: 'rule', holdMs: 15_000 });
 
     expect(draft).toMatchObject({ title: 'Nathan', subtitle: 'Pastor', template: 'rule', holdMs: 15_000 });
   });
 
-  // Unlike a card, a half-filled form is allowed to have no name in it — that
-  // is a design picked on Saturday night by somebody who has not typed yet.
   it('allows an empty name', () => {
     expect(asDraft({ title: '', template: 'plate' })).toMatchObject({ title: '', template: 'plate' });
     expect(asDraft(null)).toMatchObject({ title: '', template: DEFAULT_TEMPLATE, holdMs: DEFAULT_HOLD_MS });
@@ -140,8 +129,6 @@ describe('the hold', () => {
     expect(remainingOf(null)).toBe(0);
   });
 
-  // The point of carrying `firedAt` rather than a countdown: an overlay that
-  // joins halfway through a card gets the rest of it, not the whole thing.
   it('gives a late joiner the remainder', () => {
     const run = fireCard(card, 8000, now);
 
@@ -162,7 +149,6 @@ describe('the bar that drains', () => {
   });
 
   it('stays full for a pinned card', () => {
-    // Nothing is running out, so a bar that emptied would be lying.
     expect(progressOf(fireCard(card, PINNED, now), now + 99_999_999)).toBe(1);
   });
 
@@ -175,13 +161,10 @@ describe('clock skew', () => {
   it('shifts the start by the difference between two clocks', () => {
     const run = { ...fireCard(card, 8000, 1000), sentAt: 1000 };
 
-    // A reader whose clock reads 3s ahead should still see 8s of card.
     expect(remainingOf(withSkew(run, 4000), 4000)).toBe(8000);
   });
 
   it('ignores a stale stamp', () => {
-    // A stored row read hours later is not a skewed clock, and correcting by
-    // it would put a card that finished long ago back on the stream.
     const run = { ...fireCard(card, 8000, 1000), sentAt: 1000 };
     const late = withSkew(run, 1000 + 60_000);
 

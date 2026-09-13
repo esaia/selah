@@ -1,10 +1,3 @@
-/**
- * The drawings the marketing pages hang their sections on.
- *
- * Five artboards, named by what they show rather than by where they are used:
- * a use case and a solution can want the same picture, and the alt text is
- * part of the picture rather than of the page.
- */
 export type MarketingArt = { src: string; alt: string };
 
 export const LANGUAGES_ART: MarketingArt = {

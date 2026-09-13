@@ -1,22 +1,10 @@
 import { Frame } from './Frame';
 import { ProductVideo } from './ProductVideo';
 
-/* The rounded display face the brand is drawn in, as on the rest of the site. */
 const DISPLAY = 'font-valera tracking-tight text-site-ink';
 
 export type Demo = { title: string; teaser: string; src: string; poster: string; alt: string };
 
-/**
- * "See it in the console" — a short, controls-on screen recording standing in
- * for a paragraph of claims.
- *
- * Every comparison and use-case page that shows one goes through this rather
- * than its own copy of the markup: a `Frame` around a `ProductVideo`, a
- * centered title and teaser above it, a caption below. `band` and `padding`
- * are the only two things pages actually disagree about — whether the section
- * gets the tinted background and how tall its padding runs — so those are the
- * only props.
- */
 export const ConsoleDemo = ({
   video,
   band = true,

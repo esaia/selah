@@ -8,7 +8,6 @@ import { Marker } from '@/components/marketing/Marker';
 import { Tick } from '@/components/marketing/Tick';
 import { findUseCase, LIVE_SEARCH_DEMO } from '@/lib/marketing/useCases';
 
-/* The rounded display face the brand is drawn in, as on the rest of the site. */
 const DISPLAY = 'font-valera tracking-tight text-site-ink';
 
 const TITLE = 'FreeShow Alternative for Churches | LlamaPresenter';
@@ -31,19 +30,11 @@ export const metadata = {
   twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
 };
 
-/**
- * The two names, spelled the same way everywhere on the page.
- *
- * FreeShow is a free and open-source desktop presenter with a large feature
- * set, and this page is written on that footing. What it compares is the
- * platform and the workflow, not who has more features.
- */
 const OURS = 'LlamaPresenter';
 const THEIRS = 'FreeShow';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://llamapresenter.com';
 
-/** The one difference the rest of the page follows from. */
 const PLATFORMS = [
   {
     title: THEIRS,
@@ -57,13 +48,6 @@ const PLATFORMS = [
   },
 ];
 
-/**
- * The table, short on both sides.
- *
- * Only the rows where the two part company. FreeShow is free and open source,
- * so none of them are about money — and a cell is a phrase, because a reader
- * with two columns in front of them is comparing, not reading.
- */
 const comparison = (): { label: string; ours: string; theirs: string }[] => [
   {
     label: 'Where the software runs',
@@ -122,7 +106,6 @@ const comparison = (): { label: string; ours: string; theirs: string }[] => [
   },
 ];
 
-/** The rows where a tick on both sides is the honest answer. */
 const SHARED = [
   'Bible search and verse slides',
   'Song lyrics and a song library',
@@ -136,12 +119,6 @@ const SHARED = [
   'Your own backgrounds and music',
 ];
 
-/**
- * What the browser buys a church that an installed application cannot.
- *
- * FreeShow costs nothing, so none of these are about money. Each one is a row
- * from the table above, said the way a reader would say it back.
- */
 const REASONS = [
   {
     title: 'Nothing to install, anywhere',
@@ -175,7 +152,6 @@ const REASONS = [
   },
 ];
 
-/** The three outputs, and what each one carries. */
 const SCREENS = [
   { title: 'Projector', body: 'Show Bible verses, lyrics, announcements, and media to the congregation.' },
   { title: 'Stage', body: 'Give your team the current slide, next slide, agenda, clock, and timer.' },
@@ -201,12 +177,6 @@ const AUDIENCE = [
   },
 ];
 
-/**
- * The questions, in one list.
- *
- * The visible section and the FAQPage structured data are rendered from this,
- * so a search result can never quote an answer the page does not carry.
- */
 const QUESTIONS = [
   {
     q: `Is ${OURS} a ${THEIRS} alternative?`,
@@ -251,13 +221,6 @@ const QUESTIONS = [
   },
 ];
 
-/**
- * What a search engine reads instead of the page.
- *
- * Two graphs only, and nothing in either that the page itself does not say: no
- * rating, no review, no price. The price of Pro moves while the founding spots
- * last, so an offer here would be out of date the week after it was written.
- */
 const structuredData = {
   '@context': 'https://schema.org',
   '@graph': [
@@ -287,14 +250,12 @@ export const revalidate = 60;
 
 export default function FreeShowAlternativePage() {
   const COMPARISON = comparison();
-  /* The clip lives once, on the use case it was actually shot for. */
   const video = findUseCase('multilingual-church-services')?.video;
 
   return (
     <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
 
-      {/* ------------------------------------------------------------- hero */}
       <section className="mx-auto max-w-7xl px-6 pt-10 pb-8 sm:pt-14">
         <p className="text-sm font-medium tracking-wide text-site-faint uppercase">{THEIRS} alternative</p>
 
@@ -332,8 +293,6 @@ export default function FreeShowAlternativePage() {
             </div>
           </div>
 
-          {/* Pulled out to the section's own gutter on a wide screen, so the
-              artboard finishes at the edge of the page rather than inside it. */}
           <div className="lg:-mr-6">
             <Image
               src="/images/compare-freeshow.webp"
@@ -349,7 +308,6 @@ export default function FreeShowAlternativePage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------------------- intro */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto grid max-w-7xl gap-6 px-6 py-14 sm:py-16 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Looking for a {THEIRS} alternative?</h2>
@@ -373,7 +331,6 @@ export default function FreeShowAlternativePage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------------ the platforms */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Desktop software or browser-based?</h2>
         <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-site-muted">
@@ -390,7 +347,6 @@ export default function FreeShowAlternativePage() {
         </div>
       </section>
 
-      {/* -------------------------------------------------------------- table */}
       <section id="table" className="border-y border-site-rule bg-site-band">
         <div className="mx-auto max-w-7xl scroll-mt-20 px-6 py-16 sm:py-24">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>
@@ -484,10 +440,8 @@ export default function FreeShowAlternativePage() {
         </div>
       </section>
 
-      {/* -------------------------------------------------------------- demo */}
       <ConsoleDemo video={LIVE_SEARCH_DEMO} />
 
-      {/* --------------------------------------------------------- why ours */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>
           What you get here that {THEIRS} does not
@@ -507,7 +461,6 @@ export default function FreeShowAlternativePage() {
         </div>
       </section>
 
-      {/* --------------------------------------------------------- languages */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-6 py-16 sm:py-24 lg:grid-cols-2 lg:gap-16">
           <div>
@@ -542,7 +495,6 @@ export default function FreeShowAlternativePage() {
         </div>
       </section>
 
-      {/* ----------------------------------------------------- three screens */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
           <div>
@@ -575,7 +527,6 @@ export default function FreeShowAlternativePage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------------- in the browser */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto grid max-w-7xl gap-6 px-6 py-16 sm:py-24 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Your presentation lives in the browser</h2>
@@ -601,7 +552,6 @@ export default function FreeShowAlternativePage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------- when theirs is the fit */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <div className="grid gap-6 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>
@@ -641,7 +591,6 @@ export default function FreeShowAlternativePage() {
         </div>
       </section>
 
-      {/* ---------------------------------------------------------- audience */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Who should use {OURS}?</h2>
@@ -665,10 +614,8 @@ export default function FreeShowAlternativePage() {
         </div>
       </section>
 
-      {/* --------------------------------------------------------- translations demo */}
       {video ? <ConsoleDemo video={video} /> : null}
 
-      {/* --------------------------------------------------------- questions */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>{THEIRS} alternative FAQ</h2>
 
@@ -682,7 +629,6 @@ export default function FreeShowAlternativePage() {
         </div>
       </section>
 
-      {/* -------------------------------------------------------- last word */}
       <section className="bg-studio-bg">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-8 px-6 py-20 sm:py-24 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -709,7 +655,6 @@ export default function FreeShowAlternativePage() {
         </div>
       </section>
 
-      {/* The one line of small print the page owes anybody: whose name that is. */}
       <p className="mx-auto max-w-7xl px-6 pt-10 pb-12 text-sm leading-relaxed text-site-faint">
         {THEIRS} is an open-source project owned by its authors, and ProPresenter is a trademark of Renewed Vision,
         LLC. {OURS} is not affiliated with, endorsed by or sponsored by either of them. Their names are used here only

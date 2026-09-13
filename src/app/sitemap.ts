@@ -5,14 +5,6 @@ import { USE_CASES } from '@/lib/marketing/useCases';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://llamapresenter.com';
 
-/**
- * Every page a search engine should know about.
- *
- * The two catalogues are read rather than listed, so a new use case or
- * solution is in the sitemap the moment it is written. Nothing behind a
- * sign-in is here, and neither are the outputs: an `output_key` URL is a
- * secret, and a sitemap is the last place to publish one.
- */
 const STATIC_PATHS = [
   '',
   '/pricing',

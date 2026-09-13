@@ -13,15 +13,6 @@ const NAV = [
   { href: '/faq', label: 'Questions' },
 ];
 
-/**
- * The footer, in columns.
- *
- * Ten links in one wrapping row was a list nobody could scan and every page on
- * the site now hangs off it, so they are grouped the way a reader would group
- * them: what the product is, what it is instead of, and what it is used for.
- * The use-case column is the first four rows of the catalogue rather than all
- * nine — the rest are one click further on, on their own page.
- */
 const FOOTER = [
   {
     title: 'Product',
@@ -64,24 +55,9 @@ const FOOTER = [
   },
 ];
 
-/**
- * The pages a visitor sees before they sign in.
- *
- * Light, unlike everything else in this app: `.site` is the whole of that
- * decision — see the `--color-site-*` block in globals.css for why the console
- * goes the other way.
- *
- * A plain server component with nothing dynamic of its own — no cookies, no
- * `getUser()` — so every page it wraps can still be prerendered and cached.
- * The one thing on the page that depends on whether someone is signed in is
- * `AuthLink`, decided client-side for exactly that reason.
- */
 export default function MarketingLayout({ children }: LayoutProps<'/'>) {
   return (
     <div className="site flex min-h-dvh flex-col">
-      {/* Not sticky, and no bar of its own: the wash behind the hero runs up
-          through it, and a nav that follows you down the page is one more
-          thing between the reader and the screenshots. */}
       <header className="relative z-10">
         <nav className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-3.5 sm:gap-8 sm:py-4">
           <Link

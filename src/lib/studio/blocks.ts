@@ -1,14 +1,5 @@
 import { emptyShowData, groupVerses, type Block, type Lang, type Live, type ShowData } from '@/lib/types';
 
-/**
- * Pure operations on the passage list.
- *
- * These are the parts where an off-by-one silently shows the wrong verse: the
- * live pointer is an index into a block's `groups`, so anything that inserts,
- * merges or drops a group has to move the pointer with it. Kept out of the
- * provider so they can be tested without a browser, a session or a network.
- */
-
 export interface Workspace {
   blocks: Block[];
   live: Live;
@@ -22,7 +13,6 @@ const withBlock = (workspace: Workspace, id: string, map: (block: Block) => Bloc
 const pointsAt = (live: Live, id: string): live is { blockId: string; verseIndex: number } =>
   Boolean(live && live.kind !== 'lyrics' && live.blockId === id);
 
-/** Which verse number a block would gain on either end, or null at the edges. */
 export const extensionVerse = (block: Block, side: 'start' | 'end'): number | null => {
   if (!block.verses?.length) return null;
 
@@ -33,13 +23,6 @@ export const extensionVerse = (block: Block, side: 'start' | 'end'): number | nu
   return added;
 };
 
-/**
- * Every verse between the block's edge and the chapter's, in reading order.
- *
- * The rest of the chapter on that side, which is what a held tile asks for. An
- * unknown `chapterLength` means nobody has told us where the chapter ends, so
- * the far end offers the one verse it is sure of rather than guessing.
- */
 export const extensionSpan = (block: Block, side: 'start' | 'end'): number[] => {
   const edge = extensionVerse(block, side);
 
@@ -52,14 +35,6 @@ export const extensionSpan = (block: Block, side: 'start' | 'end'): number[] => 
   return Array.from({ length: block.chapterLength - edge + 1 }, (_, index) => edge + index);
 };
 
-/**
- * Where an extension leaves the block. The verses themselves still have to be
- * fetched — this only decides the shape and moves the live pointer, because
- * prepending shifts every card along by as many verses as it adds.
- *
- * `span` is how far the tile reaches: the neighbouring verse on a click, the
- * rest of the chapter on a hold.
- */
 export const planExtension = (
   block: Block,
   side: 'start' | 'end',
@@ -83,10 +58,6 @@ export const planExtension = (
   };
 };
 
-/**
- * Trim a block at a card: everything from `groupIndex` on is dropped. Returns
- * null when the block would be left empty, which the caller reads as "delete".
- */
 export const planTrim = (block: Block, groupIndex: number) => {
   if (!block.groups?.[groupIndex]) return undefined;
 
@@ -97,19 +68,6 @@ export const planTrim = (block: Block, groupIndex: number) => {
   return verses.length === 0 ? null : { verses, groups };
 };
 
-/**
- * Drop the first card alone, leaving the rest of the passage where it is.
- *
- * The cut on every other card takes that card and everything after it, which
- * on the first card is the whole passage — the bin button's job, not this
- * one's. So the first card trims from the front instead: Luke 3:4-18 loses its
- * verse 4 and starts at 5.
- *
- * Every remaining card slides down one, so the live pointer comes with it —
- * and clears when it was the dropped card that was on the screen. Returns null
- * when there is nothing behind it, which the caller reads as "delete" the same
- * way `planTrim` does.
- */
 export const planDropFirst = (block: Block, live: Live) => {
   if (!block.groups?.length) return undefined;
 
@@ -130,7 +88,6 @@ export const planDropFirst = (block: Block, live: Live) => {
   };
 };
 
-/** Merge a card with the one after it, so both verses show on one slide. */
 export const joinGroup = (workspace: Workspace, id: string, groupIndex: number): Workspace => {
   const next = withBlock(workspace, id, block => {
     if (groupIndex >= block.groups.length - 1) return block;
@@ -140,7 +97,6 @@ export const joinGroup = (workspace: Workspace, id: string, groupIndex: number):
     return { ...block, groups };
   });
 
-  // One card fewer before the pointer means the pointer moves back with it.
   return {
     ...next,
     live:
@@ -150,7 +106,6 @@ export const joinGroup = (workspace: Workspace, id: string, groupIndex: number):
   };
 };
 
-/** Break a joined card back into one card per verse. */
 export const splitGroup = (workspace: Workspace, id: string, groupIndex: number): Workspace => {
   const added = (workspace.blocks.find(block => block.id === id)?.groups[groupIndex] ?? []).length - 1;
 
@@ -162,7 +117,6 @@ export const splitGroup = (workspace: Workspace, id: string, groupIndex: number)
     return { ...block, groups };
   });
 
-  // The cards the split added push everything after them along.
   return {
     ...next,
     live:
@@ -172,7 +126,6 @@ export const splitGroup = (workspace: Workspace, id: string, groupIndex: number)
   };
 };
 
-/** The verses on the card that is live, or null when no verse card is. */
 export const liveGroup = ({ blocks, live }: Workspace): number[] | null => {
   if (!live || live.kind === 'lyrics') return null;
 
@@ -184,7 +137,6 @@ export const removeBlock = (workspace: Workspace, id: string): Workspace => ({
   live: pointsAt(workspace.live, id) ? null : workspace.live,
 });
 
-/** Reorder by dropping: `insertIndex` is the slot the block should land in. */
 export const moveBlockTo = (workspace: Workspace, id: string, insertIndex: number): Workspace => {
   const from = workspace.blocks.findIndex(block => block.id === id);
 
@@ -192,7 +144,6 @@ export const moveBlockTo = (workspace: Workspace, id: string, insertIndex: numbe
 
   const blocks = [...workspace.blocks];
   const [moved] = blocks.splice(from, 1);
-  // Removing the block first shifts every later slot down by one.
   const target = from < insertIndex ? insertIndex - 1 : insertIndex;
 
   blocks.splice(Math.max(0, Math.min(target, blocks.length)), 0, moved);
@@ -200,11 +151,6 @@ export const moveBlockTo = (workspace: Workspace, id: string, insertIndex: numbe
   return { ...workspace, blocks };
 };
 
-/**
- * The whole running order at once, as a drag leaves it. Ids the drag never saw
- * — a passage searched on another console while one was in the air — keep their
- * place at the end rather than dropping out of the workspace.
- */
 export const orderBlocks = (workspace: Workspace, ids: string[]): Workspace => {
   const known = new Set(ids);
 
@@ -237,16 +183,11 @@ export const setCollapsed = (workspace: Workspace, collapsed: boolean): Workspac
 export const toggleCollapsed = (workspace: Workspace, id: string): Workspace =>
   withBlock(workspace, id, block => ({ ...block, collapsed: !block.collapsed }));
 
-/**
- * Regroup after a refetch: a verse that no longer exists in the translation is
- * dropped from its card, and a card left empty disappears.
- */
 export const regroup = (groups: number[][] | undefined, verses: number[]): number[][] =>
   (groups ?? verses.map(verse => [verse]))
     .map(group => group.filter(verse => verses.includes(verse)))
     .filter(group => group.length > 0);
 
-/** The next slide in the given direction, or null at either end of the block. */
 export const stepWithin = (block: Block | undefined, live: Live, direction: number): number | null => {
   if (!live || live.kind === 'lyrics' || !block) return null;
 
@@ -255,15 +196,6 @@ export const stepWithin = (block: Block | undefined, live: Live, direction: numb
   return next < 0 || next >= (block.groups?.length ?? 0) ? null : next;
 };
 
-/**
- * One card of a block as an output would receive it: the armed languages
- * filled in, the rest left out.
- *
- * A card index off either end gives an empty slide rather than nothing, which
- * is what lets the caller ask for `groupIndex + 1` without a guard — the stage
- * display's "up next" box is blank at the end of a block, and that is the
- * honest answer, not an error.
- */
 export const slideOf = (
   block: Block | undefined,
   groupIndex: number,

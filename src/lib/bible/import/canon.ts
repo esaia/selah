@@ -1,27 +1,9 @@
 import { toSharedBook } from '@/lib/bible/passage';
 
-/**
- * The 66 books, in the order every Bible file on earth lists them.
- *
- * Each format names a book its own way — USX has `code="GEN"`, OSIS has
- * `osisID="Gen.1.1"`, Zefania and Beblia number them 1–66, OpenSong writes the
- * English name out — so this is the one table that turns any of those into the
- * shared book id the rest of the app counts in.
- *
- * The shared id is not stored: it is derived through `toSharedBook`, because
- * this list is in the English ordering (position 1 = English book id 4 = the
- * `w` of a request in an English-ordered language) and the Georgian ordering
- * the app counts in is already one function away. A hand-typed column would be
- * a second copy of `englishBooks.ts` that could disagree with it.
- */
 export interface CanonBook {
-  /** 1–66, the order below. */
   position: number;
-  /** The book id the app counts in — Georgian ordering, Genesis = 4. */
   shared: number;
-  /** USX / USFM: three letters. */
   usfm: string;
-  /** OSIS: the abbreviation an `osisID` begins with. */
   osis: string;
   english: string;
 }
@@ -97,7 +79,6 @@ const TABLE: [usfm: string, osis: string, english: string][] = [
 
 export const CANON: CanonBook[] = TABLE.map(([usfm, osis, english], index) => ({
   position: index + 1,
-  // index + 4: the English book id, past the three group headers.
   shared: toSharedBook(index + 4, 'eng'),
   usfm,
   osis,
@@ -108,11 +89,6 @@ const byPosition = new Map(CANON.map(book => [book.position, book]));
 const byUsfm = new Map(CANON.map(book => [book.usfm, book]));
 const byOsis = new Map(CANON.map(book => [book.osis.toLowerCase(), book]));
 
-/**
- * Names an OpenSong file is known to use that are not the ones above. Every
- * other spelling is caught by the loose match below; these are the ones where
- * the words themselves differ rather than the punctuation.
- */
 const ALIASES: Record<string, string> = {
   psalm: 'Psalms',
   psalter: 'Psalms',
@@ -130,7 +106,6 @@ const loose = (value: string) =>
     .toLowerCase()
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
-    // `1Thessalonians` and `1 Thessalonians` are the same book.
     .replace(/(\d)(?=[a-z])/g, '$1 ')
     .replace(/[^a-z0-9 ]/g, '')
     .replace(/\s+/g, ' ')
@@ -142,16 +117,9 @@ export const bookByPosition = (position: number): CanonBook | null => byPosition
 
 export const bookByUsfm = (code: string): CanonBook | null => byUsfm.get(code.trim().toUpperCase()) ?? null;
 
-/** From an `osisID` — `Gen.1.1`, or just `Gen`. */
 export const bookByOsis = (osisId: string): CanonBook | null =>
   byOsis.get(osisId.split('.')[0]?.trim().toLowerCase() ?? '') ?? null;
 
-/**
- * From a written-out English name, as OpenSong files carry it. Exact first,
- * then a prefix — `1 Thess`, `Rev`, `Song of Sol` are all files we have seen —
- * and a prefix is only accepted when it matches one book, so `J` finds nothing
- * rather than finding Joshua.
- */
 export const bookByName = (name: string): CanonBook | null => {
   const needle = loose(name);
 

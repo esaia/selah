@@ -3,16 +3,6 @@ import { DEFAULT_FONT } from '@/lib/projector/fonts';
 import { DEFAULT_LYRIC_LOOK, DEFAULT_TEXT_SIZE, DEFAULT_VERSE_LOOK, DEFAULT_VERSE_TEXT_SIZE } from '@/lib/projector/looks';
 import type { ProjectorStyle, ShowData } from '@/lib/types';
 
-/**
- * John 14:6, on a slide that carries two languages.
- *
- * The marketing page draws its slides with the projector's own component and
- * its own stylesheet rather than a picture of one, for the reason the look
- * picker does: a screenshot goes stale the first time the look changes, and
- * nobody notices until a visitor compares the page to the product. `wigni` is
- * the API's book number for John, which is what puts the right book name under
- * each language without the page knowing any of them.
- */
 const verse = (bv: string) => [{ bv, wigni: 43, tavi: 14, muxli: 6 }];
 
 const SHOW_DATA: ShowData = {
@@ -44,17 +34,8 @@ const STYLE: ProjectorStyle = {
   langs: [],
 };
 
-/**
- * A slide at whatever size the frame around it happens to be.
- *
- * The projector runs a `fitText` pass to fill a real screen; a page cannot
- * measure, so the type is set in `cqi` instead and the whole slide — text,
- * gaps, reference — scales with the frame, which is what `em` throughout
- * `.show-slide` was for.
- */
 export const SlideMock = ({ background = '/images/fragrance-b.webp' }: { background?: string }) => (
   <div className="@container relative flex aspect-video items-center justify-center overflow-hidden bg-studio-slide">
-    {/* Decorative: the verse beside it is what a screen reader should hear. */}
     <div
       aria-hidden
       className="absolute inset-0 bg-cover bg-center"

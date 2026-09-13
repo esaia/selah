@@ -8,18 +8,14 @@ import { Tick } from '@/components/marketing/Tick';
 import { LinkCard } from '@/components/marketing/LinkCard';
 import { USE_CASES, findUseCase } from '@/lib/marketing/useCases';
 
-/* Every use case ends with the same proof, whatever it is about: two or more
-   translations, armed once, on the same slide. */
 const TRANSLATIONS_DEMO = findUseCase('multilingual-church-services')!.video!;
 
-/* The rounded display face the brand is drawn in, as on the rest of the site. */
 const DISPLAY = 'font-valera tracking-tight text-site-ink';
 
 const OURS = 'LlamaPresenter';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://llamapresenter.com';
 
-/** Every use case is a page at build time; there is no other source of them. */
 export const generateStaticParams = () => USE_CASES.map(useCase => ({ slug: useCase.slug }));
 
 export const generateMetadata = async ({ params }: PageProps<'/use-cases/[slug]'>) => {
@@ -51,8 +47,6 @@ export default async function UseCasePage({ params }: PageProps<'/use-cases/[slu
 
   const related = useCase.related.map(findUseCase).filter(item => item !== undefined);
 
-  /* The questions on the page and the questions a search result may quote are
-     the same list, so an answer can never appear in one and not the other. */
   const structuredData = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -78,7 +72,6 @@ export default async function UseCasePage({ params }: PageProps<'/use-cases/[slu
     <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
 
-      {/* ------------------------------------------------------------- hero */}
       <section className="mx-auto max-w-7xl px-6 pt-10 pb-8 sm:pt-14">
         <p className="text-sm font-medium tracking-wide text-site-faint uppercase">
           <Link href="/use-cases" className="transition-colors hover:text-site-muted">
@@ -120,7 +113,6 @@ export default async function UseCasePage({ params }: PageProps<'/use-cases/[slu
         </div>
       </section>
 
-      {/* ------------------------------------------------------------ points */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto max-w-7xl px-6 py-16 sm:py-20">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>What you get</h2>
@@ -136,10 +128,8 @@ export default async function UseCasePage({ params }: PageProps<'/use-cases/[slu
         </div>
       </section>
 
-      {/* -------------------------------------------------------------- demo */}
       <ConsoleDemo video={TRANSLATIONS_DEMO} />
 
-      {/* ------------------------------------------------------------- steps */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-20">
         <div className="grid gap-10 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>How a Sunday runs</h2>
@@ -155,7 +145,6 @@ export default async function UseCasePage({ params }: PageProps<'/use-cases/[slu
         </div>
       </section>
 
-      {/* --------------------------------------------------------- questions */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto max-w-7xl px-6 py-16 sm:py-20">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Questions</h2>
@@ -171,7 +160,6 @@ export default async function UseCasePage({ params }: PageProps<'/use-cases/[slu
         </div>
       </section>
 
-      {/* ------------------------------------------------------------ nearby */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-20">
         <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Nearby</h2>
 
@@ -200,7 +188,6 @@ export default async function UseCasePage({ params }: PageProps<'/use-cases/[slu
         </p>
       </section>
 
-      {/* -------------------------------------------------------- last word */}
       <section className="bg-studio-bg">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-8 px-6 py-20 sm:py-24 lg:flex-row lg:items-center lg:justify-between">
           <div>

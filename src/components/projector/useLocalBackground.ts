@@ -7,14 +7,6 @@ import { loadLocalFile, loadReceivedFile, saveReceivedFile } from '@/lib/media/l
 import { requestAsset } from '@/lib/media/peerAssets';
 import type { LocalFileMeta } from '@/lib/types';
 
-/**
- * One file, from wherever this machine can get it.
- *
- * Three places to look, cheapest first: this browser may own the file (the
- * console's own projector tab does), it may have been sent one before, or it
- * has to be pulled from the console over WebRTC. A received copy is cached, so
- * a reload — or a console that has since been shut — does not blank the screen.
- */
 const resolveFile = async (id: string, transport: SignalTransport | null): Promise<Blob | null> => {
   const own = await loadLocalFile(id).catch(() => null);
 
@@ -33,13 +25,10 @@ const resolveFile = async (id: string, transport: SignalTransport | null): Promi
 
     return received.file;
   } catch {
-    // Nothing to draw. An empty picture reads as one arriving late rather than
-    // as a broken image.
     return null;
   }
 };
 
-/** Resolve the operator's own background to something this machine can draw. */
 export const useLocalBackground = (meta: LocalFileMeta | null, transport: SignalTransport | null) => {
   const [url, setUrl] = useState('');
   const id = meta?.id ?? null;
@@ -67,26 +56,12 @@ export const useLocalBackground = (meta: LocalFileMeta | null, transport: Signal
   return id ? url : '';
 };
 
-/**
- * The same, for the pictures a custom template names — by file id, so the
- * renderer can look one up without knowing where it came from.
- *
- * They arrive one at a time rather than all together: a template with a logo
- * and a photograph should show the logo while the photograph is still coming
- * over the wire, which on a slow connection is the difference between a slide
- * appearing and a slide appearing late.
- */
 export const useLocalFiles = (metas: LocalFileMeta[], transport: SignalTransport | null) => {
   const [urls, setUrls] = useState<Record<string, string>>({});
 
-  // The identity of the set, not the array: a payload rebuilds the metas every
-  // time it lands, and re-fetching every picture on each verse change would
-  // put a WebRTC round trip in front of the slide.
   const key = [...new Set(metas.map(meta => meta.id))].sort().join(',');
 
   useEffect(() => {
-    // Nothing to fetch, and nothing to clear either: the previous run's
-    // cleanup has already emptied the map and revoked what it made.
     if (!key) return;
 
     const ids = key.split(',');

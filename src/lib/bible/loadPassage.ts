@@ -8,11 +8,6 @@ import type { ApiChapter, Verse } from '@/lib/types';
 export interface Target {
   lang: Lang;
   version?: string;
-  /**
-   * How this translation splits the psalms. The language's own scheme for one
-   * of ours, and the upload's own for a translation the operator brought —
-   * which is allowed to disagree with the language it is read under.
-   */
   psalms: PsalmScheme;
 }
 
@@ -30,11 +25,6 @@ export interface Passage {
   verses: number[];
 }
 
-/**
- * Loading a whole chapter is one request per language, and the API hands back
- * every verse of it. Once a chapter is cached, going live on any verse in it
- * costs no network at all.
- */
 export const loadChapter = (client: QueryClient, query: ChapterQuery): Promise<ApiChapter> =>
   client.fetchQuery({
     queryKey: chapterKey(query),
@@ -42,16 +32,6 @@ export const loadChapter = (client: QueryClient, query: ChapterQuery): Promise<A
     staleTime: Infinity,
   });
 
-/**
- * Load one passage in every armed language, aligned verse by verse.
- *
- * The admin language defines the passage; each verse is translated into the
- * shared Septuagint numbering and back out into the target language's own
- * numbering. For everything except Psalms that is the identity, but a Georgian
- * psalm can land on a different English chapter — and occasionally on two of
- * them — so the chapters are resolved per verse rather than assumed to match.
- * Missing verses stay null to keep the arrays aligned with `verses`.
- */
 export const loadPassage = async (
   client: QueryClient,
   { book, chapter, verses, adminLang, targets }: PassageRequest,
@@ -63,7 +43,6 @@ export const loadPassage = async (
   const allVerses = adminChapter?.bibleData ?? [];
   const byNumber = new Map(allVerses.map(verse => [+verse.muxli, verse]));
 
-  // No explicit list means the whole chapter.
   const wanted = (verses?.length ? verses : allVerses.map(verse => +verse.muxli)).filter(number =>
     byNumber.has(number),
   );
@@ -102,13 +81,11 @@ export const loadPassage = async (
   };
 };
 
-/** How many chapters a book has — the API reports it on any chapter fetch. */
 export const loadChapterCount = async (client: QueryClient, query: Omit<ChapterQuery, 'chapter'>) => {
   const data = await loadChapter(client, { ...query, chapter: 1 });
   return Number(data?.tavi?.[0]?.cc) || 0;
 };
 
-/** How many verses a chapter has. */
 export const loadVerseCount = async (client: QueryClient, query: ChapterQuery) => {
   const data = await loadChapter(client, query);
   return data?.bibleData?.length ?? 0;

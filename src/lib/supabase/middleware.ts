@@ -1,9 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
-/** Paths an unauthenticated visitor may reach. */
-// `/opengraph-image` is the link-preview card: the crawler unfurling it has no
-// cookies, and a redirect to /login is a broken preview.
 const PUBLIC = [
   '/',
   '/pricing',
@@ -26,29 +23,15 @@ const PUBLIC = [
   '/opengraph-image',
   '/api/bible',
   '/api/live',
-  // Only the webhook. Dodo has no cookie, and its signature is what authorises
-  // it; checkout and the portal are reached from the console by someone who is
-  // signed in, and each checks that for itself.
   '/api/billing/webhook',
 ];
 
 const isPublic = (pathname: string) =>
   PUBLIC.some(path => pathname === path || pathname.startsWith(`${path}/`));
 
-/**
- * Refresh the auth cookie on every request and keep signed-out visitors out of
- * the console.
- *
- * The output pages are deliberately public: a projector machine and an OBS
- * Browser Source have no account, and the session's unguessable output_key in
- * the URL is what authorises them.
- */
 export const updateSession = async (request: NextRequest) => {
   let response = NextResponse.next({ request });
 
-  // Before `.env.local` is filled in there is no auth to refresh and nothing to
-  // guard. Failing open here keeps the marketing pages readable on a fresh
-  // clone instead of turning every route into a 500.
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return response;
 
   const supabase = createServerClient(
@@ -66,15 +49,11 @@ export const updateSession = async (request: NextRequest) => {
     },
   );
 
-  // Must run before any redirect: this is what refreshes an expiring token.
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user && !isPublic(request.nextUrl.pathname)) {
-    // Query and all: `/upgrade?billing=annual` is a visitor who picked a year
-    // on the pricing page, and coming back to a bare `/upgrade` would quietly
-    // sell them a month.
     const back = `${request.nextUrl.pathname}${request.nextUrl.search}`;
     const login = request.nextUrl.clone();
 

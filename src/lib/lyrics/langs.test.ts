@@ -28,7 +28,6 @@ import {
 const ka: SongLang = { id: 'ka', label: 'ქართული', on: true };
 const en: SongLang = { id: 'en', label: 'English', on: true };
 
-/** A song of two slides in one language — every song, before any of this. */
 const plain = (): Song => ({
   id: 'song',
   title: 'შენ ხარ ღირსი',
@@ -38,7 +37,6 @@ const plain = (): Song => ({
   ],
 });
 
-/** The same song, sung in two. */
 const bilingual = (): Song => ({
   ...plain(),
   langs: [ka, en],
@@ -170,8 +168,6 @@ describe('removeLang', () => {
     expect(left.slides.every(slide => slide.alt === undefined)).toBe(true);
   });
 
-  // Dragging the original into second place moves its words but does not make
-  // them the operator's to throw away.
   it('refuses the original wherever it has been dragged to', () => {
     const song = addLang(plain(), en);
     const moved = reorderLangs(song, ['en', PRIMARY_ID]);
@@ -179,8 +175,6 @@ describe('removeLang', () => {
     expect(removeLang(moved, PRIMARY_ID)).toEqual(moved);
   });
 
-  // The translation is the operator's either way round, and taking it off the
-  // top hands the original's words back to `slide.text` where they started.
   it('lets a translation go from the top of the list', () => {
     const song = reorderLangs(addLang(plain(), en), ['en', PRIMARY_ID]);
     const left = removeLang(song, 'en');
@@ -197,9 +191,6 @@ describe('removeLang', () => {
     expect(left.stageLang).toBeUndefined();
   });
 
-  // Both picks go, not only the one that named the language taken away: with
-  // two languages the ceiling, removing one takes the song back to the plain
-  // kind, and a plain song has no language for an output to be pointed at.
   it('clears the picks when the song goes back to one language', () => {
     const left = removeLang({ ...bilingual(), stageLang: 'en', lower3rdLang: 'ka' }, 'en');
 
@@ -285,7 +276,6 @@ describe('cardLangOf', () => {
 });
 
 describe('syncSwitches', () => {
-  /** The same two languages, named the same way, in another song. */
   const other = (): Song => ({
     id: 'other',
     title: 'აკურთხე',
@@ -327,8 +317,6 @@ describe('syncSwitches', () => {
   });
 
   it('does not copy a pick the operator never made', () => {
-    // `stageLang` unset reads as the first language on, but that is a
-    // fallback rather than a choice, so nothing is copied from it.
     const source = armLang(bilingual(), 'en', false);
 
     expect(syncSwitches([other()], source)[0].stageLang).toBeUndefined();
