@@ -80,6 +80,20 @@ describe('asTemplate', () => {
     expect(one.plate).toBe('');
   });
 
+  it('reads a stored semi-bold as bold, since the weight choice collapsed to two', () => {
+    const [regular, semiBold, bold] = asTemplate({
+      elements: [
+        { kind: 'text', id: 'a', weight: 400 },
+        { kind: 'text', id: 'b', weight: 600 },
+        { kind: 'text', id: 'c', weight: 700 },
+      ],
+    }).elements as TextElement[];
+
+    expect(regular.weight).toBe(400);
+    expect(semiBold.weight).toBe(700);
+    expect(bold.weight).toBe(700);
+  });
+
   it('caps how many elements a row can carry', () => {
     const elements = Array.from({ length: MAX_ELEMENTS + 8 }, (_, index) => ({ kind: 'rect', id: `r${index}` }));
 

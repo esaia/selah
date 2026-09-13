@@ -309,7 +309,7 @@ export const ProjectorLookPicker = ({
             <Plus className="size-5" />
           </div>
 
-          <span className="block truncate bg-studio-bg px-1.5 py-1 text-[11px] font-medium">New layout</span>
+          <span className="block truncate bg-studio-bg px-1.5 py-1 text-[11px] font-medium">New template</span>
         </button>
       </div>
 

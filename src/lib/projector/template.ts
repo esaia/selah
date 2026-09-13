@@ -83,7 +83,7 @@ export interface TextStyle {
   /** The type size, as a percentage of the frame's height. */
   size: number;
   autoSize: AutoSize;
-  weight: 400 | 600 | 700;
+  weight: 400 | 700;
   italic: boolean;
   caps: Caps;
   color: string;
@@ -679,7 +679,9 @@ const asTextStyle = (raw: Record<string, unknown>): TextStyle => {
     font: asString(raw.font, DEFAULT_TEXT.font) || DEFAULT_TEXT.font,
     size: clamp(raw.size as number, 0.5, 40, DEFAULT_TEXT.size),
     autoSize: asOne(raw.autoSize, ['shrink', 'fixed'] as const, 'shrink'),
-    weight: asOne(raw.weight, [400, 600, 700] as const, 400 as const),
+    // A stored 600 predates the Regular/Bold collapse — most typefaces here
+    // ship no distinct semi-bold cut, so it read as bold anyway.
+    weight: asOne(raw.weight === 600 ? 700 : raw.weight, [400, 700] as const, 400 as const),
     italic: raw.italic === true,
     caps: asOne(raw.caps, ['none', 'upper', 'lower'] as const, 'none'),
     color: asColor(raw.color, DEFAULT_TEXT.color) || DEFAULT_TEXT.color,

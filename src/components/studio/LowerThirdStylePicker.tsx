@@ -363,7 +363,7 @@ export const LowerThirdStylePicker = () => {
           </div>
 
           <span className="block truncate bg-studio-bg px-1.5 py-1 text-[11px] font-medium">
-            New strap
+            New template
           </span>
         </button>
       </div>

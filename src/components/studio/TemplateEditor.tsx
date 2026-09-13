@@ -530,22 +530,29 @@ const TextStyleRows = ({
       </p>
     </Row>
 
-    {/* Weight and italic are one question — how the type is cut — and italic
-        is on or off rather than one of two choices, so it is a switch beside
-        the weights instead of a second three-wide strip saying Aa twice. */}
+    {/* Weight and italic are one question — how the type is cut — and both
+        are on-or-off switches, not a three-wide Aa strip: almost none of our
+        shipped typefaces carry a real semi-bold cut, so Regular/Semi-bold/
+        Bold rendered as two identical "Aa"s more often than not. */}
     <Row label="Style">
       <div className="flex items-center gap-1.5">
-        <div className="min-w-0 flex-1">
-          <Toggles
-            value={style.weight}
-            options={[
-              { value: 400 as const, label: 'Regular', text: 'Aa', style: { fontWeight: 400 } },
-              { value: 600 as const, label: 'Semi-bold', text: 'Aa', style: { fontWeight: 600 } },
-              { value: 700 as const, label: 'Bold', text: 'Aa', style: { fontWeight: 700 } },
-            ]}
-            onPick={weight => patch({ weight })}
-          />
-        </div>
+        <button
+          type="button"
+          title="Bold"
+          aria-label="Bold"
+          aria-pressed={style.weight === 700}
+          onClick={() => patch({ weight: style.weight === 700 ? 400 : 700 })}
+          className={cn(
+            'flex h-7 w-7 shrink-0 items-center justify-center rounded-studio border border-studio-border',
+            'text-[13px] font-bold transition-colors duration-150 focus:outline-none focus-visible:ring-2',
+            'focus-visible:ring-studio-accent/40',
+            style.weight === 700
+              ? 'bg-studio-accent text-studio-onaccent'
+              : 'text-studio-muted hover:bg-studio-surface hover:text-studio-text',
+          )}
+        >
+          B
+        </button>
 
         <button
           type="button"

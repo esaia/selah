@@ -49,7 +49,7 @@ export const NewStrapModal = ({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="New strap" width="max-w-2xl">
+    <Modal open={open} onClose={onClose} title="New template" width="max-w-2xl">
       <p className="mb-3 text-[11px] leading-snug text-studio-faint">
         Start from one of the shipped looks, already in your colours, or draw on a blank one.
       </p>
