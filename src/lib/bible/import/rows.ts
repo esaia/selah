@@ -3,25 +3,6 @@ import type { ParsedBible } from '@/lib/bible/import/types';
 import type { Lang } from '@/lib/bible/languages';
 import { toLangBook } from '@/lib/bible/passage';
 
-/**
- * A parsed file as rows of `bible_translation_text`.
- *
- * The row is deliberately identical to a `bible_text` row, which is what lets
- * `/api/bible` read either through the one `chapterOf`. Two things are done
- * here and nowhere else:
- *
- * - `book` is the *parent language's* own book id, not the canonical one. A
- *   request carries `w` already remapped by `toLangBook`, so storing anything
- *   else would mean remapping on every read instead of once on import.
- * - `wigni` is `book - 3`, the id the API stamps on a verse — it is what the
- *   outputs print the book name from, and it has been book - 3 in everything
- *   we have ever mirrored.
- *
- * `chapters` is the highest chapter number the file actually carries for that
- * book, because that is the question the console asks it: how far the chapter
- * picker goes. A translation missing its last chapter says so rather than
- * offering an empty one.
- */
 export interface TranslationRow {
   translation_id: string;
   book: number;
@@ -52,7 +33,6 @@ export const rowsOf = (bible: ParsedBible, lang: Lang, translationId: string): T
       }));
   });
 
-/** Rows go up in batches, because a Bible is about 1,200 of them. */
 export const batched = <T,>(rows: T[], size = 100): T[][] => {
   const batches: T[][] = [];
 

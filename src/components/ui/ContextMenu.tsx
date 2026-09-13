@@ -6,13 +6,6 @@ import type { LucideIcon } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
 
-/**
- * One right-click menu, used the same way on a song, a library, a playlist or
- * a lower-third: `useContextMenu()` gives a row's `onContextMenu`, and
- * `<ContextMenu>` renders whatever actions that row supports. A row never
- * builds its own menu — the position math (flip left, flip up, clamp to the
- * viewport) only wants writing once.
- */
 export type ContextMenuItem =
   | { type: 'separator' }
   | {
@@ -49,9 +42,6 @@ export const ContextMenu = <T,>({
   if (!menu) return null;
 
   return createPortal(
-    // Keyed by the click point, which is different on every open: a fresh key
-    // mounts a fresh panel with its position unmeasured, rather than reusing
-    // one whose last-known position briefly shows through at the old spot.
     <Panel key={`${menu.x}:${menu.y}`} menu={menu} onClose={onClose} items={items(menu.data)} />,
     document.body,
   );
@@ -67,7 +57,6 @@ const Panel = <T,>({
   items: ContextMenuItem[];
 }) => {
   const ref = useRef<HTMLDivElement>(null);
-  // Placed off-screen until measured, so the flip never has a visible jump.
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
 
   useLayoutEffect(() => {
@@ -82,9 +71,6 @@ const Panel = <T,>({
     const y = menu.y + h + margin > window.innerHeight ? Math.max(margin, menu.y - h) : menu.y;
 
     setPos({ x, y });
-    // The click point is fixed for the lifetime of this panel — a new one
-    // mounts (see the key above) whenever it would change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

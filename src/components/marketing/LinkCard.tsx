@@ -1,12 +1,5 @@
 import Link from 'next/link';
 
-/**
- * The glyphs the card grids draw from.
- *
- * Drawn rather than photographed: a dozen stock pictures of church tech would
- * be a dozen strangers' buildings, and the site has never used a picture it
- * did not make. One stroke weight, one 24-unit box, `currentColor` throughout.
- */
 export type CardIcon =
   | 'languages'
   | 'book'
@@ -57,15 +50,6 @@ const Glyph = ({ icon }: { icon: CardIcon }) => (
   </svg>
 );
 
-/**
- * One page, as a card.
- *
- * The glyph sits on a band of its own on the left, the way a comparison page
- * carries its screenshot: a grid of these has to be readable as a list of
- * jobs, or of congregations, before any of the words are read. Use cases and
- * solutions are the same card — two grids that looked alike but were built
- * twice would drift apart the first time either was touched.
- */
 export const LinkCard = ({
   href,
   name,

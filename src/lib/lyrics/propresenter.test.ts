@@ -12,9 +12,6 @@ describe('rtfToText', () => {
     expect(rtfToText(`${HEADER}\\uc1\\pard\\f0\\fs200 Amazing grace}`)).toBe('Amazing grace');
   });
 
-  // The bug a `.pro` document exposed and a `.proBundle` did not: a list table
-  // with contents is not the empty `{\*\listoverridetable}` the old marker
-  // looked for, so the font's own name went to the wall with the lyrics.
   it('drops a list table that has contents', () => {
     const listed =
       `${HEADER}{\\*\\listtable{\\list\\listid1{\\listlevel{\\leveltext\\leveltemplateid1 \\'01\\u9679 ?;}}}}` +

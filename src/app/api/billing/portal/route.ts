@@ -4,7 +4,6 @@ import { dodo } from '@/lib/billing/dodo';
 import { admin } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
-/** Send the operator to Dodo to change, pause or cancel their plan. */
 export const POST = async () => {
   const supabase = await createClient();
   const {

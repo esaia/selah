@@ -15,8 +15,6 @@ import { bothPlansFor } from '@/lib/billing/plans';
 import { claimedSpots } from '@/lib/billing/seats';
 import { FAQ } from '@/lib/marketing/faq';
 
-/* The home page is the one most likely to be met by somebody searching the
-   category, so it carries its own title rather than inheriting the brand's. */
 const TITLE = 'Web-Based Church Presentation Software';
 
 const DESCRIPTION =
@@ -38,21 +36,16 @@ export const metadata = {
   twitter: { card: 'summary_large_image', title: `${TITLE} | LlamaPresenter`, description: DESCRIPTION },
 };
 
-/* The two type roles for the page: the rounded display face the brand is drawn
-   in, and the interface stack for everything read as a sentence. */
 const DISPLAY = 'font-valera tracking-tight text-site-ink';
 
-/** One concrete thing a feature covers, named rather than described. */
 const Tag = ({ children }: { children: React.ReactNode }) => (
   <span className="inline-block rounded-full bg-site-accent/35 px-2.5 py-1 text-[13px] font-medium text-site-ink">
     {children}
   </span>
 );
 
-/** A page elsewhere on the site that says more about this feature. */
 type FeatureLink = { label: string; href: string };
 
-/** A feature: a paragraph on one side, a screen on the other. */
 const Feature = ({
   id,
   title,
@@ -65,15 +58,11 @@ const Feature = ({
   id?: string;
   title: string;
   children: React.ReactNode;
-  /** What the paragraph just said, named one at a time. */
   tags?: string[];
-  /** Where to read more — its own use-case page, most often. */
   links?: FeatureLink[];
   visual: React.ReactNode;
   flip?: boolean;
 }) => (
-  // Half the padding a standalone section carries: two of these meet, so the
-  // gap between one feature and the next is twice whatever is set here.
   <section id={id} className="mx-auto max-w-7xl scroll-mt-20 px-6 py-8 sm:py-12">
     <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
       <div className={flip ? 'lg:order-last' : undefined}>
@@ -117,7 +106,6 @@ export default async function HomePage() {
 
   return (
     <main>
-      {/* ------------------------------------------------------------- hero */}
       <section>
         <div
           className="mx-auto grid max-w-7xl items-center gap-14 px-6 pt-12 pb-8
@@ -153,18 +141,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------- what they see */}
-      {/* The room going black behind the console as it grows, lifting again
-          past the video's own middle — see `Vignette`. */}
       <Vignette>
         <section id="room" className="mt-16 scroll-mt-20 border-y border-site-rule bg-site-band">
-          {/* The console gets the whole width. It is one picture of the whole
-              product, and a column of prose beside it only made it smaller —
-              what a volunteer sees for an hour on a Sunday is the argument. */}
           <div className="py-16 sm:py-24">
-            {/* The words go inside the zoom rather than above it: they are
-                pinned with the frame as one group, and the frame grows over
-                them. */}
             <ScrollZoom
               intro={
                 <div className="mx-auto max-w-3xl px-6 text-center">
@@ -187,7 +166,6 @@ export default async function HomePage() {
         </section>
       </Vignette>
 
-      {/* --------------------------------------------------------- features */}
       <Feature
         id="languages"
         title="One service. Every language."
@@ -282,11 +260,6 @@ export default async function HomePage() {
         </p>
       </Feature>
 
-      {/* ------------------------------------------------------------ price */}
-      {/* The band the "what they see" section uses, so price reads as its own
-          stop on the page rather than more of the paper the features sit on. */}
-      {/* The band is one provider: the switch above the cards also moves the
-          ladder in the column beside them. */}
       <CadenceProvider>
         <section className="border-y border-site-rule bg-site-band">
           <div className="mx-auto grid max-w-7xl gap-10 px-6 py-16 sm:py-24 lg:grid-cols-[1fr_1.2fr] lg:gap-16">
@@ -297,9 +270,6 @@ export default async function HomePage() {
                 the lower third, with no trial and no time limit. Pro is for teams that also run songs, music and their
                 own templates every week.
               </p>
-              {/* One line, and only while it is true. The row of marks that makes
-                  the offer legible lives on /pricing; here it is a fact and a
-                  door, not a second scarcity display. */}
               <FoundingSpots claimed={claimed} className="mt-8" />
 
               <Link href="/pricing" className="mt-6 inline-block text-[17px] text-site-ink underline underline-offset-4">
@@ -312,10 +282,6 @@ export default async function HomePage() {
         </section>
       </CadenceProvider>
 
-      {/* -------------------------------------------------------------- faq */}
-      {/* Every answer open, in two columns. A dozen questions behind
-          disclosure triangles is a dozen clicks to find out whether the thing
-          runs on Windows — the answers are short enough to simply print. */}
       <section id="faq" className="mx-auto max-w-5xl scroll-mt-20 px-6 py-16 sm:py-24">
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Frequently asked questions</h2>
@@ -325,9 +291,6 @@ export default async function HomePage() {
           </Link>
         </div>
 
-        {/* Columns rather than a grid: the questions run down one column and
-            continue in the next, and the browser balances the two whatever
-            length the answers are. */}
         <div className="mt-12 gap-x-14 sm:columns-2">
           {FAQ.map(item => (
             <div key={item.q} className="mb-9 break-inside-avoid">
@@ -338,7 +301,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* -------------------------------------------------------- last word */}
       <section className="bg-studio-bg">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-8 px-6 py-20 sm:py-24 lg:flex-row lg:items-center lg:justify-between">
           <div>

@@ -21,7 +21,6 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof VARIANTS;
   size?: keyof typeof SIZES;
   icon?: ReactNode;
-  /** Work is in flight: the button spins in place and stops taking clicks. */
   loading?: boolean;
 }
 

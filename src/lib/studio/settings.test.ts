@@ -46,8 +46,6 @@ describe('the template library', () => {
   it('names a new one past the ones already drawn, and after its own kind', () => {
     expect(newTemplateName(settings([]), 'verses')).toBe('Layout');
     expect(newTemplateName(settings([template('a', 'verses', 'Layout')]), 'verses')).toBe('Layout 2');
-    // The stream's are straps, and a projector layout of the same number is
-    // not in the way of one.
     expect(newTemplateName(settings([template('a', 'verses', 'Layout')]), 'stream')).toBe('Strap');
   });
 });

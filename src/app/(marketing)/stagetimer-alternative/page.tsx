@@ -7,7 +7,6 @@ import { Marker } from '@/components/marketing/Marker';
 import { Tick } from '@/components/marketing/Tick';
 import { findUseCase, LIVE_SEARCH_DEMO } from '@/lib/marketing/useCases';
 
-/* The rounded display face the brand is drawn in, as on the rest of the site. */
 const DISPLAY = 'font-valera tracking-tight text-site-ink';
 
 const TITLE = 'StageTimer Alternative: Worship Stage Timer Online | LlamaPresenter';
@@ -30,19 +29,11 @@ export const metadata = {
   twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
 };
 
-/**
- * The two names, spelled the same way everywhere on the page.
- *
- * StageTimer is a timing product for live events and this page says so plainly.
- * What it compares is the workflow each tool is built around, not who is better
- * at timing a countdown.
- */
 const OURS = 'LlamaPresenter';
 const THEIRS = 'StageTimer';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://llamapresenter.com';
 
-/** What sits around the timer, once the timer is not the whole job. */
 const NEEDS = [
   {
     title: 'Bible verses',
@@ -72,13 +63,6 @@ const NEEDS = [
   },
 ];
 
-/**
- * The table, in sentences on both sides.
- *
- * A bare yes against a bare no would read as a scoreboard between two products
- * that are not trying to do the same job. Where the answer for StageTimer is
- * simply that it is a timing tool, the row says that.
- */
 const COMPARISON: { label: string; ours: string; theirs: string }[] = [
   {
     label: 'Primary use',
@@ -110,7 +94,6 @@ const COMPARISON: { label: string; ours: string; theirs: string }[] = [
   },
 ];
 
-/** What the stage screen can carry. */
 const STAGE = [
   'Countdown and count-up',
   'Clock',
@@ -121,7 +104,6 @@ const STAGE = [
   'Timer-only stage display',
 ];
 
-/** The rest of the service, in the order a team meets it. */
 const SERVICE = [
   'Present Bible verses',
   'Show multiple languages side by side',
@@ -145,12 +127,6 @@ const AUDIENCE = [
   { title: 'Church production teams', body: 'Control the presentation, stage view, and timer from one place.' },
 ];
 
-/**
- * The questions, in one list.
- *
- * The visible section and the FAQPage structured data are rendered from this,
- * so a search result can never quote an answer the page does not carry.
- */
 const QUESTIONS = [
   {
     q: `Is ${OURS} a ${THEIRS} alternative?`,
@@ -184,14 +160,6 @@ const QUESTIONS = [
   },
 ];
 
-/**
- * What a search engine reads instead of the page.
- *
- * Two graphs only, and nothing in either that the page itself does not say:
- * no rating, no review, no price. The price of Pro moves while the founding
- * spots last, so an offer here would be out of date the week after it was
- * written.
- */
 const structuredData = {
   '@context': 'https://schema.org',
   '@graph': [
@@ -218,14 +186,12 @@ const structuredData = {
 };
 
 export default function StageTimerAlternativePage() {
-  /* The clip lives once, on the use case it was actually shot for. */
   const video = findUseCase('multilingual-church-services')?.video;
 
   return (
     <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
 
-      {/* ------------------------------------------------------------- hero */}
       <section className="mx-auto max-w-7xl px-6 pt-10 pb-8 sm:pt-14">
         <p className="text-sm font-medium tracking-wide text-site-faint uppercase">{THEIRS} alternative</p>
 
@@ -262,8 +228,6 @@ export default function StageTimerAlternativePage() {
             </div>
           </div>
 
-          {/* Pulled out to the section's own gutter on a wide screen, so the
-              artboard finishes at the edge of the page rather than inside it. */}
           <div className="lg:-mr-6">
             <Image
               src="/images/compare-stagetimer.webp"
@@ -279,7 +243,6 @@ export default function StageTimerAlternativePage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------------------- intro */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto grid max-w-7xl gap-6 px-6 py-14 sm:py-16 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Looking for a {THEIRS} alternative?</h2>
@@ -299,7 +262,6 @@ export default function StageTimerAlternativePage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------- when a timer is not enough */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>When a timer is not enough</h2>
 
@@ -325,7 +287,6 @@ export default function StageTimerAlternativePage() {
         </div>
       </section>
 
-      {/* -------------------------------------------------------------- table */}
       <section id="table" className="border-y border-site-rule bg-site-band">
         <div className="mx-auto max-w-7xl scroll-mt-20 px-6 py-16 sm:py-24">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>
@@ -418,10 +379,8 @@ export default function StageTimerAlternativePage() {
         </div>
       </section>
 
-      {/* -------------------------------------------------------------- demo */}
       <ConsoleDemo video={LIVE_SEARCH_DEMO} />
 
-      {/* --------------------------------------------------- the main difference */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <div className="grid gap-6 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>A timer is part of the service</h2>
@@ -439,7 +398,6 @@ export default function StageTimerAlternativePage() {
         </div>
       </section>
 
-      {/* --------------------------------------------------------- stage timer */}
       <section className="mx-auto max-w-7xl px-6 pb-16 sm:pb-24">
         <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
           <div>
@@ -470,7 +428,6 @@ export default function StageTimerAlternativePage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------- the rest of the service */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-6 py-16 sm:py-24 lg:grid-cols-2 lg:gap-16">
           <div>
@@ -518,7 +475,6 @@ export default function StageTimerAlternativePage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------- when theirs is the fit */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <div className="grid gap-6 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>When {THEIRS} may be the better fit</h2>
@@ -539,7 +495,6 @@ export default function StageTimerAlternativePage() {
         </div>
       </section>
 
-      {/* ---------------------------------------------------------- audience */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Who should use {OURS}?</h2>
@@ -563,10 +518,8 @@ export default function StageTimerAlternativePage() {
         </div>
       </section>
 
-      {/* --------------------------------------------------------- translations demo */}
       {video ? <ConsoleDemo video={video} /> : null}
 
-      {/* --------------------------------------------------------- questions */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>{THEIRS} alternative FAQ</h2>
 
@@ -580,7 +533,6 @@ export default function StageTimerAlternativePage() {
         </div>
       </section>
 
-      {/* -------------------------------------------------------- last word */}
       <section className="bg-studio-bg">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-8 px-6 py-20 sm:py-24 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -607,7 +559,6 @@ export default function StageTimerAlternativePage() {
         </div>
       </section>
 
-      {/* The one line of small print the page owes anybody: whose name that is. */}
       <p className="mx-auto max-w-7xl px-6 pt-10 pb-12 text-sm leading-relaxed text-site-faint">
         {THEIRS} is a trademark of its owner, and ProPresenter is a trademark of Renewed Vision, LLC. {OURS} is not
         affiliated with, endorsed by or sponsored by either of them. Their names are used here only to say which

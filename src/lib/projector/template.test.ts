@@ -76,7 +76,6 @@ describe('asTemplate', () => {
     expect(one.opacity).toBe(1);
     expect(one.lineHeight).toBe(0.8);
     expect(one.color).toBe('#ffffff');
-    // An unreadable plate falls back to no plate, not to black.
     expect(one.plate).toBe('');
   });
 

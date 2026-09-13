@@ -7,18 +7,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Cadence } from '@/lib/billing/founding';
 import { supabase } from '@/lib/supabase/client';
 
-/**
- * The step between "Get Pro" on the marketing page and Dodo's checkout.
- *
- * The checkout session is created by us rather than linked to, because the
- * customer has to exist in our `subscriptions` row before the operator ever
- * reaches the payment page — see `/api/billing/checkout`. So the button on the
- * public page cannot be a link to the provider; it is a link to here, and here
- * asks for the session and leaves.
- *
- * A visitor who is not signed in never gets this far: `/upgrade` is not public,
- * so the middleware sends them to sign in and back again.
- */
 export const StartCheckout = ({
   billing,
   price,
@@ -30,8 +18,6 @@ export const StartCheckout = ({
 }) => {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  // Two effects in development would be two checkout sessions, and the second
-  // is the one the operator would pay on while the first sits open.
   const asked = useRef(false);
 
   const start = useCallback(async () => {
@@ -50,9 +36,6 @@ export const StartCheckout = ({
         return;
       }
 
-      // A demo room, not a real account: there is nothing to explain, only
-      // somewhere real to sign in. Drop the guest session so the Google button
-      // opens a fresh one instead of quietly reusing it.
       if (body.code === 'anonymous') {
         await supabase().auth.signOut();
         router.push('/login?next=/upgrade');

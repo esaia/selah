@@ -12,7 +12,6 @@ import { plansFor, type Plan, type PlanId } from '@/lib/billing/plans';
 import { claimedSpots } from '@/lib/billing/seats';
 import { findUseCase, LIVE_SEARCH_DEMO } from '@/lib/marketing/useCases';
 
-/* The rounded display face the brand is drawn in, as on the rest of the site. */
 const DISPLAY = 'font-valera tracking-tight text-site-ink';
 
 const TITLE = 'Web-Based ProPresenter Alternative for Churches | LlamaPresenter';
@@ -36,21 +35,9 @@ export const metadata = {
   twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
 };
 
-/**
- * The two names, drawn the same way wherever the page sets them against each
- * other. Ours takes the accent; theirs takes the paper — the point of the page
- * is the difference between the columns, not a colour saying who should win.
- */
 const OURS = 'LlamaPresenter';
 const THEIRS = 'ProPresenter';
 
-/**
- * The table, row by row.
- *
- * Short on both sides. A cell is a phrase, not a paragraph: a reader scanning
- * two columns is comparing, not reading, and the pages below the table are
- * where the argument gets made at length.
- */
 const comparison = (PLANS: Record<PlanId, Plan>): { group: string; rows: { label: string; ours: string; theirs: string }[] }[] => [
   {
     group: 'Getting it running',
@@ -144,7 +131,6 @@ const comparison = (PLANS: Record<PlanId, Plan>): { group: string; rows: { label
   },
 ];
 
-/** The rows where a tick on both sides is the honest answer. */
 const SHARED = [
   'Bible search and verse slides',
   'Song lyrics and a song library',
@@ -158,7 +144,6 @@ const SHARED = [
   'Lower thirds over the stream',
 ];
 
-/** The three things a reader wants before they scroll. */
 const HEADLINES = [
   {
     title: '100% web-based, zero install',
@@ -180,7 +165,6 @@ const HEADLINES = [
   },
 ];
 
-/** Where the honest answer is "use theirs". */
 const THEIRS_IS_BETTER = [
   'Your service runs without reliable internet, today. A native app on a machine in the booth does not care '
     + 'about the building’s wifi; a browser tab does. Our own Mac and Windows apps are on the way for that room.',
@@ -244,21 +228,13 @@ export const revalidate = 60;
 export default async function ProPresenterAlternativePage() {
   const PLANS = plansFor(await claimedSpots());
   const COMPARISON = comparison(PLANS);
-  /* The clip lives once, on the use case it was actually shot for. */
   const video = findUseCase('multilingual-church-services')?.video;
 
   return (
     <main>
-      {/* ------------------------------------------------------------- hero */}
       <section className="mx-auto max-w-7xl px-6 pt-10 pb-8 sm:pt-14">
         <p className="text-sm font-medium tracking-wide text-site-faint uppercase">{THEIRS} alternative</p>
 
-        {/* Headline on the left, the two machines on the right. The banner
-            used to run the full width under the text, which left the fold as a
-            column of words with nothing beside it — and the whole argument of
-            the page is the pair of screens, so it belongs where the reader
-            already is. The picture column is given the larger share: it is a
-            wide artboard, and at half the page neither laptop reads. */}
         <div className="mt-5 grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-12">
           <div>
             <h1 className={`${DISPLAY} text-[clamp(2.2rem,4.4vw,3.4rem)] leading-[1.05]`}>
@@ -293,8 +269,6 @@ export default async function ProPresenterAlternativePage() {
             <p className="mt-4 text-sm text-site-faint">Zero setup. No app downloads. Works on any device.</p>
           </div>
 
-          {/* Pulled out to the section's own gutter on a wide screen, so the
-              artboard finishes at the edge of the page rather than inside it. */}
           <div className="lg:-mr-6">
             <Image
               src="/images/compare-propresenter.webp"
@@ -310,7 +284,6 @@ export default async function ProPresenterAlternativePage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------------ short version */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto grid max-w-7xl gap-6 px-6 py-14 sm:py-16 md:grid-cols-3">
           {HEADLINES.map(item => (
@@ -322,10 +295,6 @@ export default async function ProPresenterAlternativePage() {
         </div>
       </section>
 
-      {/* -------------------------------------------------------------- table */}
-      {/* Both columns in sentences. A tick against a blank would settle every
-          row in our favour and tell the reader nothing about the row where the
-          difference is a shape rather than a shortfall. */}
       <section id="table" className="mx-auto max-w-7xl scroll-mt-20 px-6 py-16 sm:py-24">
         <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>
           {OURS} vs {THEIRS}
@@ -336,10 +305,6 @@ export default async function ProPresenterAlternativePage() {
           the table.
         </p>
 
-        {/* One sheet of paper, with our column tinted the brand yellow down
-            its whole height. The tick beside every line already told it apart,
-            but only once you were reading; the tint tells you before you
-            start which column the page is written from. */}
         <div
           className="mt-10 overflow-x-auto rounded-studio-lg border border-site-rule bg-site-surface lg:overflow-visible"
         >
@@ -393,10 +358,6 @@ export default async function ProPresenterAlternativePage() {
                     <td className="border-t border-site-rule" />
                   </tr>
 
-                  {/* One rule per group, none between rows: every row here is a
-                      pair of paragraphs with its own name in the margin, and a
-                      hairline under each of them turned the table into a grid
-                      of boxes to read past. */}
                   {section.rows.map(row => (
                     <tr key={row.label} className="align-top">
                       <th
@@ -429,10 +390,8 @@ export default async function ProPresenterAlternativePage() {
         <BothCover theirs={THEIRS} items={SHARED} />
       </section>
 
-      {/* -------------------------------------------------------------- demo */}
       <ConsoleDemo video={LIVE_SEARCH_DEMO} />
 
-      {/* ---------------------------------------------------------- the detail */}
       <Detail
         title="Multi-screen output, without a video card"
         visual={
@@ -541,9 +500,6 @@ export default async function ProPresenterAlternativePage() {
         </p>
       </Detail>
 
-      {/* ------------------------------------------------- where theirs is better */}
-      {/* On a page with our name at the top, the section that costs us something
-          is the one that makes the rest of it worth reading. */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto grid max-w-7xl gap-10 px-6 py-16 sm:py-24 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
           <div>
@@ -588,10 +544,8 @@ export default async function ProPresenterAlternativePage() {
         </p>
       </section>
 
-      {/* --------------------------------------------------------- translations demo */}
       {video ? <ConsoleDemo video={video} /> : null}
 
-      {/* --------------------------------------------------------- questions */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Questions about switching</h2>
 
@@ -605,7 +559,6 @@ export default async function ProPresenterAlternativePage() {
         </div>
       </section>
 
-      {/* -------------------------------------------------------- last word */}
       <section className="bg-studio-bg">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-8 px-6 py-20 sm:py-24 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -638,7 +591,6 @@ export default async function ProPresenterAlternativePage() {
         </div>
       </section>
 
-      {/* The one line of small print the page owes anybody: whose name that is. */}
       <p className="mx-auto max-w-7xl px-6 pt-10 pb-12 text-sm leading-relaxed text-site-faint">
         {THEIRS} is a trademark of Renewed Vision, LLC. {OURS} is not affiliated with, endorsed by or sponsored by
         Renewed Vision. Product names are used here only to say which product we are comparing ourselves with.
@@ -647,7 +599,6 @@ export default async function ProPresenterAlternativePage() {
   );
 }
 
-/** A claim on one side, a screen of the app on the other. */
 const Detail = ({
   title,
   children,
@@ -659,8 +610,6 @@ const Detail = ({
   visual: React.ReactNode;
   flip?: boolean;
 }) => (
-  // Half the padding a standalone section carries: two of these meet, so the
-  // gap between one and the next is twice whatever is set here.
   <section className="mx-auto max-w-7xl px-6 py-8 sm:py-12">
     <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
       <div className={flip ? 'lg:order-last' : undefined}>

@@ -1,24 +1,6 @@
 import { specOf, type Lang } from '@/lib/bible/languages';
-/**
- * How many chapters each book has, and how many verses each chapter has.
- *
- * This never changes, so the browse modal can draw its chapter and verse grids
- * without waiting on the network. Keyed by the shared (Georgian) book id, and
- * indexed by chapter - 1. The numbers are the Masoretic/Protestant counts the
- * API returns for English.
- *
- * Psalms is the one book where the Septuagint languages — Georgian, Russian
- * and Ukrainian — disagree with that: same 150 psalms, different splits.
- * `verseCount` derives those counts from the table using the same mapping
- * `src/data/psalms.js` uses for references, so only one table is maintained.
- *
- * Counts are a hint, not the truth: the modal shows them immediately and
- * corrects itself from the API response, which also covers the odd translation
- * that numbers a chapter differently.
- */
 import { PSALMS_BOOK } from '@/lib/bible/psalms';
 
-// prettier-ignore
 export const versesPerChapter: Record<number, number[]> = {
   4: [31,25,24,26,32,22,24,22,29,32,32,20,18,24,21,16,27,33,38,18,34,24,20,67,34,35,46,22,35,43,55,32,20,31,29,43,36,30,23,23,57,38,34,34,28,34,31,22,33,26],
   5: [22,25,22,31,23,30,25,32,35,29,10,51,22,31,27,36,16,27,25,26,36,31,33,18,40,37,21,43,46,38,18,35,23,35,35,38,29,31,43,38],
@@ -88,15 +70,10 @@ export const versesPerChapter: Record<number, number[]> = {
   69: [20,29,22,11,14,17,17,13,21,11,19,17,18,20,8,21,18,24,21,15,27,21],
 };
 
-/** How many chapters a book has, or 0 if it is not a known book. */
 export const chapterCount = (book: number): number => versesPerChapter[book]?.length || 0;
 
 const hebrew = (chapter: number): number => versesPerChapter[PSALMS_BOOK][chapter - 1] || 0;
 
-/**
- * Verses in a Septuagint psalm, from the Masoretic counts. Mirrors the splits
- * and merges spelled out in `src/data/psalms.js`.
- */
 const septuagintPsalm = (chapter: number): number => {
   if (chapter <= 8 || chapter >= 148) {
     return hebrew(chapter);
@@ -114,7 +91,6 @@ const septuagintPsalm = (chapter: number): number => {
     return hebrew(114) + hebrew(115);
   }
 
-  // Hebrew 116 is split after its 9th verse.
   if (chapter === 114) {
     return 9;
   }
@@ -127,7 +103,6 @@ const septuagintPsalm = (chapter: number): number => {
     return hebrew(chapter + 1);
   }
 
-  // Hebrew 147 is split after its 11th verse.
   if (chapter === 146) {
     return 11;
   }
@@ -135,7 +110,6 @@ const septuagintPsalm = (chapter: number): number => {
   return hebrew(147) - 11;
 };
 
-/** How many verses a chapter has in `lang`, or 0 if it is out of range. */
 export const verseCount = (book: number, chapter: number, lang: Lang): number => {
   if (!chapter || chapter > chapterCount(book)) {
     return 0;

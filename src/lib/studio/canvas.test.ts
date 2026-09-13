@@ -62,8 +62,6 @@ describe('resizeBy', () => {
       expect(after.h).toBeGreaterThanOrEqual(MIN_H - 1e-9);
     }
 
-    // Pulled past its own right edge, a west grip stops there rather than
-    // dragging the box off to the left.
     expect(round(resizeBy(box(), 'w', 5, 0))).toEqual({ x: 0.6 - MIN_W, y: 0.2, w: MIN_W, h: 0.3 });
   });
 });
@@ -182,7 +180,6 @@ describe('snapAngle', () => {
 describe('angleFrom', () => {
   it('reads zero straight up and turns clockwise', () => {
     expect(angleFrom(0, 0, 0, -10)).toBe(0);
-    // The y axis points down the screen, so clockwise is to the right.
     expect(angleFrom(0, 0, 10, 0)).toBe(90);
     expect(angleFrom(0, 0, 0, 10)).toBe(180);
     expect(angleFrom(0, 0, -10, 0)).toBe(-90);
@@ -197,8 +194,6 @@ describe('unrotate', () => {
   it('reads a drag along the box’s own axes once it is turned', () => {
     const { dx, dy } = unrotate(0, 10, 90);
 
-    // Dragging down the screen on a box turned a quarter turn is dragging
-    // along its own width.
     expect(dx).toBeCloseTo(10);
     expect(dy).toBeCloseTo(0);
   });

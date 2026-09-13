@@ -13,8 +13,6 @@ describe('the canon table', () => {
     expect(new Set(CANON.map(book => book.shared)).size).toBe(66);
   });
 
-  // The whole point of the table: a file says GEN and the app has to count in
-  // Georgian ordering, where Genesis is 4 and James is 48.
   it('lands every book on the shared id the app counts in', () => {
     expect(bookByUsfm('GEN')?.shared).toBe(4);
     expect(bookByUsfm('REV')?.shared).toBe(69);
@@ -22,9 +20,6 @@ describe('the canon table', () => {
     expect(bookByUsfm('ROM')?.shared).toBe(55);
   });
 
-  // The one disagreement is a typo in the catalogue we mirrored, not a
-  // disagreement about which book it is: `languages.json` spells Habakkuk
-  // "Habbakuk", and the file the operator uploads will not.
   it('names each of them what the English catalogue names it', () => {
     for (const book of CANON) {
       expect(bookName(book.shared, 'eng')).toBe(book.english === 'Habakkuk' ? 'Habbakuk' : book.english);

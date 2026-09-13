@@ -60,35 +60,19 @@ export interface ProjectorInitial {
   showData: ShowData;
   projector: Partial<ProjectorStyle>;
   timer: TimerState;
-  /** The operator has taken the room's screen to black. */
   black: boolean;
 }
 
-/**
- * The projector output.
- *
- * It renders whatever the console last pushed, and nothing else: no controls,
- * no account, no settings of its own. The look arrives with the slide because
- * this page cannot read the operator's settings row.
- */
 export const Projector = ({ outputKey, initial }: { outputKey: string; initial: ProjectorInitial }) => {
   const [showData, setShowData] = useState<ShowData>(initial.showData ?? emptyShowData());
   const [style, setStyle] = useState<ProjectorStyle>({ ...defaultStyle, ...initial.projector });
 
-  // The stage timer, which takes the screen when the console arms it onto the
-  // projector. Carried by the same payload as the slide, so arming it is one
-  // message and not a second channel to keep in step.
   const [timer, setTimer] = useState<TimerState>(initial.timer);
 
-  // The Audience key. It covers the screen rather than clearing it: the slide
-  // stays mounted, already fitted, so unblacking is instant and shows exactly
-  // what was there before.
   const [black, setBlack] = useState(initial.black);
   const channelRef = useRef<LiveChannel | null>(null);
   const [peerId] = useState(newPeerId);
 
-  // Stable, and delegating to whatever channel is open. Built here rather than
-  // stored once the channel exists so opening one costs no extra render.
   const transport = useMemo<SignalTransport>(
     () => ({
       peerId,
@@ -98,7 +82,6 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
     [peerId],
   );
 
-  // What is actually on screen, which lags `showData` by half a crossfade.
   const [displayed, setDisplayed] = useState<ShowData>(showData);
 
   const textRef = useRef<HTMLDivElement>(null);
@@ -108,8 +91,6 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
     channelRef.current = channel;
 
     const off = channel.onSlide((payload: SlidePayload) => {
-      // Same slide, new timer — hold the object so the crossfade below does
-      // not run for a change the screen does not draw.
       setShowData(current => keepSame(current, payload.showData ?? emptyShowData()));
       setStyle(current => keepSame(current, { ...defaultStyle, ...payload.projector }));
       setTimer(withSkew(asTimerState(payload.timer)));
@@ -125,13 +106,8 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
 
   const localUrl = useLocalBackground(style.theme === LOCAL_THEME ? style.localImage : null, transport);
 
-  // The pictures a custom template places, pulled over the same peer path the
-  // background uses — nothing about them is uploaded either.
   const assets = useLocalFiles(useMemo(() => [...filesUsedBy(style.template), ...filesUsedBy(style.lyricsTemplate)], [style.lyricsTemplate, style.template]), transport);
 
-  // The operator's own typefaces, fetched by this page rather than served to
-  // it: a font is a link, which is why it needs none of the peer machinery a
-  // background does.
   useCustomFonts(style.fonts ?? []);
   useCustomLangs(style.langs);
 
@@ -142,25 +118,12 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
     return themeSrc(style.theme);
   }, [localUrl, style.dynamicImage, style.theme]);
 
-  // Crossfade: the outgoing slide fades out over half the transition, the
-  // incoming one fades in over the other half. Zero is a hard cut, swapped in
-  // the same tick so the screen never blanks, however briefly.
   const cut = style.transitionMs === 0;
-  // A hard cut has nothing to fade, so it draws the incoming slide directly and
-  // the screen never blanks, however briefly.
-  // Disarming a language rebuilds the slide without it, and the words that
-  // remain are the ones already on screen. That is a line being dropped, not a
-  // slide being changed, so it goes up at once: read as a new slide it would
-  // crossfade out and back, which from the back of a hall is the projector
-  // blinking because the operator touched a switch.
   const restyled = showData !== displayed && sameVerse(displayed, showData);
 
   const onScreen = cut || restyled ? showData : displayed;
 
-  // Mid-crossfade is exactly "a new slide has arrived and is not on screen
-  // yet", so visibility is read off that rather than tracked separately.
   const visible = cut || restyled || showData === displayed;
-
 
   useEffect(() => {
     if (visible) return;
@@ -174,21 +137,12 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
 
   const look = lookOf(lyrics ? style.lyricsLook : style.look, lyrics);
 
-  /**
-   * Fit what is on screen, within the bounds the chosen look asks for. The
-   * ceiling stops a two-word verse from filling the whole projector; the floor
-   * keeps a long passage legible.
-   */
   const resize = useCallback(() => {
-    // The custom template fits each of its boxes inside its own rectangle, so
-    // there is no one font size for the slide to be given.
     if (look.selfFit) return;
 
     const { available, min, max } = fitTo(look, window.innerHeight, {
       cap: lyrics ? LYRICS_MAX_FONT_SIZE : MAX_FONT_SIZE,
       min: MIN_FONT_SIZE,
-      // Each kind of slide is sized by its own pair: a song and a verse are
-      // fitted to different ceilings, so one held size could not serve both.
       scale: lyrics ? style.lyricsScale : style.verseScale,
       size: lyrics ? style.lyricsSize : style.verseSize,
     });
@@ -199,8 +153,6 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
   useEffect(() => {
     resize();
 
-    // The projector font arrives asynchronously; the first measurement uses
-    // fallback metrics, so refit once it has actually swapped in.
     const cancelFontRefit = refitOnFontLoad(resize);
     const frame = requestAnimationFrame(resize);
 
@@ -220,29 +172,19 @@ export const Projector = ({ outputKey, initial }: { outputKey: string; initial: 
           className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-cover bg-center bg-no-repeat"
           style={background ? { backgroundImage: `url(${background})` } : undefined}
         >
-          {/* Scrim: projector bulbs wash out white text on a bright photograph. */}
           <div className="absolute inset-0 bg-black/55" />
 
-          {/* Armed from the timer tab, and then it *is* the slide: a countdown
-              before a service, or a clock between sessions, wants the screen
-              rather than a corner of it. */}
           {timer.onProjector ? (
             <div className="absolute inset-0 z-20">
               <TimerScreen state={timer} showClock={false} />
             </div>
           ) : null}
 
-          {/* Over everything, including the timer: the key says "this screen is
-              off", and a countdown showing through would be a screen that is
-              not. */}
           {black ? <div className="absolute inset-0 z-30 bg-black" /> : null}
 
           <div
             className="relative flex h-full w-full items-center justify-center"
             style={{
-              // The timer takes the screen rather than sharing it, but the verse
-              // stays mounted underneath so disarming brings it back already
-              // fitted, with no reflow the room can see.
               opacity: !timer.onProjector && visible ? 1 : 0,
               transition: cut ? 'none' : `opacity ${style.transitionMs / 2}ms ease-in-out`,
             }}

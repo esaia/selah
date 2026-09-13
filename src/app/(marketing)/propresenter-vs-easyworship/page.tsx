@@ -7,7 +7,6 @@ import { plansFor, type Plan, type PlanId } from '@/lib/billing/plans';
 import { claimedSpots } from '@/lib/billing/seats';
 import { findUseCase, LIVE_SEARCH_DEMO } from '@/lib/marketing/useCases';
 
-/* The rounded display face the brand is drawn in, as on the rest of the site. */
 const DISPLAY = 'font-valera tracking-tight text-site-ink';
 
 const OURS = 'LlamaPresenter';
@@ -36,13 +35,8 @@ export const metadata = {
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://llamapresenter.com';
 
-/** When the two other columns were read off their makers' own pages. */
 const CHECKED = 'September 2026';
 
-/* Ours is last here, and small. The page is about the two of them: a church
-   searching "ProPresenter vs EasyWorship" has already made a shortlist, and a
-   page that answers a different question than the one asked is worth nothing
-   to them and nothing to us. */
 const COLUMNS: CompareColumn[] = [
   { name: A, href: '/propresenter-alternative' },
   { name: B, href: '/easyworship-alternative' },
@@ -96,7 +90,6 @@ const groups = (PLANS: Record<PlanId, Plan>): CompareGroup[] => [
   },
 ];
 
-/** The two or three sentences a church on this shortlist actually needs. */
 const VERDICTS = [
   {
     title: `Pick ${A} if`,
@@ -180,14 +173,12 @@ export const revalidate = 60;
 export default async function ProPresenterVsEasyWorshipPage() {
   const PLANS = plansFor(await claimedSpots());
   const GROUPS = groups(PLANS);
-  /* The clip lives once, on the use case it was actually shot for. */
   const video = findUseCase('multilingual-church-services')?.video;
 
   return (
     <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
 
-      {/* ------------------------------------------------------------- hero */}
       <section className="mx-auto max-w-7xl px-6 pt-10 pb-8 sm:pt-14">
         <p className="text-sm font-medium tracking-wide text-site-faint uppercase">
           <Link href="/compare" className="transition-colors hover:text-site-muted">
@@ -216,7 +207,6 @@ export default async function ProPresenterVsEasyWorshipPage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------------------ matrix */}
       <section className="mx-auto max-w-7xl px-6 py-10 sm:py-14">
         <CompareMatrix columns={COLUMNS} groups={GROUPS} />
 
@@ -226,10 +216,8 @@ export default async function ProPresenterVsEasyWorshipPage() {
         </p>
       </section>
 
-      {/* -------------------------------------------------------------- demo */}
       <ConsoleDemo video={LIVE_SEARCH_DEMO} padding="py-10 sm:py-14" />
 
-      {/* ---------------------------------------------------------- verdicts */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto max-w-7xl px-6 py-16 sm:py-20">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Which one</h2>
@@ -245,7 +233,6 @@ export default async function ProPresenterVsEasyWorshipPage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------------ the third one */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-20">
         <div className="grid gap-6 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>The third option</h2>
@@ -276,10 +263,8 @@ export default async function ProPresenterVsEasyWorshipPage() {
         </div>
       </section>
 
-      {/* --------------------------------------------------------- translations demo */}
       {video ? <ConsoleDemo video={video} band={false} padding="py-10 sm:py-14" /> : null}
 
-      {/* --------------------------------------------------------- questions */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto max-w-7xl px-6 py-16 sm:py-20">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>
@@ -297,7 +282,6 @@ export default async function ProPresenterVsEasyWorshipPage() {
         </div>
       </section>
 
-      {/* -------------------------------------------------------- last word */}
       <section className="bg-studio-bg">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-8 px-6 py-20 sm:py-24 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -324,7 +308,6 @@ export default async function ProPresenterVsEasyWorshipPage() {
         </div>
       </section>
 
-      {/* The one line of small print the page owes anybody: whose names those are. */}
       <p className="mx-auto max-w-7xl px-6 pt-10 pb-12 text-sm leading-relaxed text-site-faint">
         {A} is a trademark of Renewed Vision, LLC, and {B} is a trademark of Softouch Development, Inc.{' '}
         {OURS} is not affiliated with, endorsed by or sponsored by either of them, and their names are used here

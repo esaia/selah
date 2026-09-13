@@ -22,16 +22,6 @@ export const metadata = {
   twitter: { card: 'summary_large_image', title: `${TITLE} | LlamaPresenter`, description: DESCRIPTION },
 };
 
-/**
- * Every question in one column, answers printed rather than hidden.
- *
- * The home page's own #faq section runs the same list in two columns, for a
- * reader who is still deciding; this is the page for someone who already
- * searched their exact question and wants nothing between them and the
- * answer — so no accordion, no filter box, just the list, in the order a
- * church tends to ask it: what this is, before what it costs, before what it
- * carries.
- */
 export default function FaqPage() {
   return (
     <main>

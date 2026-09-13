@@ -2,38 +2,21 @@ import type { CardIcon } from '@/components/marketing/LinkCard';
 
 import { LANGUAGES_ART, type MarketingArt, OUTPUTS_ART, REMOTE_ART, TIMER_ART } from './art';
 
-/**
- * The solutions: who a church is, rather than what it does on Sunday.
- *
- * The line between these and `useCases.ts` is worth holding. A use case is a
- * job — verses on a screen, a countdown, a lower third — and it is the same
- * job in every building. A solution is a congregation: what it already has in
- * the room, who runs the desk, and what usually goes wrong for a church that
- * shape. Two pages that answered the same question would split their own
- * search results and be worth less than one.
- */
 export type Solution = {
   slug: string;
-  /** On the card, in the footer and in the breadcrumb. */
   name: string;
   card: string;
   icon: CardIcon;
   title: string;
   description: string;
-  /** The headline, split where the yellow stroke starts. */
   headline: [string, string];
   lede: string;
   art: MarketingArt;
-  /** What this church is up against, in its own words. */
   problem: string[];
-  /** What answers it here. */
   points: { title: string; body: string }[];
-  /** The same answer as a running order. */
   steps: string[];
   faq: { q: string; a: string }[];
-  /** The jobs this church came for. Slugs from `useCases.ts`. */
   useCases: string[];
-  /** The two other congregations closest to this one. */
   related: string[];
 };
 
@@ -544,6 +527,5 @@ export const SOLUTIONS: Solution[] = [
   },
 ];
 
-/** One row by slug. Not `useSolution`: eslint reads that name as a hook. */
 export const findSolution = (slug: string): Solution | undefined =>
   SOLUTIONS.find(item => item.slug === slug);

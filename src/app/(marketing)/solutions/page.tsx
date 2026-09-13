@@ -5,7 +5,6 @@ import { Marker } from '@/components/marketing/Marker';
 import { Monitor } from '@/components/marketing/Monitor';
 import { SOLUTIONS } from '@/lib/marketing/solutions';
 
-/* The rounded display face the brand is drawn in, as on the rest of the site. */
 const DISPLAY = 'font-valera tracking-tight text-site-ink';
 
 const OURS = 'LlamaPresenter';
@@ -33,7 +32,6 @@ export const metadata = {
 export default function SolutionsPage() {
   return (
     <main>
-      {/* ------------------------------------------------------------- hero */}
       <section className="mx-auto max-w-7xl px-6 pt-10 pb-8 sm:pt-14">
         <p className="text-sm font-medium tracking-wide text-site-faint uppercase">Solutions</p>
 
@@ -67,7 +65,6 @@ export default function SolutionsPage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------------------- cards */}
       <section className="border-t border-site-rule bg-site-band">
         <div className="mx-auto max-w-7xl px-6 py-14 sm:py-20">
           <div className="grid gap-5 md:grid-cols-2">
@@ -96,7 +93,6 @@ export default function SolutionsPage() {
         </div>
       </section>
 
-      {/* -------------------------------------------------------- last word */}
       <section className="bg-studio-bg">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-8 px-6 py-20 sm:py-24 lg:flex-row lg:items-center lg:justify-between">
           <div>

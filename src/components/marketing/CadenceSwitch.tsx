@@ -4,19 +4,6 @@ import { ANNUAL_BADGE, CADENCES, type Cadence } from '@/lib/billing/founding';
 
 import { useCadence } from './cadence';
 
-/**
- * Monthly or yearly, drawn once and used wherever a price is offered.
- *
- * A pair of buttons rather than a checkbox: "billed annually" as a tick beside
- * a price makes the reader work out what they would pay, and the number they
- * are choosing between is the whole decision. Both prices are already on the
- * page — the plans arrive from the server as a pair — so flipping this is a
- * state change and never a fetch.
- *
- * The saving rides on the yearly side rather than under the price, because it
- * is the reason to press it, and a reader who has already pressed it does not
- * need telling twice.
- */
 const LABELS: Record<Cadence, string> = { monthly: 'Monthly', annual: 'Yearly' };
 
 export const CadenceSwitch = ({ className = '' }: { className?: string }) => {

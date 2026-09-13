@@ -34,7 +34,6 @@ describe('commit', () => {
     for (let step = 1; step <= HISTORY_LIMIT + 20; step += 1) history = commit(history, step);
 
     expect(history.past).toHaveLength(HISTORY_LIMIT);
-    // 120 steps taken, the last 100 kept: the oldest still remembered is 20.
     expect(history.past[0]).toBe(20);
     expect(history.present).toBe(HISTORY_LIMIT + 20);
   });

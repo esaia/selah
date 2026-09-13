@@ -127,8 +127,6 @@ describe('OSIS', () => {
     ]);
   });
 
-  // The same file may do it either way, so both have to work or half a Bible
-  // comes back empty.
   it('reads a verse that is only marked', () => {
     expect(parsed?.books[1].chapters[0].verses).toEqual([
       [1, 'James, a servant.'],
@@ -198,8 +196,6 @@ describe('the book names a file carries', () => {
     expect(parsed.books[0].name).toBe('Genesis');
   });
 
-  // A handful of names and fifty-odd blanks is worse than the English list: a
-  // browse list with gaps in it cannot be used at all, and the fallback can.
   it('refuses a file that names only some of them', () => {
     expect(bookNamesOf(parseBibleXml(zefania)!, english)).toBeNull();
   });

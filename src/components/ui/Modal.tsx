@@ -6,27 +6,12 @@ import { HiOutlineX } from 'react-icons/hi';
 import { IconButton } from '@/components/ui/IconButton';
 import { cn } from '@/lib/cn';
 
-/** How long the dialog has to leave. Must match `studio-modal-out` in the sheet. */
 const LEAVE_MS = 120;
 
-/**
- * Close the dialog: play it out, then do the thing.
- *
- * With no argument it runs the dialog's own `onClose`; with one, that instead —
- * which is how a confirm button gets the same exit as a cancel button.
- */
 export type ModalClose = (after?: () => void) => void;
 
-/**
- * A handle on a dialog's exit, for the buttons inside it.
- *
- * The chrome — the backdrop, the X, Escape — leaves on its own. Anything the
- * dialog's own footer does has to be routed through this, or the dialog is
- * unmounted by its parent mid-animation and simply vanishes.
- */
 export const useModalClose = () => useRef<ModalClose | null>(null);
 
-/** A centred dialog with a title bar and a footer for its actions. */
 export const Modal = ({
   open,
   onClose,
@@ -38,7 +23,6 @@ export const Modal = ({
 }: {
   open: boolean;
   onClose: () => void;
-  /** Filled with this dialog's `ModalClose`, for buttons in `footer` or `children`. */
   closeRef?: RefObject<ModalClose | null>;
   title: ReactNode;
   width?: string;
@@ -58,8 +42,6 @@ export const Modal = ({
       window.setTimeout(() => {
         (after ?? onClose)();
 
-        // Cleared after the parent has been told, so a dialog that is reopened
-        // rather than unmounted does not arrive already on its way out.
         underway.current = false;
         setLeaving(false);
       }, LEAVE_MS);

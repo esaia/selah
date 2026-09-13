@@ -10,7 +10,6 @@ import { plansFor, type Plan, type PlanId } from '@/lib/billing/plans';
 import { claimedSpots } from '@/lib/billing/seats';
 import { findUseCase, LIVE_SEARCH_DEMO } from '@/lib/marketing/useCases';
 
-/* The rounded display face the brand is drawn in, as on the rest of the site. */
 const DISPLAY = 'font-valera tracking-tight text-site-ink';
 
 const TITLE = 'Proclaim Alternative for Churches | LlamaPresenter';
@@ -33,21 +32,12 @@ export const metadata = {
   twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
 };
 
-/**
- * The two names, spelled the same way everywhere on the page.
- *
- * Proclaim is Logos's church presentation software, and the closest of the
- * four to us: it is sold as cloud software and a subscription covers the whole
- * team. What differs is where the presentation itself runs, and what a church
- * pays to start.
- */
 const OURS = 'LlamaPresenter';
 const THEIRS = 'Proclaim';
 const MAKER = 'Logos';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://llamapresenter.com';
 
-/** The one difference the rest of the page follows from. */
 const PLATFORMS = [
   {
     title: THEIRS,
@@ -61,13 +51,6 @@ const PLATFORMS = [
   },
 ];
 
-/**
- * The table, short on both sides.
- *
- * Only the rows where the two part company, and a phrase in each cell rather
- * than a paragraph: a reader with two columns in front of them is comparing,
- * not reading. What both do is listed once under the table.
- */
 const comparison = (PLANS: Record<PlanId, Plan>): { label: string; ours: string; theirs: string }[] => [
   {
     label: 'Where the software runs',
@@ -131,7 +114,6 @@ const comparison = (PLANS: Record<PlanId, Plan>): { label: string; ours: string;
   },
 ];
 
-/** The rows where a tick on both sides is the honest answer. */
 const SHARED = [
   'Bible search and verse slides',
   'Song lyrics and a song library',
@@ -145,12 +127,6 @@ const SHARED = [
   'A service plan the team can build during the week',
 ];
 
-/**
- * What the browser buys a church that an installed application cannot.
- *
- * Every card here is a row from the table above, said in the way a reader
- * would say it back. Nothing that Proclaim also does belongs on this list.
- */
 const REASONS = [
   {
     title: 'Nothing to install, anywhere',
@@ -184,7 +160,6 @@ const REASONS = [
   },
 ];
 
-/** The three outputs, and what each one carries. */
 const SCREENS = [
   { title: 'Projector', body: 'Show Bible verses, lyrics, announcements, and media to the congregation.' },
   { title: 'Stage', body: 'Give your team the current slide, next slide, agenda, clock, and timer.' },
@@ -210,12 +185,6 @@ const AUDIENCE = [
   },
 ];
 
-/**
- * The questions, in one list.
- *
- * The visible section and the FAQPage structured data are rendered from this,
- * so a search result can never quote an answer the page does not carry.
- */
 const QUESTIONS = [
   {
     q: `Is ${OURS} a ${THEIRS} alternative?`,
@@ -266,13 +235,6 @@ const QUESTIONS = [
   },
 ];
 
-/**
- * What a search engine reads instead of the page.
- *
- * Two graphs only, and nothing in either that the page itself does not say: no
- * rating, no review, no price. The price of Pro moves while the founding spots
- * last, so an offer here would be out of date the week after it was written.
- */
 const structuredData = {
   '@context': 'https://schema.org',
   '@graph': [
@@ -303,14 +265,12 @@ export const revalidate = 60;
 export default async function ProclaimAlternativePage() {
   const PLANS = plansFor(await claimedSpots());
   const COMPARISON = comparison(PLANS);
-  /* The clip lives once, on the use case it was actually shot for. */
   const video = findUseCase('multilingual-church-services')?.video;
 
   return (
     <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
 
-      {/* ------------------------------------------------------------- hero */}
       <section className="mx-auto max-w-7xl px-6 pt-10 pb-8 sm:pt-14">
         <p className="text-sm font-medium tracking-wide text-site-faint uppercase">{THEIRS} alternative</p>
 
@@ -348,8 +308,6 @@ export default async function ProclaimAlternativePage() {
             </div>
           </div>
 
-          {/* Pulled out to the section's own gutter on a wide screen, so the
-              artboard finishes at the edge of the page rather than inside it. */}
           <div className="lg:-mr-6">
             <Image
               src="/images/compare-proclaim.webp"
@@ -365,7 +323,6 @@ export default async function ProclaimAlternativePage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------------------- intro */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto grid max-w-7xl gap-6 px-6 py-14 sm:py-16 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Looking for a {THEIRS} alternative?</h2>
@@ -389,7 +346,6 @@ export default async function ProclaimAlternativePage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------------ the platforms */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Cloud plan, or cloud presentation?</h2>
         <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-site-muted">
@@ -407,7 +363,6 @@ export default async function ProclaimAlternativePage() {
         </div>
       </section>
 
-      {/* -------------------------------------------------------------- table */}
       <section id="table" className="border-y border-site-rule bg-site-band">
         <div className="mx-auto max-w-7xl scroll-mt-20 px-6 py-16 sm:py-24">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>
@@ -500,10 +455,8 @@ export default async function ProclaimAlternativePage() {
         </div>
       </section>
 
-      {/* -------------------------------------------------------------- demo */}
       <ConsoleDemo video={LIVE_SEARCH_DEMO} />
 
-      {/* --------------------------------------------------------- why ours */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>
           What you get here that {THEIRS} does not
@@ -523,7 +476,6 @@ export default async function ProclaimAlternativePage() {
         </div>
       </section>
 
-      {/* --------------------------------------------------------- languages */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-6 py-16 sm:py-24 lg:grid-cols-2 lg:gap-16">
           <div>
@@ -561,7 +513,6 @@ export default async function ProclaimAlternativePage() {
         </div>
       </section>
 
-      {/* ----------------------------------------------------- three screens */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
           <div>
@@ -594,7 +545,6 @@ export default async function ProclaimAlternativePage() {
         </div>
       </section>
 
-      {/* ---------------------------------------------------------- the price */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto grid max-w-7xl gap-6 px-6 py-16 sm:py-24 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>A free plan, not a countdown</h2>
@@ -621,7 +571,6 @@ export default async function ProclaimAlternativePage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------- when theirs is the fit */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <div className="grid gap-6 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>
@@ -667,7 +616,6 @@ export default async function ProclaimAlternativePage() {
         </div>
       </section>
 
-      {/* ---------------------------------------------------------- audience */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Who should use {OURS}?</h2>
@@ -687,10 +635,8 @@ export default async function ProclaimAlternativePage() {
         </div>
       </section>
 
-      {/* --------------------------------------------------------- translations demo */}
       {video ? <ConsoleDemo video={video} /> : null}
 
-      {/* --------------------------------------------------------- questions */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>{THEIRS} alternative FAQ</h2>
 
@@ -704,7 +650,6 @@ export default async function ProclaimAlternativePage() {
         </div>
       </section>
 
-      {/* -------------------------------------------------------- last word */}
       <section className="bg-studio-bg">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-8 px-6 py-20 sm:py-24 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -731,7 +676,6 @@ export default async function ProclaimAlternativePage() {
         </div>
       </section>
 
-      {/* The one line of small print the page owes anybody: whose name that is. */}
       <p className="mx-auto max-w-7xl px-6 pt-10 pb-12 text-sm leading-relaxed text-site-faint">
         {THEIRS} and {MAKER} are trademarks of Faithlife Corporation, and ProPresenter is a trademark of Renewed
         Vision, LLC. {OURS} is not affiliated with, endorsed by or sponsored by either of them. Their names are used

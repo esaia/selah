@@ -4,21 +4,6 @@ import { FoundingLadder, type LadderColors } from '@/components/billing/Founding
 
 import { useCadence } from './cadence';
 
-/**
- * Early pricing on cream paper. `FoundingLadder` is the drawing; this names
- * the colours it wears.
- *
- * The pricing page and the home page show the same thing, at the same size —
- * a visitor who saw the ladder on the way in should recognise it when they get
- * to the page that explains it.
- *
- * A client component only to read the monthly/yearly choice its page is
- * holding, so the rungs move with the switch beside the cards. The console
- * draws its own wrapper, with no switch and no provider, and gets the monthly
- * prices from the context's default.
- */
-
-/* Ink on cream, with the brand yellow as the spot you would take. */
 const COLORS = {
   '--spot-taken': 'var(--color-site-ink)',
   '--spot-next': 'var(--color-site-accent)',

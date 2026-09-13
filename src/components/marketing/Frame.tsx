@@ -2,19 +2,6 @@ import Image from 'next/image';
 
 import { cn } from '@/lib/cn';
 
-/**
- * A screen, on paper.
- *
- * Every product surface on the marketing site is shown inside one of these: a
- * dark pane with the URL it is opened at written above it. The URL bar is not
- * chrome for the look of it — "each screen is a link you open" is the whole
- * pitch, so the address is part of the picture.
- *
- * Give it `src` for a real screenshot, or `children` to render live markup —
- * the slide, the timer and the name card are drawn rather than photographed, so
- * they cannot drift from the product the way a stale PNG does. With neither, it
- * holds a labelled slot so the page can be laid out before the shots exist.
- */
 export const Frame = ({
   url,
   label,
@@ -32,8 +19,6 @@ export const Frame = ({
   children?: React.ReactNode;
   className?: string;
   paneClassName?: string;
-  /** Only where a frame is not laid out in the page's column — the zoomed
-      console ends up the width of the window and needs the shot to match. */
   sizes?: string;
 }) => (
   <figure
@@ -59,7 +44,6 @@ export const Frame = ({
   </figure>
 );
 
-/** What goes here, said plainly, until the screenshot arrives. */
 const Placeholder = ({ label }: { label?: string }) => (
   <div className="flex aspect-16/10 items-center justify-center border border-dashed border-studio-border/60 p-6">
     <span className="text-center text-xs text-studio-faint">{label ?? 'Screenshot'}</span>

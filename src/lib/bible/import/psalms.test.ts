@@ -20,8 +20,6 @@ const psalter = (lengths: Record<number, number>): ParsedBible => ({
 });
 
 describe('measuring the psalm split', () => {
-  // The lengths of the real files this was checked against: the KJV and the
-  // Afrikaans 1933 both give 20, and the Septuagint runs 9 and 10 together.
   it('reads a merged ninth psalm as Septuagint', () => {
     expect(detectPsalms(psalter({ 9: 39, 116: 2 }))).toBe('lxx');
   });

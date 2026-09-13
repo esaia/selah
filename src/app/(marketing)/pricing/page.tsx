@@ -15,19 +15,10 @@ export const metadata = {
     + 'the rate you join on is yours for as long as you stay.',
 };
 
-/**
- * How stale the spot count may be.
- *
- * A minute, because this page is a shop window and not the till: the seat a
- * church is actually charged for is taken in `/api/billing/checkout`, in one
- * statement, so two visitors reading the same "3 left" cannot both be sold it.
- */
 export const revalidate = 60;
 
-/* The rounded display face the brand is drawn in, as on the rest of the site. */
 const DISPLAY = 'font-valera tracking-tight text-site-ink';
 
-/** The questions, plus the one the founding rate raises. */
 const foundingQuestion = (claimed: number) =>
   soldOut(claimed)
     ? {
@@ -41,7 +32,6 @@ const foundingQuestion = (claimed: number) =>
           + 'never yours.',
       };
 
-/** The question the second price on every card raises. */
 const yearlyQuestion = (claimed: number) => {
   const tier = tierNow(claimed);
 
@@ -99,9 +89,6 @@ export default async function PricingPage() {
   const gone = soldOut(claimed);
 
   return (
-    // The whole page, so the switch beside the cards also moves the ladder in
-    // the hero most of a screen above it. Everything inside stays a server
-    // component; only the three pieces that read the choice are not.
     <CadenceProvider>
       <main className="mx-auto max-w-7xl px-6 py-20 sm:py-24">
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:gap-14">
@@ -123,8 +110,6 @@ export default async function PricingPage() {
             <FoundingSpots claimed={claimed} />
           </div>
 
-          {/* What the money is not buying: the timer, the stage and the outputs
-              are all on Free. The plans under it are about volume. */}
           <Monitor
             src="/images/console-timer.webp"
             alt="The console on a desk monitor: the stage timer counting down beside the current and next slide, the
@@ -134,11 +119,6 @@ export default async function PricingPage() {
           />
         </div>
 
-        {/* ----------------------------------------------------- the two columns */}
-        {/* The cards and the monthly/yearly switch that prices them. A client
-            component only for that switch: both sets of prices are rendered here
-            and handed over as a pair, so the page stays a static minute-old
-            render of a count and flipping the switch costs no request. */}
         <PricingCards plans={plans} />
 
         <p className="mt-6 max-w-2xl text-sm leading-relaxed text-site-faint">
@@ -146,7 +126,6 @@ export default async function PricingPage() {
           slide stops being readable from the back of the room, and not something we would charge for.
         </p>
 
-        {/* ------------------------------------------------------------ questions */}
         <section className="mt-20">
           <h2 className={`${DISPLAY} text-2xl sm:text-3xl`}>Questions about pricing</h2>
 
@@ -160,7 +139,6 @@ export default async function PricingPage() {
           </div>
         </section>
 
-        {/* ----------------------------------------------------------- last word */}
         <section className="mt-16 flex flex-col items-start gap-6 rounded-studio-lg border border-site-rule bg-site-band px-6 py-10 sm:flex-row sm:items-center sm:justify-between sm:px-10">
           <div>
             <h2 className={`${DISPLAY} text-2xl`}>Start on Free.</h2>

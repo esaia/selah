@@ -8,14 +8,12 @@ import { Tick } from '@/components/marketing/Tick';
 import { findSolution, SOLUTIONS } from '@/lib/marketing/solutions';
 import { findUseCase } from '@/lib/marketing/useCases';
 
-/* The rounded display face the brand is drawn in, as on the rest of the site. */
 const DISPLAY = 'font-valera tracking-tight text-site-ink';
 
 const OURS = 'LlamaPresenter';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://llamapresenter.com';
 
-/** Every solution is a page at build time; there is no other source of them. */
 export const generateStaticParams = () => SOLUTIONS.map(solution => ({ slug: solution.slug }));
 
 export const generateMetadata = async ({ params }: PageProps<'/solutions/[slug]'>) => {
@@ -48,8 +46,6 @@ export default async function SolutionPage({ params }: PageProps<'/solutions/[sl
   const jobs = solution.useCases.map(findUseCase).filter(item => item !== undefined);
   const nearby = solution.related.map(findSolution).filter(item => item !== undefined);
 
-  /* The questions on the page and the questions a search result may quote are
-     the same list, so an answer can never appear in one and not the other. */
   const structuredData = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -75,7 +71,6 @@ export default async function SolutionPage({ params }: PageProps<'/solutions/[sl
     <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
 
-      {/* ------------------------------------------------------------- hero */}
       <section className="mx-auto max-w-7xl px-6 pt-10 pb-8 sm:pt-14">
         <p className="text-sm font-medium tracking-wide text-site-faint uppercase">
           <Link href="/solutions" className="transition-colors hover:text-site-muted">
@@ -117,7 +112,6 @@ export default async function SolutionPage({ params }: PageProps<'/solutions/[sl
         </div>
       </section>
 
-      {/* ----------------------------------------------------- what goes wrong */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto grid max-w-7xl gap-8 px-6 py-14 sm:py-16 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
           <h2 className={`${DISPLAY} text-2xl leading-[1.1] sm:text-3xl`}>What usually goes wrong</h2>
@@ -133,7 +127,6 @@ export default async function SolutionPage({ params }: PageProps<'/solutions/[sl
         </div>
       </section>
 
-      {/* ------------------------------------------------------------ points */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-20">
         <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>What answers it</h2>
 
@@ -147,7 +140,6 @@ export default async function SolutionPage({ params }: PageProps<'/solutions/[sl
         </div>
       </section>
 
-      {/* ------------------------------------------------------------- steps */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto grid max-w-7xl gap-10 px-6 py-16 sm:py-20 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>How a Sunday runs</h2>
@@ -163,7 +155,6 @@ export default async function SolutionPage({ params }: PageProps<'/solutions/[sl
         </div>
       </section>
 
-      {/* -------------------------------------------------------- the jobs */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-20">
         <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>What a church like this uses</h2>
         <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-site-muted">
@@ -183,7 +174,6 @@ export default async function SolutionPage({ params }: PageProps<'/solutions/[sl
         </div>
       </section>
 
-      {/* --------------------------------------------------------- questions */}
       <section className="border-y border-site-rule bg-site-band">
         <div className="mx-auto max-w-7xl px-6 py-16 sm:py-20">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Questions</h2>
@@ -199,7 +189,6 @@ export default async function SolutionPage({ params }: PageProps<'/solutions/[sl
         </div>
       </section>
 
-      {/* ------------------------------------------------------------ nearby */}
       <section className="mx-auto max-w-7xl px-6 py-16 sm:py-20">
         <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>Churches like yours</h2>
 
@@ -228,7 +217,6 @@ export default async function SolutionPage({ params }: PageProps<'/solutions/[sl
         </p>
       </section>
 
-      {/* -------------------------------------------------------- last word */}
       <section className="bg-studio-bg">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-8 px-6 py-20 sm:py-24 lg:flex-row lg:items-center lg:justify-between">
           <div>

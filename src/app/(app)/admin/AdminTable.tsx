@@ -17,7 +17,6 @@ export interface AdminRow {
 const readable = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
-/** One operator's row, with the button that flips their plan by hand. */
 const Row = ({ row }: { row: AdminRow }) => {
   const [plan, setPlan] = useState(row.plan);
   const [busy, setBusy] = useState(false);

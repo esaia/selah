@@ -5,12 +5,6 @@ import { FREE_LIMITS, LIMIT_KEYS, limitMessage, limitOf, planErrorMessage, remai
 
 const MIGRATIONS = 'supabase/migrations';
 
-/**
- * The last `free_limit()` in the migrations, which is the one the database ends
- * up with. Read by scanning rather than by naming a file, because raising a
- * ceiling means writing another `create or replace` — and a test pinned to the
- * first one would go on checking a definition that has since been replaced.
- */
 const liveFreeLimit = () => {
   const files = readdirSync(MIGRATIONS).filter(name => name.endsWith('.sql')).sort();
   const defining = files.filter(name => readFileSync(`${MIGRATIONS}/${name}`, 'utf8').includes('function public.free_limit'));
@@ -22,12 +16,6 @@ const liveFreeLimit = () => {
   );
 };
 
-/**
- * The numbers exist twice — in limits.json, and in `free_limit()` where they
- * are actually enforced — because the console and Postgres cannot import from
- * each other. This is what keeps the two honest, the same way mapping.test.ts
- * keeps LANGS and languages.json in step.
- */
 describe('the SQL function and the JSON agree', () => {
   const fromSql = liveFreeLimit();
 

@@ -3,14 +3,6 @@ import { NextResponse } from 'next/server';
 import { admin } from '@/lib/supabase/admin';
 import { emptyShowData, REQUIRED_LANG } from '@/lib/types';
 
-/**
- * What a session is showing right now, for an output page that has just opened.
- *
- * The projector and the OBS overlay have no account: knowing the session's
- * unguessable output_key is what authorises them, so this runs with the service
- * role and looks the session up by that key alone. It is read-only, and returns
- * nothing but the current slide and the look it should be drawn in.
- */
 export const GET = async (_request: Request, { params }: RouteContext<'/api/live/[key]'>) => {
   const { key } = await params;
 

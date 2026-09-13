@@ -20,8 +20,6 @@ export const createClient = async () => {
           try {
             cookies.forEach(({ name, value, options }) => store.set(name, value, options));
           } catch {
-            // Called from a Server Component, where cookies are read-only. The
-            // middleware refreshes the session, so this is safe to ignore.
           }
         },
       },
@@ -29,12 +27,6 @@ export const createClient = async () => {
   );
 };
 
-/**
- * The signed-in operator, or null.
- *
- * Tolerates an unconfigured project so the marketing pages render on a fresh
- * clone, before anyone has filled in `.env.local`.
- */
 export const getUser = async (): Promise<User | null> => {
   if (!configured()) return null;
 

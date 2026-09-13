@@ -34,7 +34,6 @@ describe('lookOf', () => {
   });
 
   it('does not read a verse look as a lyric one', () => {
-    // 'plate' is in both lists and must stay; 'chip' is verses only.
     expect(lookOf('chip', true).value).toBe(DEFAULT_LYRIC_LOOK);
     expect(lookOf('plate', true).value).toBe('plate');
   });
@@ -51,7 +50,6 @@ describe('fitTo', () => {
   });
 
   it('lets the size raise the look past its own ceiling', () => {
-    // height/4 for this look, so anything above 25% is the operator's alone.
     expect(fitTo(look, 1000, { min: 10, scale: 'both', size: MAX_TEXT_SIZE }).max).toBe(300);
   });
 

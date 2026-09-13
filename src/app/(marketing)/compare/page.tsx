@@ -8,7 +8,6 @@ import { plansFor, type Plan, type PlanId } from '@/lib/billing/plans';
 import { claimedSpots } from '@/lib/billing/seats';
 import { findUseCase, LIVE_SEARCH_DEMO } from '@/lib/marketing/useCases';
 
-/* The rounded display face the brand is drawn in, as on the rest of the site. */
 const DISPLAY = 'font-valera tracking-tight text-site-ink';
 
 const OURS = 'LlamaPresenter';
@@ -33,15 +32,8 @@ export const metadata = {
   twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
 };
 
-/** When the other five columns were last read off their makers' own pages. */
 const CHECKED = 'September 2026';
 
-/**
- * The columns, in the order the table reads them.
- *
- * Ours is first and tinted rather than hidden in the middle: a table written by
- * one of the products in it is only worth reading if you can see which one.
- */
 const COLUMNS: CompareColumn[] = [
   { name: OURS, ours: true },
   { name: 'ProPresenter', href: '/propresenter-alternative' },
@@ -50,14 +42,6 @@ const COLUMNS: CompareColumn[] = [
   { name: 'Proclaim', href: '/proclaim-alternative' },
 ];
 
-/**
- * The grid.
- *
- * Every square is either what a maker publishes about their own product or
- * what their own support pages say, read in {CHECKED}. Where we could not
- * confirm one, it is a dash rather than a guess — the rows that would be easy
- * to score against a competitor are exactly the rows worth being careful in.
- */
 const groups = (PLANS: Record<PlanId, Plan>): CompareGroup[] => [
   {
     title: 'Where it runs',
@@ -146,7 +130,6 @@ const groups = (PLANS: Record<PlanId, Plan>): CompareGroup[] => [
   },
 ];
 
-/** The long version of each column, for a reader who wants the argument. */
 const PAGES = [
   {
     href: '/propresenter-alternative',
@@ -185,12 +168,10 @@ export const revalidate = 60;
 export default async function ComparePage() {
   const PLANS = plansFor(await claimedSpots());
   const GROUPS = groups(PLANS);
-  /* The clip lives once, on the use case it was actually shot for. */
   const video = findUseCase('multilingual-church-services')?.video;
 
   return (
     <main>
-      {/* ------------------------------------------------------------- hero */}
       <section className="mx-auto max-w-7xl px-6 pt-10 pb-8 sm:pt-14">
         <p className="text-sm font-medium tracking-wide text-site-faint uppercase">Comparison</p>
 
@@ -220,7 +201,6 @@ export default async function ComparePage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------------------ matrix */}
       <section className="mx-auto max-w-7xl px-6 py-12 sm:py-16">
         <CompareMatrix columns={COLUMNS} groups={GROUPS} />
 
@@ -230,11 +210,9 @@ export default async function ComparePage() {
         </p>
       </section>
 
-      {/* -------------------------------------------------------------- demo */}
       {video ? <ConsoleDemo video={video} band={false} /> : null}
       <ConsoleDemo video={LIVE_SEARCH_DEMO} />
 
-      {/* ----------------------------------------------------- the long form */}
       <section className="border-t border-site-rule bg-site-band">
         <div className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
           <h2 className={`${DISPLAY} text-3xl leading-[1.1] sm:text-4xl`}>One at a time</h2>
@@ -264,7 +242,6 @@ export default async function ComparePage() {
         </div>
       </section>
 
-      {/* -------------------------------------------------------- last word */}
       <section className="bg-studio-bg">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-8 px-6 py-20 sm:py-24 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -291,7 +268,6 @@ export default async function ComparePage() {
         </div>
       </section>
 
-      {/* The one line of small print the page owes anybody: whose names those are. */}
       <p className="mx-auto max-w-7xl px-6 pt-10 pb-12 text-sm leading-relaxed text-site-faint">
         ProPresenter is a trademark of Renewed Vision, LLC. EasyWorship is a trademark of Softouch Development, Inc.
         Proclaim and Logos are trademarks of Faithlife Corporation. FreeShow is an open-source project owned by its

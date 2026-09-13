@@ -2,11 +2,6 @@ import Link from 'next/link';
 
 import { Wordmark } from '@/components/brand/Wordmark';
 
-/**
- * Rendered outside the `(marketing)` group's own layout — a 404 can be hit
- * from any route, console included — so this page carries its own header
- * rather than borrowing the marketing nav.
- */
 export default function NotFound() {
   return (
     <div className="site flex min-h-dvh flex-col items-center justify-center px-6 text-center">
