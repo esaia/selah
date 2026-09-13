@@ -102,6 +102,24 @@ domain vocabulary. This file is the working agreement on top of it.
   database holds metadata only. Do not "simplify" this into Supabase Storage
   without asking — it is a deliberate cost decision.
 
+## Researching before you dig
+
+Before grepping the codebase or reading files to understand *why* something is
+shaped the way it is, check `docs/vault/00-Index.md` first. It's a one-page
+list of every feature note, each titled with the decision it records — reading
+it costs a fraction of what a code search does. If a title matches what you're
+about to touch, read that one note (`docs/vault/Features/<name>.md`) instead
+of reconstructing the reasoning from the diff or from scratch. If nothing
+matches, fall back to the code and `git log` as usual — the vault only covers
+choices a reasonable person would question, not everything shipped.
+
+Keep the two note types separate: a vault note explains a past decision and
+can't stop you from redoing it wrong; a rule in `.ai/rules/` fires mid-edit
+and is what actually prevents the mistake — see `docs/vault/rules-vs-notes.md`
+for which one applies. Don't read the whole vault or every rule file up
+front — match by filename/keyword against the task, open only what's
+relevant.
+
 ## Conventions
 
 - Functional components, named exports, Tailwind 4 utilities inline. Console

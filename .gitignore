@@ -40,3 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# obsidian (per-machine UI state; the vault's shared config is committed)
+docs/vault/.obsidian/workspace*
+docs/vault/.obsidian/cache
+docs/vault/.trash/
